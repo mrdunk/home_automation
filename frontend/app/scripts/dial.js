@@ -1,7 +1,11 @@
-'use strict';
+
+
+var activeTreashold = 2;  // Grey out dial if data received threshold drops below 2.
+var activeMax = 3;        // Maximum value for data received threshold.
 
 /* Return a colour appropriate for the angle requested. */
 function colour(angle){
+	'use strict';
 	return 'hsl(' + (0.25 - angle/360/4) + ', 0.99, 0.5)';
 }
 
@@ -16,15 +20,17 @@ function colour(angle){
  *   lineThickness: Thickness of dial elements.
  *   lineSpacing: Distance between dial elements.
  *   temperatureMin, temperatureMax: Range temperatures are displayed between.
+ *   updateDelay: Time delay between user input and callback function triggering. (ms)
  *   callback: Callback function triggered when dial is moved.
  */
-function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadius, lineThickness, lineSpacing, temperatureMin, temperatureMax, callback){
+function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadius, lineThickness, lineSpacing, temperatureMin, temperatureMax, updateDelay, callback){
+	'use strict';
 	var dialSensitivity = 360 / (temperatureMax - temperatureMin);
 	var dialOffset = temperatureMin * dialSensitivity;
 	this.label = label;
 	this.paper = paper;
 	this.callback = callback;
-	this.updateDelay = 2000;  // Time delay between user input and callback function triggering. (ms)
+	this.updateDelay = updateDelay;  // Time delay between user input and callback function triggering. (ms)
 	this.elementList = [];
 	var diamiter = baseRadius;
 	this.sendUserInput = false;
@@ -36,24 +42,41 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 								   this.paper, centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	}
 
+	// Initialise a counter which decreases at the rate data should be coming in at so we can test the rate of received data.
+	var activeTimer = function( )
+	{
+		for(var key in this.elementList){
+	                var element = this.elementList[key];
+			if(element.active > 0){
+				element.active = element.active -1;
+				//console.log(element.label, element.active);
+			}
+		}
+	}.bind(this);
+        if(typeof updateDelay !== 'undefined'){
+                setInterval(activeTimer, updateDelay);
+        }
+
+
 	this.updateData();
 }
 TemperatureSensor.prototype.updateData = function(data){
+	'use strict';
 	if (typeof data === 'undefined'){
 		// Data not specified so insert test data.
 		data = {'00000536d60c':[20,1], 
 		        '0000053610c1':[30,2]};
-		data['set_'.concat(this.label)] = [10,1];
+		data['set_'.concat(this.label)] = [0,1];
 		console.log('inserting test data');
 		console.log(data);
 	} else {
-		console.log(data);
+		//console.log(data);
 	}
 	
 	for(var key in this.elementList){
 		var element = this.elementList[key];
 		if(element.identifier in data){
-			console.log(key, element.identifier, element.userInput, data[element.identifier][0]);
+			//console.log(key, element.identifier, element.userInput, data[element.identifier][0]);
 			if(element.userInput === 1){
 				// User has finnished adjusting controls but we don't want to update with received data
 				// until our new data has been sent and received back from server.
@@ -64,15 +87,13 @@ TemperatureSensor.prototype.updateData = function(data){
 				// User not adjusting controls. Free to display whatever the server thinks.
 				element.updateData(data[element.identifier][0]);
 			}
-			element.active = true;
-			//log(data[element.identifier][0], this.label + ' ' + element.identifier);
-		} else {
-			element.active = false;
-			//log('NA', this.label + ' ' + element.identifier);
+			if(element.active < activeMax){
+				element.active = element.active +2;
+				//console.log(element.label, element.active, '+');
+			}
 		}
 		element.updateGraph();
 	}
-	console.log(this.sendUserInput);
 	if(this.sendUserInput === true){
 		console.log('Sending: ', this.elementList[0].temperature);
 		this.callback(this.elementList[0].temperature, this.label);
@@ -81,6 +102,7 @@ TemperatureSensor.prototype.updateData = function(data){
 };
 
 TemperatureSensor.prototype.updateGraph = function(){
+	'use strict';
 	var totalTemp = 0, totalCount = 0;
 	var element, key;
 	var barElement = this.elementList[0];
@@ -107,8 +129,8 @@ TemperatureSensor.prototype.updateGraph = function(){
 	if (barElement.userInput === 3){
 		barElement.userInput = 2;
 		if (typeof this.callback !== 'undefined'){
-			clearTimeout(this.timeout);
-			this.timeout = setTimeout(function(){this.sendUserInput = true; barElement.userInput = 1;}.bind(this), this.updateDelay);
+			clearTimeout(this.barTimeout);
+			this.barTimeout = setTimeout(function(){this.sendUserInput = true; barElement.userInput = 1;}.bind(this), this.updateDelay);
 		}
 	}
 };
@@ -122,6 +144,7 @@ TemperatureSensor.prototype.updateGraph = function(){
  *         a controller to be dragged into position.
  */
 function TemperatureSensorElement(label, identifier, type, paper, x, y, radius, thickness, dialSensitivity, dialOffset){
+	'use strict';
 	this.label = label;
 	this.identifier = identifier;
 	this.type = type;
@@ -133,19 +156,22 @@ function TemperatureSensorElement(label, identifier, type, paper, x, y, radius, 
 	this.dialSensitivity = dialSensitivity;
 	this.dialOffset = dialOffset;
 	this.desiredAngle = 0;
-	this.active = false;
+	this.active = activeTreashold;
 	this.userInput = 0;
 	this.temperature = 0;
 
 	console.log('registerd TemperatureSensorElement: ' + identifier);
 }
 TemperatureSensorElement.prototype.temperatureToAngle = function(temperature){
+	'use strict';
 	return (temperature * this.dialSensitivity) - this.dialOffset;
 };
 TemperatureSensorElement.prototype.angleToTemperature = function(angle){
+	'use strict';
 	return ((angle + this.dialOffset) / this.dialSensitivity).toFixed(1);
 };
 TemperatureSensorElement.prototype.updateData = function(setTemp){
+	'use strict';
 	if (typeof setTemp !== 'undefined'){
 		if(this.type === 'bar'){
 			this.desiredAngle = this.temperatureToAngle(setTemp);
@@ -155,6 +181,7 @@ TemperatureSensorElement.prototype.updateData = function(setTemp){
 	}
 };
 TemperatureSensorElement.prototype.setInput = function(dx, dy){
+	'use strict';
 	this.userInput = 3;
 
 	this.desiredAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
@@ -162,6 +189,7 @@ TemperatureSensorElement.prototype.setInput = function(dx, dy){
 
 };
 TemperatureSensorElement.prototype.setUp = function(){
+	'use strict';
                 console.log('initialising pathObject');
 
                 this.pathObject = this.paper.path();
@@ -191,6 +219,7 @@ TemperatureSensorElement.prototype.setUp = function(){
 		}
 };
 TemperatureSensorElement.prototype.updateGraph = function(){
+	'use strict';
 	var angleSet = this.temperatureToAngle(this.temperature);
 	var _angle = angleSet * Math.PI / 180;
 
@@ -224,7 +253,7 @@ TemperatureSensorElement.prototype.updateGraph = function(){
 	}
 	
 	var currentColour = 'grey';
-	if(this.active){
+	if(this.active >= activeTreashold){
 		currentColour = colour(angleSet);
 	}
 	this.pathObject.attr({'path': path,

@@ -1,0 +1,19 @@
+application: home-automation-7
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /dial
+  static_dir: dial
+- url: /fonts
+  static_dir: dial/fonts
+- url: /.*
+  script: main.application
+
+libraries:
+- name: webapp2
+  version: latest
+- name: pycrypto  
+  version: "2.3"
