@@ -5,14 +5,20 @@ var serverFQDN = serverFQDN1;
 
 //var serverCubeMetricPort = '1081';
 //var serverCubeCollectorPort = '1080';
-var serverCubeMetricPort = '80';
-var serverCubeCollectorPort = '80';
+var serverCubeMetricPort1 = '80';
+var serverCubeCollectorPort1 = '80';
+var serverCubeMetricPort2 = '8080';
+var serverCubeCollectorPort2 = '8080';
+var serverCubeMetricPort = serverCubeMetricPort1;
+var serverCubeCollectorPort = serverCubeCollectorPort1;
 
 var timeWindow = 2;  // Period of history to average data over. (minutes)
 
 var timeDataUpdateWget = 500;  // How often to query server for data for regular wget. (ms)
 var timeDataUpdateWs = 100;  // How often to query server for data for websocket. (ms)
 var timeDataUpdateProblems = 10000;  // Extend timeouuts when we are haing connection problems.
+
+var failuresBeforeSwapHostName = 10;
 
 var tempSensorList = ['00000536d60c', '0000053610c1'];
 
@@ -23,19 +29,37 @@ var useWebSocket = true;
 var timeDataUpdate;
 var setUpdateTime = function(newTime){
 	'use strict';
-	if (typeof newTime === 'undefined'){
-		timeDataUpdate = timeDataUpdateWget;
+
+	// If timeDataUpdate is undefined, this is the first time we've run this function. set sensible defaults.
+	if (typeof timeDataUpdate === 'undefined'){
 		if (useWebSocket && ('WebSocket' in window)){
 			timeDataUpdate = timeDataUpdateWs;
+		} else {
+			timeDataUpdate = timeDataUpdateWget;
+		}
+	}
+
+	if (typeof newTime === 'undefined'){
+		if (useWebSocket && ('WebSocket' in window)){
+			if(timeDataUpdate > timeDataUpdateWs){
+				timeDataUpdate = timeDataUpdate - 10;
+			}
+		} else {
+			if(timeDataUpdate > timeDataUpdateWget){
+				timeDataUpdate = timeDataUpdate - 10;
+			}
 		}
 	} else {
-		timeDataUpdate = newTime;
+		if(timeDataUpdate < newTime){
+			timeDataUpdate = timeDataUpdate + 50;
+		}
 	}
 
 	if(typeof dataUpdateInterval !== 'undefined'){
 		window.clearInterval(dataUpdateInterval);
 		setDataUpdateInterval();		
 	}
+	log(timeDataUpdate, 'timeDataUpdate');
 };
 
 var logDict = {};
@@ -91,6 +115,7 @@ window.onload = function () {
         myTs2 = new TemperatureSensor('Test dial', paper, tempSensorList, 230, 200, 50, 7, 9, 0, 40);
 
         graphUpdateInterval = window.setInterval(function(){
+		// TODO: onlu update if dirty.
                 myTs.updateGraph();
                 myTs2.updateGraph();
         }, 50);
@@ -98,20 +123,35 @@ window.onload = function () {
 	setDataUpdateInterval();
 };
 
-var swapHostnames = function(){
+var connectionFailCounter = failuresBeforeSwapHostName;
+var connectionSucess = function(){
+	connectionFailCounter = failuresBeforeSwapHostName;
+        log(connectionFailCounter, 'connectionFailCounter');
+};
+var connectionFail = function(){
 	setUpdateTime(timeDataUpdateProblems);
-
-	if(serverFQDN === serverFQDN1){
-		serverFQDN = serverFQDN2;
+	
+	if(connectionFailCounter > 0){
+		connectionFailCounter = connectionFailCounter -1;
+	        log(connectionFailCounter, 'connectionFailCounter');
 	} else {
-		serverFQDN = serverFQDN1;
-	}
-        console.log('Hostname:', serverFQDN);
+		if(serverFQDN === serverFQDN1){
+                        serverCubeMetricPort = serverCubeMetricPort2;
+                        serverCubeCollectorPort = serverCubeCollectorPort2;
+			serverFQDN = serverFQDN2;
+		} else {
+			serverCubeMetricPort = serverCubeMetricPort1;
+			serverCubeCollectorPort = serverCubeCollectorPort1;
+			serverFQDN = serverFQDN1;
+		}
+		log(serverFQDN + ':' + serverCubeMetricPort, 'Hostname');
+		console.log('Hostname:', serverFQDN + ':' + serverCubeMetricPort);
 
-	for(var socketKey in sockets){
-		console.log('closing', socketKey);
-		sockets[socketKey].close();
-		delete sockets[socketKey];
+		for(var socketKey in sockets){
+			console.log('closing', socketKey);
+			sockets[socketKey].close();
+			delete sockets[socketKey];
+		}
 	}
 };
 
@@ -194,7 +234,7 @@ var getData = function (callback) {
         var retVals = {};
 	var countSocketReplies = 0;
 
-	var connectionTimeout = setTimeout(function(){swapHostnames();}, timeDataUpdate*10);
+	var connectionTimeout = setTimeout(function(){connectionFail();}, timeDataUpdate*10);
 
 
         if (useWebSocket && ('WebSocket' in window)){
@@ -217,8 +257,6 @@ var getData = function (callback) {
                                                 }));
                 };
                 socket.onmessage = function(message) {
-			setUpdateTime();  // Restore normal timeouts incase they were extended due to failed transmissions.
-			clearTimeout(connectionTimeout);
 			var retValsTotal = {};
 			var retValsCount = {};
 
@@ -239,8 +277,10 @@ var getData = function (callback) {
 				countSocketReplies += 1;
 				if (countSocketReplies === 2){
 					// All expected replies have been recieved.
-					//socket.close();
 					if (typeof callback !== 'undefined'){
+						setUpdateTime();  // Restore normal timeouts incase they were extended due to failed transmissions.
+						clearTimeout(connectionTimeout);
+						connectionSucess();
 						callback(retVals);
 					}
 				}
@@ -254,18 +294,12 @@ var getData = function (callback) {
 			delete sockets['/cube-metric-ws/1.0/event/get'];
 
 			// Since we have canceled the connectionTimeout, we need to try the alternative host manually.
-			swapHostnames();
+			connectionFail();
 			
 			// We still want to do the callback so depandants know that no data is being received.
 			if (typeof callback !== 'undefined'){
 				callback({});
 			}
-		};
-		socket.onclose = function()
-		{
-			//if (typeof callback !== 'undefined'){
-			//	callback(retVals);
-			//}
 		};
         } else {
                 /*WebSockets are not supported. Try a fallback method like long-polling etc*/
@@ -283,6 +317,7 @@ var getData = function (callback) {
 			request.onreadystatechange = function() {//Call a function when the state changes.
 				if(request.readyState === 4 && request.status === 200) {
 		                        setUpdateTime();  // Restore normal timeouts incase they were extended due to failed transmissions.
+					connectionSucess();
 					clearTimeout(connectionTimeout);
 
 					var returnedData = request.responseText;
@@ -307,7 +342,7 @@ var getData = function (callback) {
 				} else if(request.readyState === 4 && request.status === 0) {
 					// error
 					clearTimeout(connectionTimeout);
-					swapHostnames();
+					connectionFail();
 				}
 				// either data has arrived or there was a problem so execute callback function.
 				if (typeof callback !== 'undefined'){

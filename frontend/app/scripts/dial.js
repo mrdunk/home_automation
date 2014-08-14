@@ -1,7 +1,7 @@
 
 
 var activeTreashold = 2;  // Grey out dial if data received threshold drops below 2.
-var activeMax = 3;        // Maximum value for data received threshold.
+var activeMax = 10;        // Maximum value for data received threshold.
 
 /* Return a colour appropriate for the angle requested. */
 function colour(angle){
@@ -34,6 +34,7 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 	this.elementList = [];
 	var diamiter = baseRadius;
 	this.sendUserInput = false;
+	this.liveData = false;		// Set this true if dial is to be updated on a regular basis.
 	this.elementList.push(new TemperatureSensorElement(label, 'set_' + label, 'bar', this.paper,
 							   centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	for(var sensor in sensorList){
@@ -49,7 +50,7 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 	                var element = this.elementList[key];
 			if(element.active > 0){
 				element.active = element.active -1;
-				//console.log(element.label, element.active);
+				log(element.active, 'active');
 			}
 		}
 	}.bind(this);
@@ -71,6 +72,7 @@ TemperatureSensor.prototype.updateData = function(data){
 		console.log(data);
 	} else {
 		//console.log(data);
+		this.liveData = true;
 	}
 	
 	for(var key in this.elementList){
@@ -87,7 +89,7 @@ TemperatureSensor.prototype.updateData = function(data){
 				// User not adjusting controls. Free to display whatever the server thinks.
 				element.updateData(data[element.identifier][0]);
 			}
-			if(element.active < activeMax){
+			if(element.active < activeMax && this.liveData === true){
 				element.active = element.active +2;
 				//console.log(element.label, element.active, '+');
 			}
