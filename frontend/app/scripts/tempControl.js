@@ -18,7 +18,7 @@ var timeDataUpdateWget = 500;  // How often to query server for data for regular
 var timeDataUpdateWs = 100;  // How often to query server for data for websocket. (ms)
 var timeDataUpdateProblems = 10000;  // Extend timeouuts when we are haing connection problems.
 
-var failuresBeforeSwapHostName = 10;
+var failuresBeforeSwapHostName = 5;
 
 var tempSensorList = ['00000536d60c', '0000053610c1'];
 
@@ -115,7 +115,7 @@ window.onload = function () {
         myTs2 = new TemperatureSensor('Test dial', paper, tempSensorList, 230, 200, 50, 7, 9, 0, 40);
 
         graphUpdateInterval = window.setInterval(function(){
-		// TODO: onlu update if dirty.
+		// TODO: only update if dirty.
                 myTs.updateGraph();
                 myTs2.updateGraph();
         }, 50);
@@ -123,18 +123,29 @@ window.onload = function () {
 	setDataUpdateInterval();
 };
 
-var connectionFailCounter = failuresBeforeSwapHostName;
-var connectionSucess = function(){
+var connectionFailCounter = 0;
+var connectionSucess = function(callback){
+	// Enable dial.
+	if (typeof callback !== 'undefined'){
+		callback(true);
+	}
+
 	connectionFailCounter = failuresBeforeSwapHostName;
         log(connectionFailCounter, 'connectionFailCounter');
 };
-var connectionFail = function(){
+
+var connectionFail = function(callback){
 	setUpdateTime(timeDataUpdateProblems);
 	
 	if(connectionFailCounter > 0){
 		connectionFailCounter = connectionFailCounter -1;
 	        log(connectionFailCounter, 'connectionFailCounter');
 	} else {
+		// Disable dial.
+		if (typeof callback !== 'undefined'){
+			callback(false);
+		}
+
 		if(serverFQDN === serverFQDN1){
                         serverCubeMetricPort = serverCubeMetricPort2;
                         serverCubeCollectorPort = serverCubeCollectorPort2;
@@ -234,7 +245,8 @@ var getData = function (callback) {
         var retVals = {};
 	var countSocketReplies = 0;
 
-	var connectionTimeout = setTimeout(function(){connectionFail();}, timeDataUpdate*10);
+	// We need the timeout to occur before the next itteration of this function, hence the "- (Math.random() * 20)".
+	var connectionTimeout = setTimeout(function(){connectionFail(callback);}, timeDataUpdate - (Math.random() * 20));
 
 
         if (useWebSocket && ('WebSocket' in window)){
@@ -280,7 +292,7 @@ var getData = function (callback) {
 					if (typeof callback !== 'undefined'){
 						setUpdateTime();  // Restore normal timeouts incase they were extended due to failed transmissions.
 						clearTimeout(connectionTimeout);
-						connectionSucess();
+						connectionSucess(callback);
 						callback(retVals);
 					}
 				}
@@ -294,7 +306,7 @@ var getData = function (callback) {
 			delete sockets['/cube-metric-ws/1.0/event/get'];
 
 			// Since we have canceled the connectionTimeout, we need to try the alternative host manually.
-			connectionFail();
+			connectionFail(callback);
 			
 			// We still want to do the callback so depandants know that no data is being received.
 			if (typeof callback !== 'undefined'){
@@ -305,19 +317,21 @@ var getData = function (callback) {
                 /*WebSockets are not supported. Try a fallback method like long-polling etc*/
                 log('un-supported', 'WebSocket');
 
-                var url1 = 'http://' + serverFQDN + ':' + serverCubeMetricPort ;
+		var url1, url2;
+                url1 = 'http://' + serverFQDN + ':' + serverCubeMetricPort ;
                 url1 += '/cube-metric/1.0/event/get?expression=sensors(key,val).eq(label,\'1wire\')&start=' + dateStartRead + '&stop=' + dataStop ;
-		var url2 = 'http://' + serverFQDN + ':' + serverCubeMetricPort ;
+		url2 = 'http://' + serverFQDN + ':' + serverCubeMetricPort ;
                 url2 += '/cube-metric/1.0/event/get?expression=userInput(key,val).eq(key,\'set_Temperature\')&start=' + dateStartSet + '&stop=' + dataStop ;
                 url2 += '&limit=1';
-                //log(url2);
 
+		var firstError;
+		firstError = true;
 		var httpRequest = function(url){
 			var request = new XMLHttpRequest();
 			request.onreadystatechange = function() {//Call a function when the state changes.
 				if(request.readyState === 4 && request.status === 200) {
 		                        setUpdateTime();  // Restore normal timeouts incase they were extended due to failed transmissions.
-					connectionSucess();
+					connectionSucess(callback);
 					clearTimeout(connectionTimeout);
 
 					var returnedData = request.responseText;
@@ -339,10 +353,9 @@ var getData = function (callback) {
 						}
 						retVals[key] = [retValsTotal[key] / retValsCount[key], retValsCount[key]];
 					}
-				} else if(request.readyState === 4 && request.status === 0) {
+				} else if(request.readyState === 4) {
 					// error
-					clearTimeout(connectionTimeout);
-					connectionFail();
+					// We rely on the connectionTimeout to call error handling code.
 				}
 				// either data has arrived or there was a problem so execute callback function.
 				if (typeof callback !== 'undefined'){
@@ -355,7 +368,6 @@ var getData = function (callback) {
 			
 			// We piggyback our authentication key on the Content-Type as Chrome does not allow us to modify any other headers.
                         request.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8,X-Key=' + location.hash);
-			
 			request.send(null);
 		};
 		httpRequest(url1);

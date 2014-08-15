@@ -1,8 +1,3 @@
-
-
-var activeTreashold = 2;  // Grey out dial if data received threshold drops below 2.
-var activeMax = 10;        // Maximum value for data received threshold.
-
 /* Return a colour appropriate for the angle requested. */
 function colour(angle){
 	'use strict';
@@ -34,6 +29,7 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 	this.elementList = [];
 	var diamiter = baseRadius;
 	this.sendUserInput = false;
+	this.active = true;
 	this.liveData = false;		// Set this true if dial is to be updated on a regular basis.
 	this.elementList.push(new TemperatureSensorElement(label, 'set_' + label, 'bar', this.paper,
 							   centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
@@ -42,22 +38,6 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 		this.elementList.push(new TemperatureSensorElement(label + '_' + sensorList[sensor], sensorList[sensor], 'arc',
 								   this.paper, centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	}
-
-	// Initialise a counter which decreases at the rate data should be coming in at so we can test the rate of received data.
-	var activeTimer = function( )
-	{
-		for(var key in this.elementList){
-	                var element = this.elementList[key];
-			if(element.active > 0){
-				element.active = element.active -1;
-				log(element.active, 'active');
-			}
-		}
-	}.bind(this);
-        if(typeof updateDelay !== 'undefined'){
-                setInterval(activeTimer, updateDelay);
-        }
-
 
 	this.updateData();
 }
@@ -70,10 +50,15 @@ TemperatureSensor.prototype.updateData = function(data){
 		data['set_'.concat(this.label)] = [0,1];
 		console.log('inserting test data');
 		console.log(data);
+	} else if(typeof data === "boolean"){
+		this.active = data;
+		log(this.active, 'active0');
+		return;
 	} else {
 		//console.log(data);
 		this.liveData = true;
 	}
+
 	
 	for(var key in this.elementList){
 		var element = this.elementList[key];
@@ -89,12 +74,8 @@ TemperatureSensor.prototype.updateData = function(data){
 				// User not adjusting controls. Free to display whatever the server thinks.
 				element.updateData(data[element.identifier][0]);
 			}
-			if(element.active < activeMax && this.liveData === true){
-				element.active = element.active +2;
-				//console.log(element.label, element.active, '+');
-			}
 		}
-		element.updateGraph();
+		//element.updateGraph();
 	}
 	if(this.sendUserInput === true){
 		console.log('Sending: ', this.elementList[0].temperature);
@@ -111,20 +92,21 @@ TemperatureSensor.prototype.updateGraph = function(){
 
 	for(key in this.elementList){
 		element = this.elementList[key];
+
+		// Update each element.
+                element.updateGraph(this.active);
+
+		// Calculate average temperature of all inputs.
 		if(key > 0){
 			totalCount += 1;
 			totalTemp += element.temperature;
 		}
 	}
+	// And set colour of bar depending on whether it is higher or lower than the average input temp.
 	if(barElement.temperature < totalTemp / totalCount){
 		barElement.baseGradient = '90-#526c7a-#64a0c1';
 	} else {
 		barElement.baseGradient = '90-#c13629-#ff5032';
-	}
-
-        for(key in this.elementList){
-		element = this.elementList[key];
-		element.updateGraph();
 	}
 
 	// If set teperature has been changed by user within the last cycle...
@@ -158,7 +140,6 @@ function TemperatureSensorElement(label, identifier, type, paper, x, y, radius, 
 	this.dialSensitivity = dialSensitivity;
 	this.dialOffset = dialOffset;
 	this.desiredAngle = 0;
-	this.active = activeTreashold;
 	this.userInput = 0;
 	this.temperature = 0;
 
@@ -220,7 +201,7 @@ TemperatureSensorElement.prototype.setUp = function(){
                         };
 		}
 };
-TemperatureSensorElement.prototype.updateGraph = function(){
+TemperatureSensorElement.prototype.updateGraph = function(active){
 	'use strict';
 	var angleSet = this.temperatureToAngle(this.temperature);
 	var _angle = angleSet * Math.PI / 180;
@@ -255,7 +236,7 @@ TemperatureSensorElement.prototype.updateGraph = function(){
 	}
 	
 	var currentColour = 'grey';
-	if(this.active >= activeTreashold){
+	if(active === true){
 		currentColour = colour(angleSet);
 	}
 	this.pathObject.attr({'path': path,
