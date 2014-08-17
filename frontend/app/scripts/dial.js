@@ -75,7 +75,6 @@ TemperatureSensor.prototype.updateData = function(data){
 				element.updateData(data[element.identifier][0]);
 			}
 		}
-		//element.updateGraph();
 	}
 	if(this.sendUserInput === true){
 		console.log('Sending: ', this.elementList[0].temperature);

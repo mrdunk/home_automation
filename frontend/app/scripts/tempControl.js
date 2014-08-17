@@ -55,10 +55,6 @@ var setUpdateTime = function(newTime){
 		}
 	}
 
-	if(typeof dataUpdateInterval !== 'undefined'){
-		window.clearInterval(dataUpdateInterval);
-		setDataUpdateInterval();		
-	}
 	log(timeDataUpdate, 'timeDataUpdate');
 };
 
@@ -92,23 +88,53 @@ var log = function(text, key, clear){
 var graphUpdateInterval, dataUpdateInterval;
 
 var setDataUpdateInterval = function () {
+        'use strict';
+	if(typeof dataUpdateInterval !== 'undefined'){
+                window.clearInterval(dataUpdateInterval);
+        }
         dataUpdateInterval = window.setInterval(function(){
-                        data = getData(myTs.updateData.bind(myTs));
+                        getTemperatureData(myTs.updateData.bind(myTs));
                         }, timeDataUpdate);
 };
 
 
-var graphUpdateInterval, dataUpdateInterval, myTs, myTs2;
+var graphUpdateInterval, dataUpdateInterval, myTs, myTs2, authKey;
+
 window.onload = function () {
         'use strict';
         log('window.onload');
 	log(location.hash, 'hash');
+	authKey = getAuthKey();
+	
+};
 
+window.onhashchange = function () {
+	'use strict';
+	console.log(location.hash);
+
+	window.clearInterval(dataUpdateInterval);
+	window.clearInterval(graphUpdateInterval);
+
+	if(location.hash === '#control'){
+		pageDials();
+	} else if(location.hash === '#config'){
+		pageConfig();
+	} else if(location.hash === '#graphs'){
+                //pageGraphs();
+        } else if(location.hash.indexOf('key=') === 1){
+		authKey = getAuthKey();
+	}
+};
+
+var pageDials = function () {
+        'use strict';
+	console.log('pageDials');
 	setUpdateTime();
         
-	var data = getData();
+	var data = getTemperatureData();
 
         // Creates canvas 320 × 200 at 100, 200
+	document.getElementById('paper').innerHTML = "";
         var paper = new Raphael(document.getElementById('paper'), "100%", 400);
 
         myTs = new TemperatureSensor('Temperature', paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, timeDataUpdate, sendData);
@@ -123,8 +149,48 @@ window.onload = function () {
 	setDataUpdateInterval();
 };
 
+var getAuthKey = function(){
+        'use strict';
+	// See if key has been sent as POST.
+	if(location.hash.indexOf('key=') === 1){
+		return location.hash.substr(5);
+	}
+
+	// Otherwise, get key from server.
+	var returnedData;
+	var url = '/authKey/';
+	var request = new XMLHttpRequest();
+	request.onreadystatechange = function() { //Call a function when the state changes.
+		console.log(request.readyState, request.status);
+		if(request.readyState === 4 && request.status === 200) {
+			console.log(request.responseText);
+			returnedData = request.responseText;
+			returnedData = JSON.parse(returnedData);
+		}
+	};
+	var async = false;
+	var method = 'GET';
+	request.open(method, url, async);
+
+	// Nasty way round the fact that AppEngine server will cause re-direct if user not logged in.
+	try{
+		request.send(null);
+	}catch(err){
+		console.log(err);
+		returnedData = {loginStatus: false,
+				url: '/logIn/'};
+	}
+	
+	if(returnedData.loginStatus === true){
+		return returnedData.key;
+	}
+
+	window.location = returnedData.url;
+};
+
 var connectionFailCounter = 0;
 var connectionSucess = function(callback){
+        'use strict';
 	// Enable dial.
 	if (typeof callback !== 'undefined'){
 		callback(true);
@@ -135,6 +201,7 @@ var connectionSucess = function(callback){
 };
 
 var connectionFail = function(callback){
+        'use strict';
 	setUpdateTime(timeDataUpdateProblems);
 	
 	if(connectionFailCounter > 0){
@@ -164,26 +231,6 @@ var connectionFail = function(callback){
 			delete sockets[socketKey];
 		}
 	}
-};
-
-// This holds a dict of webbsocket.
-var sockets = {};
-
-var getSocket = function(url){
-
-	var authKey = location.hash;
-	if (authKey === ''){
-		authKey = none;
-	}
-
-	// Try to use existing WebSocket.
-	if ((typeof sockets[url] === 'undefined') || (sockets[url].readyState !== 1)){
-		sockets[url] = new WebSocket('ws://' + serverFQDN + ':' + serverCubeMetricPort + url, authKey);
-	} else {
-		sockets[url].onopen();
-	}
-
-	return sockets[url];
 };
 
 var postData;  // Some scope wierdness was causing postData to not go out of scope when declared within sendData().
@@ -219,14 +266,14 @@ var sendData = function (temperature, label){
 		var async = true;
 		var method = 'POST';
 		request.open(method, url, async);
-		request.setRequestHeader('Content-type', 'application/x-www-form-urlencoded,X-Key=' + location.hash);
+		request.setRequestHeader('Content-type', 'application/x-www-form-urlencoded,X-Key=' + authKey);
 		console.log(JSON.stringify(postData));
 		request.send(JSON.stringify([postData]));
 	}
 
 };
 
-var getData = function (callback) {
+var getTemperatureData = function (callback) {
         'use strict';
 
         var dateStartRead = new Date();
@@ -238,141 +285,18 @@ var getData = function (callback) {
         dateStartSet = dateStartSet.toISOString();
 
         var dataStop = new Date();
-	dataStop.setMinutes(dataStop.getMinutes() +60);
-	dataStop = dataStop.toISOString();
+        dataStop.setMinutes(dataStop.getMinutes() +60);
+        dataStop = dataStop.toISOString();
 
-
-        var retVals = {};
-	var countSocketReplies = 0;
-
-	// We need the timeout to occur before the next itteration of this function, hence the "- (Math.random() * 20)".
-	var connectionTimeout = setTimeout(function(){connectionFail(callback);}, timeDataUpdate - (Math.random() * 20));
-
-
-        if (useWebSocket && ('WebSocket' in window)){
-                /* WebSocket is supported.*/
-                log(Object.keys(sockets).length, 'WebSockets');
-
-		var socket = getSocket('/cube-metric-ws/1.0/event/get');
-
-                socket.onopen = function() {
-                        socket.send(JSON.stringify({
-                                                'expression': 'sensors(key,val).eq(label,\'1wire\')',
-                                                'start': dateStartRead,
-                                                'stop': dataStop
-                                                }));
-			socket.send(JSON.stringify({
-                                                'expression': 'userInput(key,val).eq(key,\'set_Temperature\')',
-                                                'start': dateStartSet,
-                                                'stop': dataStop,
-						'limit': 1
-                                                }));
-                };
-                socket.onmessage = function(message) {
-			var retValsTotal = {};
-			var retValsCount = {};
-
-                        if(JSON.parse(message.data) !== null){
-                                // data still arriving.
-                                var key = JSON.parse(message.data).data.key;
-                                var val = parseFloat(JSON.parse(message.data).data.val);
-                                if(!(key in retValsTotal)){
-                                        retValsTotal[key] = val;
-                                        retValsCount[key] = 1;
-                                } else {
-                                        retValsTotal[key] += val;
-                                        retValsCount[key] += 1;
-                                }
-                                retVals[key] = [retValsTotal[key] / retValsCount[key], retValsCount[key]];
-                        } else {
-				// Empty message signifies end of reply.
-				countSocketReplies += 1;
-				if (countSocketReplies === 2){
-					// All expected replies have been recieved.
-					if (typeof callback !== 'undefined'){
-						setUpdateTime();  // Restore normal timeouts incase they were extended due to failed transmissions.
-						clearTimeout(connectionTimeout);
-						connectionSucess(callback);
-						callback(retVals);
-					}
-				}
-                        }
-                };
-		socket.onerror = function(error){
-			clearTimeout(connectionTimeout);
-			console.log('*', error);
-
-			// Remove this websocket from the list.
-			delete sockets['/cube-metric-ws/1.0/event/get'];
-
-			// Since we have canceled the connectionTimeout, we need to try the alternative host manually.
-			connectionFail(callback);
-			
-			// We still want to do the callback so depandants know that no data is being received.
-			if (typeof callback !== 'undefined'){
-				callback({});
-			}
-		};
-        } else {
-                /*WebSockets are not supported. Try a fallback method like long-polling etc*/
-                log('un-supported', 'WebSocket');
-
-		var url1, url2;
-                url1 = 'http://' + serverFQDN + ':' + serverCubeMetricPort ;
-                url1 += '/cube-metric/1.0/event/get?expression=sensors(key,val).eq(label,\'1wire\')&start=' + dateStartRead + '&stop=' + dataStop ;
-		url2 = 'http://' + serverFQDN + ':' + serverCubeMetricPort ;
-                url2 += '/cube-metric/1.0/event/get?expression=userInput(key,val).eq(key,\'set_Temperature\')&start=' + dateStartSet + '&stop=' + dataStop ;
-                url2 += '&limit=1';
-
-		var firstError;
-		firstError = true;
-		var httpRequest = function(url){
-			var request = new XMLHttpRequest();
-			request.onreadystatechange = function() {//Call a function when the state changes.
-				if(request.readyState === 4 && request.status === 200) {
-		                        setUpdateTime();  // Restore normal timeouts incase they were extended due to failed transmissions.
-					connectionSucess(callback);
-					clearTimeout(connectionTimeout);
-
-					var returnedData = request.responseText;
-
-					var retValsTotal = {};
-					var retValsCount = {};
-					returnedData = JSON.parse(returnedData);
-					//console.log(returnedData);
-					for (var dataKey in returnedData){
-						var item = returnedData[dataKey];
-						var key = item.data.key;
-						var val = parseFloat(item.data.val);
-						if(!(key in retValsTotal)){
-							retValsTotal[key] = val;
-							retValsCount[key] = 1;
-						} else {
-							retValsTotal[key] += val;
-							retValsCount[key] += 1;
-						}
-						retVals[key] = [retValsTotal[key] / retValsCount[key], retValsCount[key]];
-					}
-				} else if(request.readyState === 4) {
-					// error
-					// We rely on the connectionTimeout to call error handling code.
-				}
-				// either data has arrived or there was a problem so execute callback function.
-				if (typeof callback !== 'undefined'){
-					callback(retVals);
-				}
-			};
-			var async = true;
-			var method = 'GET';
-			request.open(method, url, async);
-			
-			// We piggyback our authentication key on the Content-Type as Chrome does not allow us to modify any other headers.
-                        request.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8,X-Key=' + location.hash);
-			request.send(null);
-		};
-		httpRequest(url1);
-		httpRequest(url2);
-        }
-        return retVals;
+	var query;
+	query = [{'expression': 'sensors(key,val).eq(label,\'1wire\')',
+		  'start': dateStartRead,
+		  'stop': dataStop
+		 },
+                 {'expression': 'userInput(key,val).eq(key,\'set_Temperature\')',
+		  'start': dateStartSet,
+		  'stop': dataStop,
+		  'limit': 1
+		 }];
+	getData(query, callback);
 };
-
