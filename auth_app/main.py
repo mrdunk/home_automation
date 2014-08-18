@@ -1,6 +1,6 @@
 from oauth2client.appengine import OAuth2DecoratorFromClientSecrets
 from oauth2client.client import flow_from_clientsecrets
-
+from google.appengine.ext import ndb
 from apiclient.discovery import build
 from google.appengine.api import users
 
@@ -9,6 +9,8 @@ import os
 import webapp2
 import base64
 from Crypto.Cipher import AES
+
+DEFAULT_USER_LIST_NAME = 'logins'
 
 scope=[#'https://www.googleapis.com/auth/plus.login',
 	'https://www.googleapis.com/auth/plus.me',
@@ -56,6 +58,8 @@ class AuthKey(webapp2.RequestHandler):
     @decorator.oauth_aware
     def get(self):
         if users.get_current_user():  #decorator.has_credentials():
+	    LogTraffic(self)
+
 	    user = users.get_current_user()
 	    response = '{"loginStatus": true, "key": "' + encrypt(user.nickname()) + '", "url": "' + users.create_logout_url('/') + '"}'
 
@@ -67,19 +71,40 @@ class AuthKey(webapp2.RequestHandler):
 	    self.response.headers['Content-Type'] = 'application/json'
             self.response.out.write(response)
 
+
 class LogIn(webapp2.RequestHandler):
     @decorator.oauth_required
     def get(self):
-	#response = "{u'loginStatus': " + str(decorator.has_credentials()) + "}"
-	#self.response.headers['Content-Type'] = 'application/json'
-        #self.response.out.write(response)
+	# Redirect to webpage now we are definitely logged in.
 	self.redirect('/dial/index.html')
 
+
+@decorator.oauth_required
+def LogTraffic(instance):
+	# Get current user's ID.
+        http = decorator.http()
+        data = service.people()
+        userId = data.get(userId='me',fields='id').execute(http=http)['id']
+        
+        # Save to datastore.
+        userEntryKey = User(parent=parentKey(), id=userId).put()
+
+        userStats = UserStats(parent=userEntryKey)
+	userStats.ipAddress = os.environ['REMOTE_ADDR']
+	userStats.latLong = ndb.GeoPt(os.environ['HTTP_X_APPENGINE_CITYLATLONG'])
+        userStats.userAgent = os.environ['HTTP_USER_AGENT']
+        userStats.put()    
+
+
 service = build('plus', 'v1')
-class Who(webapp2.RequestHandler):
-    #@decorator.oauth_required
-    @decorator.oauth_aware
+class WhoAmI(webapp2.RequestHandler):
     def get(self):
+	response = WhoIs(self, 'me')
+	self.response.headers['Content-Type'] = 'application/json'
+	self.response.out.write(response)
+
+@decorator.oauth_aware
+def WhoIs(instance, userId):
 	if users.get_current_user():   # decorator.has_credentials():
 	    http = decorator.http()
 
@@ -89,14 +114,38 @@ class Who(webapp2.RequestHandler):
     	    # Call the service using the authorized Http object.a
 	    data = service.people()
             #response = data.get(userId='me').execute(http=http)
-	    response = data.get(userId='me',fields='displayName,image').execute(http=http)
-	    self.response.headers['Content-Type'] = 'application/json'
-	    self.response.out.write(response)
+	    response = data.get(userId=userId,fields='id,displayName,image').execute(http=http)
+	    return response
 	else:
 	    #response = "{u'loginStatus': false, u'url': u'" + decorator.authorize_url() + "'}"
 	    response = "{u'loginStatus': false, u'url': u'/logIn/'}"
+            return response
+
+class ListUsers(webapp2.RequestHandler):
+    @decorator.oauth_aware
+    def get(self):
+        if users.get_current_user():
+	    userList = User.query(ancestor=parentKey()).fetch()
+
+	    response = []
+	    for userId in userList:
+		response.append(WhoIs(self, userId.key.id()))
             self.response.headers['Content-Type'] = 'application/json'
             self.response.out.write(response)
+
+
+class User(ndb.Model):
+	#userId = ndb.StringProperty()
+	pass
+
+class UserStats(ndb.Model):
+        date = ndb.DateTimeProperty(auto_now_add=True)
+	ipAddress = ndb.StringProperty()
+	latLong = ndb.GeoPtProperty()
+	userAgent = ndb.StringProperty()
+
+def parentKey(user_list_name=DEFAULT_USER_LIST_NAME):
+	return ndb.Key('UserList', user_list_name)
 
 
 
@@ -104,6 +153,7 @@ application = webapp2.WSGIApplication([
     ('/', MainPage),
     ('/authKey/', AuthKey),
     ('/logIn/', LogIn),
-    ('/who/', Who),
+    ('/who/', WhoAmI),
+    ('/listUsers/', ListUsers),
     (decorator.callback_path, decorator.callback_handler()),
 ], debug=True)
