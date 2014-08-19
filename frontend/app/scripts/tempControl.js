@@ -40,14 +40,8 @@ var setUpdateTime = function(newTime){
 	}
 
 	if (typeof newTime === 'undefined'){
-		if (useWebSocket && ('WebSocket' in window)){
-			if(timeDataUpdate > timeDataUpdateWs){
-				timeDataUpdate = timeDataUpdate - 10;
-			}
-		} else {
-			if(timeDataUpdate > timeDataUpdateWget){
-				timeDataUpdate = timeDataUpdate - 10;
-			}
+		if(timeDataUpdate > timeDataUpdateWget){
+			timeDataUpdate = timeDataUpdate - 10;
 		}
 	} else {
 		if(timeDataUpdate < newTime){
@@ -87,13 +81,13 @@ var log = function(text, key, clear){
 
 var graphUpdateInterval, dataUpdateInterval;
 
-var setDataUpdateInterval = function () {
+var setDataUpdateInterval = function (callbackFunction, callbackPeramiter) {
         'use strict';
 	if(typeof dataUpdateInterval !== 'undefined'){
                 window.clearInterval(dataUpdateInterval);
         }
         dataUpdateInterval = window.setInterval(function(){
-                        getTemperatureData(myTs.updateData.bind(myTs));
+                        callbackFunction(callbackPeramiter);
                         }, timeDataUpdate);
 };
 
@@ -118,7 +112,7 @@ window.onhashchange = function () {
 	if(location.hash === '#control'){
 		pageDials();
 	} else if(location.hash === '#config'){
-		pageConfig();
+		new PageConfig();
 	} else if(location.hash === '#graphs'){
                 //pageGraphs();
         } else if(location.hash.indexOf('key=') === 1){
@@ -146,7 +140,7 @@ var pageDials = function () {
                 myTs2.updateGraph();
         }, 50);
 
-	setDataUpdateInterval();
+	setDataUpdateInterval(getTemperatureData, myTs.updateData.bind(myTs));
 };
 
 var getAuthKey = function(){
@@ -241,10 +235,10 @@ var sendData = function (temperature, label){
 	postData = {'type':'userInput', 'id':id, 'data':{'label':'test_label', 'auth_key':'test_key', 'key':'set_' + label, 'val':temperature}};
 
 	if (useWebSocket && ('WebSocket' in window)){
-		var socket = getSocket('/cube-collect-ws/1.0/event/put');
+		console.log('WebSocket send');
+		var socket = getSocket(serverFQDN + ':' + serverCubeMetricPort + '/cube-collect-ws/1.0/event/put', [postData]);
 		socket.onopen = function() {
-			console.log(postData);
-			socket.send(JSON.stringify(postData));
+			getDataSend(socket, [postData]);
 		};
 		socket.onerror = function(error) {
 			console.log("error", error);
@@ -253,7 +247,7 @@ var sendData = function (temperature, label){
 			console.log('message', message);
 		};
 	} else {
-
+                console.log('wget send');
 		var url = 'http://' + serverFQDN + ':' + serverCubeCollectorPort + '/cube-collect/1.0/event/put';
 		console.log(url);
 
@@ -298,5 +292,7 @@ var getTemperatureData = function (callback) {
 		  'stop': dataStop,
 		  'limit': 1
 		 }];
-	getData(query, callback);
+	var urlWs = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric-ws/1.0/event/get';
+        var urlWget = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric/1.0/event/get';
+	getData(urlWs, urlWget, query, parseDataCube, callback);
 };

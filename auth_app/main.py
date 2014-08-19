@@ -9,6 +9,7 @@ import os
 import webapp2
 import base64
 from Crypto.Cipher import AES
+import json
 
 DEFAULT_USER_LIST_NAME = 'logins'
 
@@ -130,8 +131,14 @@ class ListUsers(webapp2.RequestHandler):
 	    response = []
 	    for userId in userList:
 		response.append(WhoIs(self, userId.key.id()))
+
+	    self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
+	    self.response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
+	    self.response.headers['Access-Control-Allow-Methods'] = 'GET'
+            self.response.headers['Access-Control-Allow-Credentials'] = 'true'
+
             self.response.headers['Content-Type'] = 'application/json'
-            self.response.out.write(response)
+            self.response.out.write(json.dumps(response))
 
 
 class User(ndb.Model):

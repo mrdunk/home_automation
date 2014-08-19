@@ -41,6 +41,7 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 
 	this.updateData();
 }
+
 TemperatureSensor.prototype.updateData = function(data){
 	'use strict';
 	if (typeof data === 'undefined'){
