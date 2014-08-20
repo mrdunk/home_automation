@@ -1,0 +1,17 @@
+{{#each deviceList}}
+    <div style="border-width:1px;border-style:solid;background-color:#00EEEE;width:120px;clear:both;float:left;">
+	{{@key}}
+    </div>
+    <div style="border-width:1px;border-style:solid;background-color:#00EEEE;width:120px;float:left;">
+	{{ip}}
+    </div>
+    <div style="border-width:1px;border-style:solid;background-color:#00EEEE;width:120px;float:left;">
+	{{description}}
+    </div>
+    <div style="border-width:1px;border-style:solid;background-color:#00EEEE;width:120px;float:left;">
+	{{userName}}
+    </div>
+	<div style="border-width:1px;border-style:solid;background-color:#00EEEE;float:left;">
+    <button type="button" id="{{@key}}">Edit</button></div>
+{{/each}}
+

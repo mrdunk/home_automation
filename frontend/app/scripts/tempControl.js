@@ -92,7 +92,7 @@ var setDataUpdateInterval = function (callbackFunction, callbackPeramiter) {
 };
 
 
-var graphUpdateInterval, dataUpdateInterval, myTs, myTs2, authKey;
+var graphUpdateInterval, dataUpdateInterval, authKey;
 
 window.onload = function () {
         'use strict';
@@ -131,8 +131,8 @@ var pageDials = function () {
 	document.getElementById('paper').innerHTML = "";
         var paper = new Raphael(document.getElementById('paper'), "100%", 400);
 
-        myTs = new TemperatureSensor('Temperature', paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, timeDataUpdate, sendData);
-        myTs2 = new TemperatureSensor('Test dial', paper, tempSensorList, 230, 200, 50, 7, 9, 0, 40);
+        var myTs = new TemperatureSensor('Temperature', paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, timeDataUpdate, sendData);
+        var myTs2 = new TemperatureSensor('Test dial', paper, tempSensorList, 230, 200, 50, 7, 9, 0, 40);
 
         graphUpdateInterval = window.setInterval(function(){
 		// TODO: only update if dirty.

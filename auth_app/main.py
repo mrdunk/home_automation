@@ -128,9 +128,9 @@ class ListUsers(webapp2.RequestHandler):
         if users.get_current_user():
 	    userList = User.query(ancestor=parentKey()).fetch()
 
-	    response = []
+	    response = {'ListUsers':[]}
 	    for userId in userList:
-		response.append(WhoIs(self, userId.key.id()))
+		response['ListUsers'].append(WhoIs(self, userId.key.id()))
 
 	    self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
 	    self.response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
