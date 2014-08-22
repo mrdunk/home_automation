@@ -15,7 +15,7 @@ function colour(angle){
  *   lineThickness: Thickness of dial elements.
  *   lineSpacing: Distance between dial elements.
  *   temperatureMin, temperatureMax: Range temperatures are displayed between.
- *   updateDelay: Time delay between user input and callback function triggering. (ms)
+ *   updateDelay: Time delay between user input and callback function triggering in ms. Makes sure callback is not triggered many times while dial is moved.
  *   callback: Callback function triggered when dial is moved.
  */
 function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadius, lineThickness, lineSpacing, temperatureMin, temperatureMax, updateDelay, callback){
@@ -78,8 +78,10 @@ TemperatureSensor.prototype.updateData = function(data){
 		}
 	}
 	if(this.sendUserInput === true){
-		console.log('Sending: ', this.elementList[0].temperature);
-		this.callback(this.elementList[0].temperature, this.label);
+		console.log('Sending: ', this.elementList[0].angleToTemperature(this.elementList[0].desiredAngle));
+
+        var desiredTemperature = this.elementList[0].angleToTemperature(this.elementList[0].desiredAngle);
+		this.callback(desiredTemperature, this.label);
 	}
 	this.sendUserInput = false;
 };
@@ -89,20 +91,27 @@ TemperatureSensor.prototype.updateGraph = function(){
 	var totalTemp = 0, totalCount = 0;
 	var element, key;
 	var barElement = this.elementList[0];
+    var anyDirty = false;
 
 	for(key in this.elementList){
 		element = this.elementList[key];
 
-		// Update each element.
-                element.updateGraph(this.active);
+        if(element.dirty){
+            anyDirty = true;
+            // Update each element if required.
+            element.updateGraph(this.active);
+        }
 
 		// Calculate average temperature of all inputs.
 		if(key > 0){
 			totalCount += 1;
-			totalTemp += element.temperature;
+			totalTemp += +element.temperature;
 		}
 	}
-	// And set colour of bar depending on whether it is higher or lower than the average input temp.
+    log(anyDirty, 'Dial dirty');
+    if(!anyDirty){return;}
+
+	// Set colour of bar depending on whether it is higher or lower than the average input temp.
 	if(barElement.temperature < totalTemp / totalCount){
 		barElement.baseGradient = '90-#526c7a-#64a0c1';
 	} else {
@@ -142,6 +151,7 @@ function TemperatureSensorElement(label, identifier, type, paper, x, y, radius, 
 	this.desiredAngle = 0;
 	this.userInput = 0;
 	this.temperature = 0;
+    this.dirty = true;
 
 	console.log('registerd TemperatureSensorElement: ' + identifier);
 }
@@ -155,7 +165,12 @@ TemperatureSensorElement.prototype.angleToTemperature = function(angle){
 };
 TemperatureSensorElement.prototype.updateData = function(setTemp){
 	'use strict';
-	if (typeof setTemp !== 'undefined'){
+	if (typeof setTemp !== 'undefined' && !(isNaN(setTemp))){
+        this.dirty = false;
+        if(Math.abs(this.temperature - setTemp) > 0.1){
+            this.dirty = true;
+        }
+
 		if(this.type === 'bar'){
 			this.desiredAngle = this.temperatureToAngle(setTemp);
 		} else {
@@ -166,43 +181,43 @@ TemperatureSensorElement.prototype.updateData = function(setTemp){
 TemperatureSensorElement.prototype.setInput = function(dx, dy){
 	'use strict';
 	this.userInput = 3;
+    this.dirty = true;
 
 	this.desiredAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
 	if(this.desiredAngle < 0){ this.desiredAngle = 360 + this.desiredAngle;}
-
 };
 TemperatureSensorElement.prototype.setUp = function(){
 	'use strict';
-                console.log('initialising pathObject');
+    console.log('initialising pathObject');
 
-                this.pathObject = this.paper.path();
-                if(this.type === 'bar'){
-			this.baseGradient = '90-#526c7a-#64a0c1';
-                        this.baseCircle = this.paper.circle(this.x, this.y, this.radius);
-                        this.baseCircle.attr({gradient: this.baseGradient});
-                        this.baseCircle.node.onmouseover = function(){
-                                this.style.cursor = 'pointer';
-                        };
-			// .bind will only on modern brousers... but that's ok here as so will our graphics library...
-                        this.baseCircle.drag(this.setInput.bind(this), function(x, y){ /*drag start*/ }, function(){ /*ends*/ });
-                        this.baseCircle.toBack();
+    this.pathObject = this.paper.path();
+    if(this.type === 'bar'){
+        this.baseGradient = '90-#526c7a-#64a0c1';
+        this.baseCircle = this.paper.circle(this.x, this.y, this.radius);
+        this.baseCircle.attr({gradient: this.baseGradient});
+        this.baseCircle.node.onmouseover = function(){
+            this.style.cursor = 'pointer';
+        };
+        // .bind will only on modern brousers... but that's ok here as so will our graphics library...
+        this.baseCircle.drag(this.setInput.bind(this), function(x, y){ /*drag start*/ }, function(){ /*ends*/ });
+        this.baseCircle.toBack();
 
-			this.pathObject.node.onmouseover = function(){
-                                this.style.cursor = 'pointer';
-                        };
-			this.pathObject.drag(this.setInput.bind(this), function(x, y){ /*drag start*/ }, function(){ /*ends*/ });
-                } else {
-	                // Draw dots allong path of temperature bar.
-        	        var arkShaddow = this.paper.circle(this.x, this.y, this.radius);
-			arkShaddow.toBack();
-                	arkShaddow.attr({'stroke-dasharray': '. ',});
+        this.pathObject.node.onmouseover = function(){
+            this.style.cursor = 'pointer';
+        };
+        this.pathObject.drag(this.setInput.bind(this), function(x, y){ /*drag start*/ }, function(){ /*ends*/ });
+    } else {
+        // Draw dots allong path of temperature bar.
+        var arkShaddow = this.paper.circle(this.x, this.y, this.radius);
+        arkShaddow.toBack();
+        arkShaddow.attr({'stroke-dasharray': '. ',});
 
-			this.pathObject.node.onmouseover = function(){
-                        };
-		}
+        this.pathObject.node.onmouseover = function(){
+        };
+    }
 };
 TemperatureSensorElement.prototype.updateGraph = function(active){
-	'use strict';
+    'use strict';
 	var angleSet = this.temperatureToAngle(this.temperature);
 	var _angle = angleSet * Math.PI / 180;
 
@@ -211,15 +226,21 @@ TemperatureSensorElement.prototype.updateGraph = function(active){
 	}
 
 	// Set tooltip.
-        this.pathObject.attr({ title: this.temperature });
+    this.pathObject.attr({ title: this.temperature });
 
-        if(this.type === 'bar'){
-		angleSet = (this.desiredAngle + (3 * angleSet)) / 4;
+    if(this.type === 'bar'){
+        var sign = this.desiredAngle - angleSet;
+        sign = sign && sign / Math.abs(sign);
+        angleSet += 1 * sign;
+        angleSet = (this.desiredAngle + (3 * angleSet)) / 4.0;
 
-		this.temperature = this.angleToTemperature(angleSet);
-
-		this.baseCircle.attr({gradient: this.baseGradient});
+        if(Math.abs(angleSet - this.desiredAngle) > 1){
+            this.dirty = true;
         }
+        this.temperature = this.angleToTemperature(angleSet);
+
+        this.baseCircle.attr({gradient: this.baseGradient});
+    }
 
 	var path;
 	if (this.type === 'arc'){

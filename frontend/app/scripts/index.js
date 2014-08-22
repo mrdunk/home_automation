@@ -44,6 +44,8 @@ window.onhashchange = function () {
         new PageGraphs();
     } else if(location.hash.indexOf('key=') === 1){
         authKey = getAuthKey();
+    } else if(location.hash === '#control2'){
+        new PageControl();
     }
 };
 

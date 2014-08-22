@@ -2,17 +2,23 @@ function PageControl(){
     'use strict';
     console.log('PageControl');
 
+    this.paper = new Raphael(document.getElementById('paper'), "100%", 400);
+    this.dial = new TemperatureSensor('Temperature', this.paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, timeDataUpdate, sendData);
 
+    this.updateData();
+    graphUpdateInterval = window.setInterval(function(){
+        this.dial.updateGraph();
+    }.bind(this), 50);
 }
 
 PageControl.prototype.drawPage = function (data) {
     'use strict';
     // Clear paper.
-    document.getElementById('paper').innerHTML = "";
+    //document.getElementById('paper').innerHTML = "";
 
 };
 
-PageControl.prototype.updateData = function (callbackFunction) {
+PageControl.prototype.updateData = function () {
     'use strict';
 
     var urlDomainWs,
@@ -23,7 +29,7 @@ PageControl.prototype.updateData = function (callbackFunction) {
     urlDomainWs = false;
     urlDomainWget = 'home-automation-7.appspot.com/listUsers/';
     urlQueryList = [{'unused': '0'}];
-    nwConnection.getData('PageControl.users', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataAppEngine, callbackFunction);
+//    nwConnection.getData('PageControl.users', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataAppEngine, function(){});
 
     // Get time window to urlQueryList.
     var dateStartRead = new Date();
@@ -51,6 +57,7 @@ PageControl.prototype.updateData = function (callbackFunction) {
                  'limit': 1
                 }];
 
-    nwConnection.getData('PageControl.clients', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataCube, callbackFunction);
+    //nwConnection.getData('PageControl.clients', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataCube, function(data){console.log(data);});
+    nwConnection.getData('PageControl.clients', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
 };
 
