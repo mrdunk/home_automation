@@ -11,7 +11,10 @@ var serverCubeCollectorPort2 = '8080';
 var serverCubeMetricPort = serverCubeMetricPort1;
 var serverCubeCollectorPort = serverCubeCollectorPort1;
 
+var sendDataDelay = 500;    // Delay between last time dial is moved and data getting sent. (ms)
+var timeWindow = 2;         // Period of history to average data over. (minutes)
 
+var pageUpdateTimer;        // A timer controling the repeated calling of a function. Cleared when a new page is selected. Used to refresh page at regualr intervals.
 
 var tempSensorList = ['00000536d60c', '0000053610c1'];
 
@@ -19,33 +22,30 @@ var tempSensorList = ['00000536d60c', '0000053610c1'];
 var useWebSocket = true;
 //var useWebSocket = false;
 var nwConnection = new Connection(useWebSocket);
+var authKey;
 
 window.onload = function () {
     'use strict';
     log('window.onload');
     log(location.hash, 'hash');
     authKey = getAuthKey();
-
 };
 
 window.onhashchange = function () {
     'use strict';
     console.log(location.hash);
 
-    window.clearInterval(dataUpdateInterval);
-    window.clearInterval(graphUpdateInterval);
+    window.clearInterval(pageUpdateTimer);
     nwConnection.clearRepeatTimers();
 
     if(location.hash === '#control'){
-        pageDials();
+        new PageControl();
     } else if(location.hash === '#config'){
         new PageConfig();
     } else if(location.hash === '#graphs'){
         new PageGraphs();
     } else if(location.hash.indexOf('key=') === 1){
         authKey = getAuthKey();
-    } else if(location.hash === '#control2'){
-        new PageControl();
     }
 };
 

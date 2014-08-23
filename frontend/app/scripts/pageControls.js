@@ -3,10 +3,11 @@ function PageControl(){
     console.log('PageControl');
 
     this.paper = new Raphael(document.getElementById('paper'), "100%", 400);
-    this.dial = new TemperatureSensor('Temperature', this.paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, timeDataUpdate, sendData);
+    this.dial = new TemperatureSensor('Temperature', this.paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, sendDataDelay, this.sendData);
 
     this.updateData();
-    graphUpdateInterval = window.setInterval(function(){
+    pageUpdateTimer = window.setInterval(function(){
+        // TODO should this timer be part of dial.js?
         this.dial.updateGraph();
     }.bind(this), 50);
 }
@@ -18,18 +19,39 @@ PageControl.prototype.drawPage = function (data) {
 
 };
 
+PageControl.prototype.sendData = function(temperature, label){
+    'use strict';
+    console.log('PageControl.sendData');
+
+    // By setting the id to be the time in 10 minute multiples, we ensure there is only ever one value in the db for each 10 minute interval.
+    var id = new Date().getTime()/(1000*600);
+    id = Math.round(id);
+    var dataList = [{'type':'userInput', 'id':id, 'data':{'label':'test_label', 'auth_key':'test_key', 'key':'set_' + label, 'val':temperature}}];
+
+    var urlWs = {'host': serverFQDN,
+                 'port': serverCubeMetricPort,
+                 'path': '/cube-collect-ws/1.0/event/put'};
+    var urlWget = {'host': serverFQDN,
+                   'port': serverCubeMetricPort,
+                   'path': '/cube-collect/1.0/event/put'};
+
+    // TODO add repeat send for failures.
+    nwConnection.sendData(urlWs, urlWget, dataList);
+};
+
 PageControl.prototype.updateData = function () {
     'use strict';
 
-    var urlDomainWs,
-        urlDomainWget,
+    var urlWs,
+        urlWget,
         urlQueryList;
 
-    // Get User info from AppEngine
-    urlDomainWs = false;
-    urlDomainWget = 'home-automation-7.appspot.com/listUsers/';
+    urlWs = false;
+    urlWget = {'host': 'home-automation-7.appspot.com',
+               'port': '80',
+               'path': '/listUsers/'};
     urlQueryList = [{'unused': '0'}];
-//    nwConnection.getData('PageControl.users', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataAppEngine, function(){});
+//    nwConnection.getData('PageControl.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, function(){});
 
     // Get time window to urlQueryList.
     var dateStartRead = new Date();
@@ -45,8 +67,12 @@ PageControl.prototype.updateData = function () {
     dataStop = dataStop.toISOString();
 
     // Get MAC Address and IP Address mappings from server.
-    urlDomainWs = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric-ws/1.0/event/get';
-    urlDomainWget = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric/1.0/event/get';
+    urlWs = {'host': serverFQDN,
+             'port': serverCubeMetricPort,
+             'path': '/cube-metric-ws/1.0/event/get'};
+    urlWget = {'host': serverFQDN,
+               'port': serverCubeMetricPort,
+               'path': '/cube-metric/1.0/event/get'};
     urlQueryList = [{'expression': 'sensors(key,val).eq(label,\'1wire\')',
                  'start': dateStartRead,
                  'stop': dataStop
@@ -57,7 +83,6 @@ PageControl.prototype.updateData = function () {
                  'limit': 1
                 }];
 
-    //nwConnection.getData('PageControl.clients', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataCube, function(data){console.log(data);});
-    nwConnection.getData('PageControl.clients', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
+    nwConnection.getData('PageControl.clients', urlWs, urlWget, urlQueryList, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
 };
 

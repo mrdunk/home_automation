@@ -1,7 +1,8 @@
 function Connection(tryWebSocket){
-    this.tryWebSocket = tryWebSocket;   // Try to use Websockets if brouser supports them.
+    this.tryWebSocket = tryWebSocket;   // Try to use Websockets if browser supports them.
     this.sockets = {};                  // Container for currently usable websockets.
-    this.repeatTimers = {};             // Dictionary of connections that will re-try at soem point in the future.
+    this.repeatTimers = {};             // Dictionary of connections that will re-try at some point in the future.
+    this.successCounter = 5;            // Counter tracking successfull connections vs failed.
 }
 
 /* Try to re-use an existing Websocket or create new one.
@@ -13,6 +14,13 @@ Connection.prototype.getSocket = function(urlDomain, urlQueryList){
     //console.log('Connection.getSocket');
     if ((typeof this.sockets[urlDomain] === 'undefined') || (this.sockets[urlDomain].readyState !== 1)){
         console.log('  new');
+
+        // We take the fact there is not an existing valid socket in the buffer to mean that tha last one failed in some way.
+        if(this.successCounter > 0){
+            this.successCounter -= 1;
+        }
+
+        // Make and store new socket.
         this.sockets[urlDomain] = new WebSocket('ws://' + urlDomain, authKey);
     } else {
         // The send() will be done by socket.onopen for new webSockets, but since this one is already open, do it now.
@@ -49,7 +57,27 @@ Connection.prototype.clearRepeatTimers = function (clearUid){
     log(Object.keys(this.repeatTimers).length, 'Conections');
 };
 
-Connection.prototype.getData = function (uid, urlDomainWs, urlDomainWget, urlQueryList, retryIn, parseCallback, useCallback) {
+Connection.prototype.swapServer = function(url){
+    if((url.host !== serverFQDN) && ((url.host === serverFQDN1) || (url.host === serverFQDN2))){
+        // host has changed.
+        
+        // Remove old one from cache.
+        console.log(this.sockets);
+        var urlDomain = url.host + ':' + url.port + url.path;
+        delete this.sockets[urlDomain];
+
+        // and re-map query to new one.
+        if(url.host === serverFQDN1){
+            url.host = serverFQDN2;
+            url.port = serverCubeMetricPort2;
+        } else {
+            url.host = serverFQDN1;
+            url.port = serverCubeMetricPort1;
+        }
+    }
+};
+
+Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryList, retryIn, parseCallback, useCallback) {
     'use strict';
 
     // We need the timeout to occur before the next itteration of this function, hence the "- (Math.random() * 20)".
@@ -59,17 +87,38 @@ Connection.prototype.getData = function (uid, urlDomainWs, urlDomainWget, urlQue
     if(typeof this.repeatTimers[uid] !== 'undefined'){
         clearTimeout(this.repeatTimers[uid]);
     }
-    // Set a new tiemer if appropriate.
+    // Set a new timer if appropriate.
     if(retryIn > 0){
-        this.repeatTimers[uid] = setTimeout(function(){this.getData(uid, urlDomainWs, urlDomainWget, urlQueryList, retryIn, parseCallback, useCallback);}.bind(this), retryIn);
+        this.repeatTimers[uid] = setTimeout(function(){this.getData(uid, urlWs, urlWget, urlQueryList, retryIn, parseCallback, useCallback);}.bind(this), retryIn);
     }
     log(Object.keys(this.repeatTimers).length, 'Conections');
 
     // Now send the request for the data.
-    if (this.tryWebSocket && (urlDomainWs !== false) && ('WebSocket' in window)){
-        this.getDataWs(urlDomainWs, urlQueryList, parseCallback, useCallback);
+    if (this.tryWebSocket && (urlWs !== false) && ('WebSocket' in window)){
+        this.getDataWs(urlWs, urlQueryList, parseCallback, useCallback);
     } else{
-        this.getDataWget(urlDomainWget, urlQueryList, parseCallback, useCallback);
+        this.getDataWget(urlWget, urlQueryList, parseCallback, useCallback);
+    }
+
+    // If we haven't sucessfully received data for a while...
+    if(this.successCounter === 0){
+        // switch off dial.
+        useCallback(false);
+
+        // Abuse this counter so we don't swap hosts every failure.
+        this.successCounter = 5;
+
+        // Change which server we use.
+        if(serverFQDN === serverFQDN1){
+            serverFQDN = serverFQDN2;
+            serverCubeMetricPort = serverCubeMetricPort2;
+            serverCubeCollectorPort = serverCubeCollectorPort2;
+        } else {
+            serverFQDN = serverFQDN1;
+            serverCubeMetricPort = serverCubeMetricPort1;
+            serverCubeCollectorPort = serverCubeCollectorPort1;
+        }
+        log(serverFQDN, 'serverFQDN');
     }
 
     if(typeof this.repeatTimers[uid] !== 'undefined'){
@@ -77,13 +126,17 @@ Connection.prototype.getData = function (uid, urlDomainWs, urlDomainWget, urlQue
     }
 };
 
-Connection.prototype.getDataWs = function (urlDomainWs, urlQueryList, parseCallback, useCallback) {
+Connection.prototype.getDataWs = function (urlWs, urlQueryList, parseCallback, useCallback) {
     'use strict';
     log(Object.keys(this.sockets).length, 'WebSockets');
 
+    this.swapServer(urlWs);
+
     var retVals = {};
+    var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
     var socket = this.getSocket(urlDomainWs, urlQueryList);
     var receivedData = 0;
+    console.log(urlDomainWs);
 
     socket.onopen = function() {
         this.send(socket, urlQueryList);
@@ -100,10 +153,15 @@ Connection.prototype.getDataWs = function (urlDomainWs, urlQueryList, parseCallb
                 // All expected replies have been recieved.
                 if (typeof useCallback !== 'undefined' && receivedData > 0){
                     useCallback(retVals);
+                    if(this.successCounter < 10){
+                        this.successCounter += 1;
+                        log(this.successCounter, 'Connection success');
+                        useCallback(true);
+                    }
                 }
             }
         }
-    };
+    }.bind(this);
 
     socket.onerror = function(error){
         console.log('ws-error:', error);
@@ -113,20 +171,24 @@ Connection.prototype.getDataWs = function (urlDomainWs, urlQueryList, parseCallb
             delete this.sockets[urlDomainWs];
         }
 
-        // We still want to do the callback so depandants know that no data is being received.
+        // We still want to do the callback so depandents know that no data is being received.
         if (typeof useCallback !== 'undefined'){
             useCallback({});
         }
-    };
+    }.bind(this);
 
     return retVals;
 };
 
 
-Connection.prototype.getDataWget = function (urlDomainWget, urlQueryList, parseCallback, useCallback) {
+Connection.prototype.getDataWget = function (urlWget, urlQueryList, parseCallback, useCallback) {
     'use strict';
     log('false', 'WebSockets');
     var retVals = {};
+
+    this.swapServer(urlWget);
+
+    var urlDomainWget = urlWget.host + ':' + urlWget.port + urlWget.path;
 
     var firstError;
     firstError = true;
@@ -166,6 +228,9 @@ Connection.prototype.getDataWget = function (urlDomainWget, urlQueryList, parseC
 
         // We piggyback our authentication key on the Content-Type as Chrome does not allow us to modify any other headers.
         request.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8,X-Key=' + authKey);
+
+//        request.setRequestHeader('Access-Control-Allow-Origin', 'http://192.168.192.254:3000');
+
         request.send(null);
     };
 
@@ -180,13 +245,47 @@ Connection.prototype.getDataWget = function (urlDomainWget, urlQueryList, parseC
     return retVals;
 };
 
+Connection.prototype.sendData = function (urlWs, urlWget, dataList){
+    'use strict';
+    if (this.tryWebSocket && (urlWs !== false) && ('WebSocket' in window)){
+        this.sendDataWs(urlWs, dataList);
+    } else{
+        this.sendDataWget(urlWget, dataList);
+    }
+};
+
+Connection.prototype.sendDataWs = function (urlWs, dataList){
+    'use strict';
+    var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
+    var socket = this.getSocket(urlDomainWs, dataList);
+    console.log(urlDomainWs, dataList);
+
+    socket.onopen = function() {
+        this.send(socket, dataList);
+    }.bind(this);
+    socket.onerror = function(error) {
+        console.log("error", error);
+    };
+    socket.onmessage = function(message) {
+        console.log('message', message);
+    };
+
+};
+
+Connection.prototype.sendDataWget = function (urlWget, dataList){
+    'use strict';
+
+};
+
+
 // This holds a dict of currently valid webbsocket.
-var sockets = {};
+//var sockets = {};
 
 /* Try to re-use an already open WebSocket.
  * If that doesn't work, open a new one. 
  * Args:
  *   url: The Url of the websocket we are looking for. */
+/*
 var getSocket = function(url){
         'use strict';
         //console.log('getSocket', url, query);
@@ -221,7 +320,7 @@ var getData = function (urlWs, urlWget, query, parseCallback, useCallback) {
 
 
         if (useWebSocket && (urlWs !== false) && ('WebSocket' in window)){
-                /* WebSocket is supported.*/
+                // WebSocket is supported.//
                 log(Object.keys(sockets).length, 'WebSockets');
 
                 var socket = getSocket(urlWs);
@@ -263,7 +362,7 @@ var getData = function (urlWs, urlWget, query, parseCallback, useCallback) {
                         }
                 };
         } else {
-                /*WebSockets are not supported. Try a fallback method like long-polling etc*/
+                //WebSockets are not supported. Try a fallback method like long-polling etc//
                 log('un-supported', 'WebSocket');
 
                 var firstError;
@@ -323,7 +422,7 @@ var getData = function (urlWs, urlWget, query, parseCallback, useCallback) {
         }
         return retVals;
 };
-
+*/
 var parseDataCube = function(type, data, retVals){
         data = JSON.parse(data);
         if(data === null){

@@ -29,7 +29,8 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 	this.elementList = [];
 	var diamiter = baseRadius;
 	this.sendUserInput = false;
-	this.active = true;
+	this.lastActive = false;
+    this.active = true;
 	this.liveData = false;		// Set this true if dial is to be updated on a regular basis.
 	this.elementList.push(new TemperatureSensorElement(label, 'set_' + label, 'bar', this.paper,
 							   centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
@@ -84,6 +85,8 @@ TemperatureSensor.prototype.updateData = function(data){
 		this.callback(desiredTemperature, this.label);
 	}
 	this.sendUserInput = false;
+
+    this.lastActive = this.active;
 };
 
 TemperatureSensor.prototype.updateGraph = function(){
@@ -96,9 +99,8 @@ TemperatureSensor.prototype.updateGraph = function(){
 	for(key in this.elementList){
 		element = this.elementList[key];
 
-        if(element.dirty){
+        if(element.dirty || (this.active !== this.lastActive)){
             anyDirty = true;
-            // Update each element if required.
             element.updateGraph(this.active);
         }
 

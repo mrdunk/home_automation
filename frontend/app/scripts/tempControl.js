@@ -122,6 +122,7 @@ var connectionFail = function(callback){
 	}
 };
 
+/*
 var postData;  // Some scope wierdness was causing postData to not go out of scope when declared within sendData().
 var sendData = function (temperature, label){
         'use strict';
@@ -190,4 +191,4 @@ var getTemperatureData = function (callback) {
 	var urlWs = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric-ws/1.0/event/get';
     var urlWget = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric/1.0/event/get';
 	getData(urlWs, urlWget, query, parseDataCube, callback);
-};
+};*/

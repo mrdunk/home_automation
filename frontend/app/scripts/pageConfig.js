@@ -23,7 +23,7 @@ PageConfig.prototype.drawPage = function(data){
         for(key in data){
 		if(firstLoop === true){
 			// Only clearing timer if data received.
-			window.clearInterval(dataUpdateInterval);
+			nwConnection.clearRepeatTimers();
 			firstLoop = false;
 		}
 
@@ -121,16 +121,18 @@ PageConfig.prototype.updateDevice = function (userInput){
 PageConfig.prototype.updateData = function (callbackFunction) {
     'use strict';
 
-	var urlDomainWs,
-	    urlDomainWget,
+    var urlWs,
+        urlWget,
         urlQueryList;
 
-	// Get User info from AppEngine
-    urlDomainWs = false;
-    urlDomainWget = 'home-automation-7.appspot.com/listUsers/';
+    // Get User info from AppEngine
+    urlWs = false;
+    urlWget = {'host': 'home-automation-7.appspot.com',
+               'port': '80',
+               'path': '/listUsers/'};
 	urlQueryList = [{'unused': '0'}];
 	this.updateTimers.push(
-        nwConnection.getData('PageConfig.users', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataAppEngine, callbackFunction));
+        nwConnection.getData('PageConfig.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, callbackFunction));
 
     // Get MAC Address and IP Address mappings from server.
     var dateStartRead = new Date();
@@ -141,15 +143,18 @@ PageConfig.prototype.updateData = function (callbackFunction) {
     dataStop.setMinutes(dataStop.getMinutes() +60);
     dataStop = dataStop.toISOString();
 
-    urlDomainWs = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric-ws/1.0/event/get';
-    urlDomainWget = serverFQDN + ':' + serverCubeMetricPort + '/cube-metric/1.0/event/get';
+    urlWs = {'host': serverFQDN,
+             'port': serverCubeMetricPort,
+             'path': '/cube-metric-ws/1.0/event/get'};
+    urlWget = {'host': serverFQDN,
+               'port': serverCubeMetricPort,
+               'path': '/cube-metric/1.0/event/get'};
     urlQueryList = [{'expression': 'sensors(label,key,val).eq(label,\'net_clients\')',
               'start': dateStartRead,
               'stop': dataStop }];
-    console.log(JSON.stringify(urlQueryList[0]));
 
     this.updateTimers.push(
-        nwConnection.getData('PageConfig.clients', urlDomainWs, urlDomainWget, urlQueryList, 1000, parseDataCube, callbackFunction));
+        nwConnection.getData('PageConfig.clients', urlWs, urlWget, urlQueryList, 1000, parseDataCube, callbackFunction));
 };
 
 var loadTemplate = function(filename){
