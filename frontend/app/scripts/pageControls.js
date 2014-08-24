@@ -2,6 +2,7 @@ function PageControl(){
     'use strict';
     console.log('PageControl');
 
+    document.getElementById('paper').innerHTML = "";
     this.paper = new Raphael(document.getElementById('paper'), "100%", 400);
     this.dial = new TemperatureSensor('Temperature', this.paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, sendDataDelay, this.sendData);
 
@@ -36,7 +37,7 @@ PageControl.prototype.sendData = function(temperature, label){
                    'path': '/cube-collect/1.0/event/put'};
 
     // TODO add repeat send for failures.
-    nwConnection.sendData(urlWs, urlWget, dataList);
+    nwConnection.sendData('PageControl.updateData.userInput', urlWs, urlWget, dataList);
 };
 
 PageControl.prototype.updateData = function () {
@@ -51,7 +52,7 @@ PageControl.prototype.updateData = function () {
                'port': '80',
                'path': '/listUsers/'};
     urlQueryList = [{'unused': '0'}];
-//    nwConnection.getData('PageControl.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, function(){});
+//    nwConnection.getData('PageControl.updateData.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, function(){});
 
     // Get time window to urlQueryList.
     var dateStartRead = new Date();
@@ -75,7 +76,8 @@ PageControl.prototype.updateData = function () {
                'path': '/cube-metric/1.0/event/get'};
     urlQueryList = [{'expression': 'sensors(key,val).eq(label,\'1wire\')',
                  'start': dateStartRead,
-                 'stop': dataStop
+                 'stop': dataStop,
+                 'limit': 2
                 },
                 {'expression': 'userInput(key,val).eq(key,\'set_Temperature\')',
                  'start': dateStartSet,
@@ -83,6 +85,6 @@ PageControl.prototype.updateData = function () {
                  'limit': 1
                 }];
 
-    nwConnection.getData('PageControl.clients', urlWs, urlWget, urlQueryList, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
+    nwConnection.getData('PageControl.updateData.clients', urlWs, urlWget, urlQueryList, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
 };
 

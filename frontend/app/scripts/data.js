@@ -3,22 +3,22 @@ function Connection(tryWebSocket){
     this.sockets = {};                  // Container for currently usable websockets.
     this.repeatTimers = {};             // Dictionary of connections that will re-try at some point in the future.
     this.successCounter = 5;            // Counter tracking successfull connections vs failed.
+    this.connectionsInProgres = {};        // A dict of flags for monitoring whether connection has completed successfully or not.
 }
 
-/* Try to re-use an existing Websocket or create new one.
+/* Only used for WebSockets.
+ * Try to re-use an existing Websocket or create new one.
  * Args:
  *   urlDomain: The Domain of the websocket address we are looking for.
  *   urlQueryList: List of paths we will send to the WebSocket. */
-Connection.prototype.getSocket = function(urlDomain, urlQueryList){
+Connection.prototype.getSocket = function(uid, urlDomain, urlQueryList){
     'use strict';
     //console.log('Connection.getSocket');
     if ((typeof this.sockets[urlDomain] === 'undefined') || (this.sockets[urlDomain].readyState !== 1)){
         console.log('  new');
 
         // We take the fact there is not an existing valid socket in the buffer to mean that tha last one failed in some way.
-        if(this.successCounter > 0){
-            this.successCounter -= 1;
-        }
+        this.getDataFail(uid);
 
         // Make and store new socket.
         this.sockets[urlDomain] = new WebSocket('ws://' + urlDomain, authKey);
@@ -77,11 +77,44 @@ Connection.prototype.swapServer = function(url){
     }
 };
 
+/* Call when Connection.getData() suceeds. */
+Connection.prototype.getDataSuccess = function (uid, useCallback){
+    'use strict';
+    // Clear flag signifying this connection has finished.
+    this.connectionsInProgres[uid] = false;
+
+    if(this.successCounter < 10){
+        this.successCounter += 1;
+        log(this.successCounter, 'Connection success');
+        useCallback(true);
+    }
+};
+
+/* Call when Connection.getData() fails. */
+Connection.prototype.getDataFail = function (uid){
+        'use strict';
+        // Clear flag signifying this connection has finished.
+        this.connectionsInProgres[uid] = false;
+
+        if(this.successCounter > 0){
+            this.successCounter -= 1;
+            log(this.successCounter, 'Connection success');
+        }
+};
+
 Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryList, retryIn, parseCallback, useCallback) {
     'use strict';
+    if(this.connectionsInProgres[uid] === 'undefined'){
+        // first time running this connection uid.
+        this.connectionsInProgres[uid] = false;
+    }
 
-    // We need the timeout to occur before the next itteration of this function, hence the "- (Math.random() * 20)".
-    //var connectionTimeout = setTimeout(function(){connectionFail(useCallback);}, timeDataUpdate - (Math.random() * 20) -10);
+    if(this.connectionsInProgres[uid] === true){
+        // This connection has not finished and cleared flag. Timeout condition.
+        this.getDataFail(uid);
+    }
+    this.connectionsInProgres[uid] = true;
+
 
     // See if there is a timer for this event already and clear it if there is.
     if(typeof this.repeatTimers[uid] !== 'undefined'){
@@ -95,9 +128,9 @@ Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryList, retr
 
     // Now send the request for the data.
     if (this.tryWebSocket && (urlWs !== false) && ('WebSocket' in window)){
-        this.getDataWs(urlWs, urlQueryList, parseCallback, useCallback);
+        this.getDataWs(uid, urlWs, urlQueryList, parseCallback, useCallback);
     } else{
-        this.getDataWget(urlWget, urlQueryList, parseCallback, useCallback);
+        this.getDataWget(uid, urlWget, urlQueryList, parseCallback, useCallback);
     }
 
     // If we haven't sucessfully received data for a while...
@@ -126,7 +159,7 @@ Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryList, retr
     }
 };
 
-Connection.prototype.getDataWs = function (urlWs, urlQueryList, parseCallback, useCallback) {
+Connection.prototype.getDataWs = function (uid, urlWs, urlQueryList, parseCallback, useCallback) {
     'use strict';
     log(Object.keys(this.sockets).length, 'WebSockets');
 
@@ -134,7 +167,7 @@ Connection.prototype.getDataWs = function (urlWs, urlQueryList, parseCallback, u
 
     var retVals = {};
     var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
-    var socket = this.getSocket(urlDomainWs, urlQueryList);
+    var socket = this.getSocket(uid, urlDomainWs, urlQueryList);
     var receivedData = 0;
     console.log(urlDomainWs);
 
@@ -153,11 +186,7 @@ Connection.prototype.getDataWs = function (urlWs, urlQueryList, parseCallback, u
                 // All expected replies have been recieved.
                 if (typeof useCallback !== 'undefined' && receivedData > 0){
                     useCallback(retVals);
-                    if(this.successCounter < 10){
-                        this.successCounter += 1;
-                        log(this.successCounter, 'Connection success');
-                        useCallback(true);
-                    }
+                    this.getDataSuccess(uid, useCallback);
                 }
             }
         }
@@ -181,7 +210,7 @@ Connection.prototype.getDataWs = function (urlWs, urlQueryList, parseCallback, u
 };
 
 
-Connection.prototype.getDataWget = function (urlWget, urlQueryList, parseCallback, useCallback) {
+Connection.prototype.getDataWget = function (uid, urlWget, urlQueryList, parseCallback, useCallback) {
     'use strict';
     log('false', 'WebSockets');
     var retVals = {};
@@ -202,37 +231,37 @@ Connection.prototype.getDataWget = function (urlWget, urlQueryList, parseCallbac
                 parseCallback('wget', returnedData, retVals);
             } else if(request.readyState === 4) {
                 // error
-                // We rely on the connectionTimeout to call error handling code. TODO
+                // We rely on the connectionTimeout to call error handling code.
             }
             // either data has arrived or there was a problem so execute callback function.
             if (typeof useCallback !== 'undefined' && request.readyState === 4){
                 useCallback(retVals);
+                this.getDataSuccess(uid, useCallback);
             }
-        };
+        }.bind(this);
         var async = true;
         var method = 'GET';
         if ("withCredentials" in request){
             // Firefox, Chrome, etc.
             request.open(method, url, async);
+            log('FF, Chrome', 'XDomain');
         } else if (typeof XDomainRequest != "undefined") {
             // IE
             request = new XDomainRequest();
             request.open(method, url);
+            log('IE', 'XDomain');
         } else {
             // Otherwise, CORS is not supported by the browser.
             request = null;
             console.log('Unsuported browser.');
+            log('unsuported', 'XDomain');
         }
         request.withCredentials = true;
 
-
         // We piggyback our authentication key on the Content-Type as Chrome does not allow us to modify any other headers.
         request.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8,X-Key=' + authKey);
-
-//        request.setRequestHeader('Access-Control-Allow-Origin', 'http://192.168.192.254:3000');
-
         request.send(null);
-    };
+    }.bind(this);
 
     var urlBase = 'http://' + urlDomainWget + '?';
     for (var item in urlQueryList){
@@ -245,19 +274,19 @@ Connection.prototype.getDataWget = function (urlWget, urlQueryList, parseCallbac
     return retVals;
 };
 
-Connection.prototype.sendData = function (urlWs, urlWget, dataList){
+Connection.prototype.sendData = function (uid, urlWs, urlWget, dataList){
     'use strict';
     if (this.tryWebSocket && (urlWs !== false) && ('WebSocket' in window)){
-        this.sendDataWs(urlWs, dataList);
+        this.sendDataWs(uid, urlWs, dataList);
     } else{
-        this.sendDataWget(urlWget, dataList);
+        this.sendDataWget(uid, urlWget, dataList);
     }
 };
 
-Connection.prototype.sendDataWs = function (urlWs, dataList){
+Connection.prototype.sendDataWs = function (uid, urlWs, dataList){
     'use strict';
     var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
-    var socket = this.getSocket(urlDomainWs, dataList);
+    var socket = this.getSocket(uid, urlDomainWs, dataList);
     console.log(urlDomainWs, dataList);
 
     socket.onopen = function() {
@@ -272,157 +301,48 @@ Connection.prototype.sendDataWs = function (urlWs, dataList){
 
 };
 
-Connection.prototype.sendDataWget = function (urlWget, dataList){
+Connection.prototype.sendDataWget = function (uid, urlWget, dataList){
     'use strict';
+    // TODO implement retries on failure.
 
-};
+    var urlDomainWs = 'http://' + urlWget.host + ':' + urlWget.port + urlWget.path;
 
+    console.log(urlDomainWs);
 
-// This holds a dict of currently valid webbsocket.
-//var sockets = {};
-
-/* Try to re-use an already open WebSocket.
- * If that doesn't work, open a new one. 
- * Args:
- *   url: The Url of the websocket we are looking for. */
-/*
-var getSocket = function(url){
-        'use strict';
-        //console.log('getSocket', url, query);
-
-        // Try to use existing WebSocket.
-        if ((typeof sockets[url] === 'undefined') || (sockets[url].readyState !== 1)){
-                sockets[url] = new WebSocket('ws://' + url, authKey);
-        } else {
-//                getDataSend(sockets[url], query);
-            sockets[url].onopen();
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function() { //Call a function when the state changes.
+        if(request.readyState === 4 && request.status === 200) {
+            console.log(request.responseText);
+        } else if(request.readyState === 4) {
+            // Since request.status !=== 200,
+            // this is an error.
+            // Rather than handling the error here it is simpler to have a single failure timer that gets canceled on successa (Still TODO.).
         }
+    };
+    var async = true;
+    var method = 'POST';
 
-        return sockets[url];
+    if ("withCredentials" in request){
+        // Firefox, Chrome, etc.
+        request.open(method, urlDomainWs, async);
+        log('FF, Chrome', 'XDomain');
+    } else if (typeof XDomainRequest != "undefined") {
+        // IE
+        request = new XDomainRequest();
+        request.open(method, urlDomainWs);
+        log('IE', 'XDomain');
+    } else {
+        // Otherwise, CORS is not supported by the browser.
+        request = null;
+        console.log('Unsuported browser.');
+        log('unsuported', 'XDomain');
+    }
+    request.withCredentials = true;
+
+    request.setRequestHeader('Content-type', 'application/x-www-form-urlencoded,X-Key=' + authKey);
+    request.send(JSON.stringify(dataList));
 };
 
-var getDataSend = function(socket, query){
-        'use strict';
-        for (var item in query){
-                socket.send(JSON.stringify(query[item]));
-                //console.log(JSON.stringify(query[item]));
-        }
-};
-
-var getData = function (urlWs, urlWget, query, parseCallback, useCallback) {
-        'use strict';
-
-        var retVals = {};
-        var countSocketReplies = 0;
-
-        // We need the timeout to occur before the next itteration of this function, hence the "- (Math.random() * 20)".
-        var connectionTimeout = setTimeout(function(){connectionFail(useCallback);}, timeDataUpdate - (Math.random() * 20) -10);
-
-
-        if (useWebSocket && (urlWs !== false) && ('WebSocket' in window)){
-                // WebSocket is supported.//
-                log(Object.keys(sockets).length, 'WebSockets');
-
-                var socket = getSocket(urlWs);
-
-                socket.onopen = function() {
-                        getDataSend(socket, query);
-                };
-                socket.onmessage = function(message) {
-                        if(parseCallback('ws', message.data, retVals) !== null){
-                                // data still arriving and populating retVals.
-                        } else {
-                                // Empty message signifies end of reply.
-                                countSocketReplies += 1;
-                                if (countSocketReplies === query.length){
-                                        // All expected replies have been recieved.
-                                        if (typeof useCallback !== 'undefined'){
-                                                //console.log(retVals);
-                                                setUpdateTime(useWebSocket);  // Restore normal timeouts incase they were extended due to failed transmissions.
-                                                clearTimeout(connectionTimeout);
-                                                connectionSucess(useCallback);
-                                                useCallback(retVals);
-                                        }
-                                }
-                        }
-                };
-                socket.onerror = function(error){
-                        clearTimeout(connectionTimeout);
-                        console.log('ws-error:', error);
-
-                        // Remove this websocket from the list.
-                        delete sockets[urlWs];
-
-                        // Since we have canceled the connectionTimeout, we need to try the alternative host manually.
-                        connectionFail(useCallback);
-
-                        // We still want to do the callback so depandants know that no data is being received.
-                        if (typeof useCallback !== 'undefined'){
-                                useCallback({});
-                        }
-                };
-        } else {
-                //WebSockets are not supported. Try a fallback method like long-polling etc//
-                log('un-supported', 'WebSocket');
-
-                var firstError;
-                firstError = true;
-                var httpRequest = function(url){
-                        var request = new XMLHttpRequest();
-                        request.onreadystatechange = function() {//Call a function when the state changes.
-                                if(request.readyState === 4 && request.status === 200) {
-                                        setUpdateTime(useWebSocket);  // Restore normal timeouts incase they were extended due to failed transmissions.
-                                        connectionSucess(useCallback);
-                                        clearTimeout(connectionTimeout);
-
-                                        var returnedData = request.responseText;
-
-                                        parseCallback('wget', returnedData, retVals);
-                                } else if(request.readyState === 4) {
-                                        // error
-                                        // We rely on the connectionTimeout to call error handling code.
-                                }
-                                // either data has arrived or there was a problem so execute callback function.
-                                if (typeof useCallback !== 'undefined'){
-                                        useCallback(retVals);
-                                }
-                        };
-                        var async = true;
-                        var method = 'GET';
-                        if ("withCredentials" in request){
-                                // Firefox, Chrome, etc.
-                                request.open(method, url, async);
-                        } else if (typeof XDomainRequest != "undefined") {
-                                // IE
-                                request = new XDomainRequest();
-                                request.open(method, url);
-                        } else {
-                                // Otherwise, CORS is not supported by the browser.
-                                request = null;
-                                console.log('Unsuported browser.');
-                        }
-                        request.withCredentials = true;
-
-
-                        // We piggyback our authentication key on the Content-Type as Chrome does not allow us to modify any other headers.
-                        request.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8,X-Key=' + authKey);
-                        request.send(null);
-                };
-
-
-                var urlBase = 'http://' + urlWget + '?';
-                for (var item in query){
-                        var url = urlBase;
-                        for (var key in query[item]){
-                                url += key + '=' + query[item][key] + '&';
-                        }
-                        httpRequest(url);
-                }
-
-        }
-        return retVals;
-};
-*/
 var parseDataCube = function(type, data, retVals){
         data = JSON.parse(data);
         if(data === null){

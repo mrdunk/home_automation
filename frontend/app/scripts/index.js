@@ -107,7 +107,11 @@ var log = function(text, key, clear){
                 clear = true;
         }
 
-        logDict[key] = String(text);
+        if(clear){
+            logDict[key] = String(text);
+        } else {
+            logDict[key] += String(text);
+        }
         for (var k in logDict){
 
                 var keyDiv = document.getElementById('log_' + k);

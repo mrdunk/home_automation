@@ -28,10 +28,9 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 	this.updateDelay = updateDelay;  // Time delay between user input and callback function triggering. (ms)
 	this.elementList = [];
 	var diamiter = baseRadius;
-	this.sendUserInput = false;
 	this.lastActive = false;
-    this.active = true;
-	this.liveData = false;		// Set this true if dial is to be updated on a regular basis.
+    this.active = true;             // Whether to grey out dial (false) or display colour (true).
+    this.lastActive = false;        // this.active from last round.
 	this.elementList.push(new TemperatureSensorElement(label, 'set_' + label, 'bar', this.paper,
 							   centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	for(var sensor in sensorList){
@@ -40,32 +39,29 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 								   this.paper, centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	}
 
-	this.updateData();
+	//this.updateData();
+    this.updateGraph(true);
 }
 
 TemperatureSensor.prototype.updateData = function(data){
 	'use strict';
 	if (typeof data === 'undefined'){
 		// Data not specified so insert test data.
-		data = {'00000536d60c':[20,1], 
-		        '0000053610c1':[30,2]};
+		data = {'00000536d60c':[0,1], 
+		        '0000053610c1':[0,2]};
 		data['set_'.concat(this.label)] = [0,1];
 		console.log('inserting test data');
-		console.log(data);
 	} else if(typeof data === "boolean"){
 		this.active = data;
-		log(this.active, 'active0');
 		return;
 	} else {
 		//console.log(data);
-		this.liveData = true;
 	}
 
 	
 	for(var key in this.elementList){
 		var element = this.elementList[key];
 		if(element.identifier in data){
-			//console.log(key, element.identifier, element.userInput, data[element.identifier][0]);
 			if(element.userInput === 1){
 				// User has finnished adjusting controls but we don't want to update with received data
 				// until our new data has been sent and received back from server.
@@ -89,17 +85,21 @@ TemperatureSensor.prototype.updateData = function(data){
     this.lastActive = this.active;
 };
 
-TemperatureSensor.prototype.updateGraph = function(){
+TemperatureSensor.prototype.updateGraph = function(force){
 	'use strict';
 	var totalTemp = 0, totalCount = 0;
 	var element, key;
 	var barElement = this.elementList[0];
     var anyDirty = false;
 
+    if(typeof force === 'undefined'){
+        force = false;
+    }
+
 	for(key in this.elementList){
 		element = this.elementList[key];
 
-        if(element.dirty || (this.active !== this.lastActive)){
+        if(element.dirty || (this.active !== this.lastActive) || force){
             anyDirty = true;
             element.updateGraph(this.active);
         }
@@ -152,34 +152,39 @@ function TemperatureSensorElement(label, identifier, type, paper, x, y, radius, 
 	this.dialOffset = dialOffset;
 	this.desiredAngle = 0;
 	this.userInput = 0;
-	this.temperature = 0;
+	this.temperature = 20;
     this.dirty = true;
 
 	console.log('registerd TemperatureSensorElement: ' + identifier);
 }
+
 TemperatureSensorElement.prototype.temperatureToAngle = function(temperature){
 	'use strict';
 	return (temperature * this.dialSensitivity) - this.dialOffset;
 };
+
 TemperatureSensorElement.prototype.angleToTemperature = function(angle){
 	'use strict';
 	return ((angle + this.dialOffset) / this.dialSensitivity).toFixed(1);
 };
+
 TemperatureSensorElement.prototype.updateData = function(setTemp){
 	'use strict';
 	if (typeof setTemp !== 'undefined' && !(isNaN(setTemp))){
-        this.dirty = false;
-        if(Math.abs(this.temperature - setTemp) > 0.1){
-            this.dirty = true;
-        }
 
-		if(this.type === 'bar'){
-			this.desiredAngle = this.temperatureToAngle(setTemp);
-		} else {
-			this.temperature = setTemp;
-		}
+        if(Math.abs(this.temperature - setTemp) > 0.01){
+            this.dirty = true;
+            console.log('Temp changed on "' + this.label + '" from ' + this.temperature + ' to ' + setTemp);
+
+            if(this.type === 'bar'){
+                this.desiredAngle = this.temperatureToAngle(setTemp);
+            } else {
+                this.temperature = setTemp;
+            }
+        }
 	}
 };
+
 TemperatureSensorElement.prototype.setInput = function(dx, dy){
 	'use strict';
 	this.userInput = 3;
@@ -188,6 +193,7 @@ TemperatureSensorElement.prototype.setInput = function(dx, dy){
 	this.desiredAngle = Math.atan2(dx, -dy) * 180 / Math.PI;
 	if(this.desiredAngle < 0){ this.desiredAngle = 360 + this.desiredAngle;}
 };
+
 TemperatureSensorElement.prototype.setUp = function(){
 	'use strict';
     console.log('initialising pathObject');
@@ -218,8 +224,10 @@ TemperatureSensorElement.prototype.setUp = function(){
         };
     }
 };
+
 TemperatureSensorElement.prototype.updateGraph = function(active){
     'use strict';
+    this.dirty = false;
 	var angleSet = this.temperatureToAngle(this.temperature);
 	var _angle = angleSet * Math.PI / 180;
 
