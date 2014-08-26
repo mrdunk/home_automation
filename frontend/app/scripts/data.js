@@ -102,7 +102,15 @@ Connection.prototype.getDataFail = function (uid){
         }
 };
 
-Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryList, retryIn, parseCallback, useCallback) {
+/* Args:
+ *   uid: A unique identifier string. Must be different for each place in the code thi method is called from.
+ *   urlWs: Address of host to query using WebSockets. Set "false" if WebSockets are unaalable on the host.
+ *   urlWget: Address of host to query using Wget.
+ *   urlQueryListCallback: Can be either a callback function to generate query to send host or the list it's self.
+ *   retryIn: Time in ms between repeat requests. ("0" means no repeat requests.)
+ *   parseCallback: A callback function to reduce the returned data into a usable format.
+ *   useCallback: A callback function to consume the returned data. */
+Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryListCallback, retryIn, parseCallback, useCallback) {
     'use strict';
     if(this.connectionsInProgres[uid] === 'undefined'){
         // first time running this connection uid.
@@ -122,9 +130,16 @@ Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryList, retr
     }
     // Set a new timer if appropriate.
     if(retryIn > 0){
-        this.repeatTimers[uid] = setTimeout(function(){this.getData(uid, urlWs, urlWget, urlQueryList, retryIn, parseCallback, useCallback);}.bind(this), retryIn);
+        this.repeatTimers[uid] = setTimeout(function(){this.getData(uid, urlWs, urlWget, urlQueryListCallback, retryIn, parseCallback, useCallback);}.bind(this), retryIn);
     }
     log(Object.keys(this.repeatTimers).length, 'Conections');
+
+    var urlQueryList;
+    if(typeof urlQueryListCallback === 'function'){
+        urlQueryList = urlQueryListCallback();
+    } else {
+        urlQueryList = urlQueryListCallback;
+    }
 
     // Now send the request for the data.
     if (this.tryWebSocket && (urlWs !== false) && ('WebSocket' in window)){
@@ -376,6 +391,7 @@ var parseDataCube = function(type, data, retVals){
                 }
                 return retVals;
         } else {
+            if(typeof data.data !== 'undefined'){
                 label = data.data.label;
                 key = data.data.key;
                 val = data.data.val;
@@ -395,6 +411,7 @@ var parseDataCube = function(type, data, retVals){
                         }
                         retVals[label][key].push(val);
                 }
+            }
         }
 };
 

@@ -40,21 +40,7 @@ PageControl.prototype.sendData = function(temperature, label){
     nwConnection.sendData('PageControl.updateData.userInput', urlWs, urlWget, dataList);
 };
 
-PageControl.prototype.updateData = function () {
-    'use strict';
-
-    var urlWs,
-        urlWget,
-        urlQueryList;
-
-    urlWs = false;
-    urlWget = {'host': 'home-automation-7.appspot.com',
-               'port': '80',
-               'path': '/listUsers/'};
-    urlQueryList = [{'unused': '0'}];
-//    nwConnection.getData('PageControl.updateData.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, function(){});
-
-    // Get time window to urlQueryList.
+PageControl.prototype.getDataQueryNWClients = function () {
     var dateStartRead = new Date();
     dateStartRead.setMinutes(dateStartRead.getMinutes() - timeWindow);
     dateStartRead = dateStartRead.toISOString();
@@ -67,6 +53,33 @@ PageControl.prototype.updateData = function () {
     dataStop.setMinutes(dataStop.getMinutes() +60);
     dataStop = dataStop.toISOString();
 
+    return [{'expression': 'sensors(key,val).eq(label,\'1wire\')',
+                 'start': dateStartRead,
+                 'stop': dataStop,
+                 'limit': 2,
+                 'sort': 'time'
+                },
+                {'expression': 'userInput(key,val).eq(key,\'set_Temperature\')',
+                 'start': dateStartSet,
+                 'stop': dataStop,
+                 'limit': 1,
+                 'sort': 'time'
+                }];
+};
+
+PageControl.prototype.updateData = function () {
+    'use strict';
+
+    var urlWs,
+        urlWget,
+        urlQueryList;
+
+    urlWs = false;
+    urlWget = {'host': 'home-automation-7.appspot.com',
+               'port': '80',
+               'path': '/listUsers/'};
+//    nwConnection.getData('PageControl.updateData.users', urlWs, urlWget, [{'unused': '0'}], 1000, parseDataAppEngine, function(){});
+
     // Get MAC Address and IP Address mappings from server.
     urlWs = {'host': serverFQDN,
              'port': serverCubeMetricPort,
@@ -74,17 +87,7 @@ PageControl.prototype.updateData = function () {
     urlWget = {'host': serverFQDN,
                'port': serverCubeMetricPort,
                'path': '/cube-metric/1.0/event/get'};
-    urlQueryList = [{'expression': 'sensors(key,val).eq(label,\'1wire\')',
-                 'start': dateStartRead,
-                 'stop': dataStop,
-                 'limit': 2
-                },
-                {'expression': 'userInput(key,val).eq(key,\'set_Temperature\')',
-                 'start': dateStartSet,
-                 'stop': dataStop,
-                 'limit': 1
-                }];
 
-    nwConnection.getData('PageControl.updateData.clients', urlWs, urlWget, urlQueryList, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
+    nwConnection.getData('PageControl.updateData.clients', urlWs, urlWget, this.getDataQueryNWClients, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
 };
 
