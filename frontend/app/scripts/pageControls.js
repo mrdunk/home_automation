@@ -4,7 +4,7 @@ function PageControl(){
 
     document.getElementById('paper').innerHTML = "";
     this.paper = new Raphael(document.getElementById('paper'), "100%", 400);
-    this.dial = new TemperatureSensor('Temperature', this.paper, tempSensorList, 75, 200, 50, 7, 9, 0, 40, sendDataDelay, this.sendData);
+    this.dial = new TemperatureSensor('Temperature', this.paper, tempSensorList, 100, 200, 50, 7, 9, 10, 30, sendDataDelay, this.sendData);
 
     this.updateData();
     pageUpdateTimer = window.setInterval(function(){
@@ -45,23 +45,19 @@ PageControl.prototype.getDataQueryNWClients = function () {
     dateStartRead.setMinutes(dateStartRead.getMinutes() - timeWindow);
     dateStartRead = dateStartRead.toISOString();
 
-    var dateStartSet = new Date();
-    dateStartSet.setHours(dateStartSet.getHours() - 24);
-    dateStartSet = dateStartSet.toISOString();
-
-    var dataStop = new Date();
-    dataStop.setMinutes(dataStop.getMinutes() +60);
-    dataStop = dataStop.toISOString();
+    var dateStop = new Date();
+    dateStop.setMinutes(dateStop.getMinutes() +60);
+    dateStop = dateStop.toISOString();
 
     return [{'expression': 'sensors(key,val).eq(label,\'1wire\')',
                  'start': dateStartRead,
-                 'stop': dataStop,
+                 'stop': dateStop,
                  'limit': 2,
                  'sort': 'time'
                 },
                 {'expression': 'userInput(key,val).eq(key,\'set_Temperature\')',
-                 'start': dateStartSet,
-                 'stop': dataStop,
+                 'start': 0,
+                 'stop': dateStop,
                  'limit': 1,
                  'sort': 'time'
                 }];

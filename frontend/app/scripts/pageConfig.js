@@ -19,26 +19,19 @@ PageConfig.prototype.drawPage = function(data){
         return;
     }
 
-    // Clear paper.
-    document.getElementById('paper').innerHTML = "";
-
     var key;
-    var firstLoop = true;
     var queryList = [];
     var macAddr;
-    var dateStart = 0;
+    var newData = false;
 
+    var dateStart = 0;
     var dateStop = new Date();
     dateStop.setMinutes(dateStop.getMinutes() +60);     // End time set for 1 hour in the future.
     dateStop = dateStop.toISOString();
 
 
     for(key in data){
-        if(firstLoop === true){
-            // Only clearing timer if data received.
-            nwConnection.clearRepeatTimers();
-            firstLoop = false;
-        }
+        console.log("  ", key);
 
         if(key === 'net_clients'){
             nwConnection.clearRepeatTimers('PageConfig.clients');
@@ -58,12 +51,13 @@ PageConfig.prototype.drawPage = function(data){
                                   'limit': 2,
                                   'sort': 'time' });
                 console.log(queryList);
+                newData = true;
             }
         } else if(key === 'users'){
             nwConnection.clearRepeatTimers('PageConfig.users');
             this.userList = data.users;
             console.log('users', data.users);
-            
+            newData = true;            
         } else if(key === 'userId'){
             nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
             console.log('**', key);
@@ -78,6 +72,7 @@ PageConfig.prototype.drawPage = function(data){
                     this.deviceList[macAddr].userId = data[key][macAddr][0];
                 }
             }
+            newData = true;
         } else if(key === 'description'){
             nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
             for(macAddr in data[key]){
@@ -91,6 +86,7 @@ PageConfig.prototype.drawPage = function(data){
                     this.deviceList[macAddr].description = data[key][macAddr];
                 }
             }
+            newData = true;
         }
     }
 
@@ -117,18 +113,23 @@ PageConfig.prototype.drawPage = function(data){
                 nwConnection.getData('PageConfig.drawPage.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.drawPage.bind(this)));
     }
 
-    //console.log('this.deviceList:', this.deviceList);
-    var paperDiv = document.getElementById('paper');
+    if(newData){
+        // Clear paper.
+        document.getElementById('paper').innerHTML = "";
 
-    var template = Handlebars.compile(this.showDevicesTemplate);
-    var keyDiv = document.createElement('div');
-    paperDiv.appendChild(keyDiv);
-    keyDiv.innerHTML = template({deviceList: this.deviceList});
+        //console.log('this.deviceList:', this.deviceList);
+        var paperDiv = document.getElementById('paper');
 
-    for(key in this.deviceList){
-        document.getElementById(key).onclick = this.editDevice.bind(this);
+        var template = Handlebars.compile(this.showDevicesTemplate);
+        var keyDiv = document.createElement('div');
+        paperDiv.appendChild(keyDiv);
+        keyDiv.innerHTML = template({deviceList: this.deviceList});
+
+        for(key in this.deviceList){
+            document.getElementById(key).onclick = this.editDevice.bind(this);
+        }
+        //console.log(this.deviceList);
     }
-    //console.log(this.deviceList);
 
 };
 
@@ -213,7 +214,7 @@ PageConfig.prototype.updateDevice = function (userInput){
 
 PageConfig.prototype.updateData = function (callbackFunction) {
     'use strict';
-    console.log('updateData 1');
+    console.log('PageConfig.updateData');
 
     var urlWs,
         urlWget,
@@ -256,7 +257,6 @@ PageConfig.prototype.updateData = function (callbackFunction) {
                 'start': dateStartRead,
                 'stop': dateStop }];
     };
-    console.log('updateData 2');
 
     this.updateTimers.push(
         nwConnection.getData('PageConfig.clients', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, callbackFunction));

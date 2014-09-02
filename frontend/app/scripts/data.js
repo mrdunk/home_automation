@@ -15,7 +15,6 @@ Connection.prototype.getSocket = function(uid, urlDomain, urlQueryList){
     'use strict';
     //console.log('Connection.getSocket');
     if ((typeof this.sockets[urlDomain] === 'undefined') || (this.sockets[urlDomain].readyState !== 1)){
-        console.log('  new');
 
         // We take the fact there is not an existing valid socket in the buffer to mean that tha last one failed in some way.
         this.getDataFail(uid);

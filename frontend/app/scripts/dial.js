@@ -22,6 +22,7 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 	'use strict';
 	var dialSensitivity = 360 / (temperatureMax - temperatureMin);
 	var dialOffset = temperatureMin * dialSensitivity;
+
 	this.label = label;
 	this.paper = paper;
 	this.callback = callback;
@@ -31,15 +32,25 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
 	this.lastActive = false;
     this.active = true;             // Whether to grey out dial (false) or display colour (true).
     this.lastActive = false;        // this.active from last round.
+
+//var attr = {font: "50px Helvetica", opacity: 0.5};
+//this.paper.text(10, 10, 'text').attr(attr).attr({fill: "#f00"});
+        
 	this.elementList.push(new TemperatureSensorElement(label, 'set_' + label, 'bar', this.paper,
-							   centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
+               centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	for(var sensor in sensorList){
 		diamiter += lineSpacing;
 		this.elementList.push(new TemperatureSensorElement(label + '_' + sensorList[sensor], sensorList[sensor], 'arc',
 								   this.paper, centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	}
+    diamiter += lineSpacing;
+    this.elementList.push(new TemperatureSensorElement(label + '_scale', 'scale_' + label, 'scale', this.paper,
+                centreX, centreY, diamiter, 2, dialSensitivity, dialOffset));
+    diamiter += lineSpacing;
+    this.elementList.push(new TemperatureSensorElement(label + '_legend', 'legend_' + label, 'legend', this.paper,
+                centreX, centreY, diamiter, 1, dialSensitivity, dialOffset));
 
-	//this.updateData();
+
     this.updateGraph(true);
 }
 
@@ -132,7 +143,7 @@ TemperatureSensor.prototype.updateGraph = function(force){
 
 /* A class for drawing 'rings' on the temperature sensor.
  * Args:
- *   type: 'arc' or 'bar'. 
+ *   type: 'arc', 'bar' or 'scale'. 
  *         'arc' is a 'ring' around the outside of the dial for reperesenting
  *         temperatures.
  *         'bar' is a 'line' eminating from the centre of the dial intended as
@@ -170,7 +181,10 @@ TemperatureSensorElement.prototype.angleToTemperature = function(angle){
 
 TemperatureSensorElement.prototype.updateData = function(setTemp){
 	'use strict';
-	if (typeof setTemp !== 'undefined' && !(isNaN(setTemp))){
+    if(this.type === 'scale'){
+        return;
+    }
+    if (typeof setTemp !== 'undefined' && !(isNaN(setTemp))){
 
         if(Math.abs(this.temperature - setTemp) > 0.01){
             this.dirty = true;
@@ -214,7 +228,7 @@ TemperatureSensorElement.prototype.setUp = function(){
             this.style.cursor = 'pointer';
         };
         this.pathObject.drag(this.setInput.bind(this), function(x, y){ /*drag start*/ }, function(){ /*ends*/ });
-    } else {
+    } else if(this.type === 'arc'){
         // Draw dots allong path of temperature bar.
         var arkShaddow = this.paper.circle(this.x, this.y, this.radius);
         arkShaddow.toBack();
@@ -222,6 +236,10 @@ TemperatureSensorElement.prototype.setUp = function(){
 
         this.pathObject.node.onmouseover = function(){
         };
+    }else if(this.type === 'scale'){
+        this.pathObject.toBack();
+    }else if(this.type === 'legend'){
+        this.pathObject.toBack();
     }
 };
 
@@ -252,7 +270,12 @@ TemperatureSensorElement.prototype.updateGraph = function(active){
         this.baseCircle.attr({gradient: this.baseGradient});
     }
 
-	var path;
+    var currentColour = 'grey';
+    if(active === true){
+        currentColour = colour(angleSet);
+    }
+
+	var path, a, t;
 	if (this.type === 'arc'){
 		if (angleSet !== 360){
 			path = [['M', this.x, this.y - this.radius],
@@ -264,12 +287,30 @@ TemperatureSensorElement.prototype.updateGraph = function(active){
 		}
 	} else if (this.type === 'bar'){
 		path = [['M', this.x, this.y], ['L', this.x + this.radius * Math.sin(_angle), this.y - this.radius * Math.cos(_angle)]];
-	}
+	} else if (this.type === 'scale'){
+        path = [];
+        t = parseInt(this.angleToTemperature(0));
+        a = 2 * Math.PI * this.temperatureToAngle(t) /360;
+        while(a < 2 * Math.PI){
+            path.push([['M',this.x, this.y], ['L', this.x + this.radius * Math.sin(a), this.y - this.radius * Math.cos(a)]]);
+            t += 1;
+            a = 2 * Math.PI * this.temperatureToAngle(t) /360;
+        }
+        currentColour = 'grey';
+    } else if (this.type === 'legend'){
+        var attr = {font: "20px Helvetica", opacity: 0.5};
+        t = parseInt(this.angleToTemperature(0));
+        a = 2 * Math.PI * this.temperatureToAngle(t) /360;
+        while(a < 2 * Math.PI){
+            if(t % 5 === 0){
+                this.paper.text(this.x + this.radius * Math.sin(a), this.y - this.radius * Math.cos(a), t).attr(attr).attr({fill: "#aaa"});
+            }
+            t += 1;
+            a = 2 * Math.PI * this.temperatureToAngle(t) /360;
+        }
+        currentColour = 'grey';
+    }
 	
-	var currentColour = 'grey';
-	if(active === true){
-		currentColour = colour(angleSet);
-	}
 	this.pathObject.attr({'path': path,
 			'stroke-linecap': 'round',
 			'stroke': currentColour,
