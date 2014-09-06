@@ -1,8 +1,9 @@
 function Connection(tryWebSocket){
+    'use strict';
     this.tryWebSocket = tryWebSocket;   // Try to use Websockets if browser supports them.
     this.sockets = {};                  // Container for currently usable websockets.
     this.repeatTimers = {};             // Dictionary of connections that will re-try at some point in the future.
-    this.successCounter = 5;            // Counter tracking successfull connections vs failed.
+    this.successCounter = {};           // Counter tracking successfull connections vs failed using uniqueId as key.
     this.connectionsInProgres = {};        // A dict of flags for monitoring whether connection has completed successfully or not.
 }
 
@@ -11,13 +12,13 @@ function Connection(tryWebSocket){
  * Args:
  *   urlDomain: The Domain of the websocket address we are looking for.
  *   urlQueryList: List of paths we will send to the WebSocket. */
-Connection.prototype.getSocket = function(uid, urlDomain, urlQueryList){
+Connection.prototype.getSocket = function(uniqueId, urlDomain, urlQueryList){
     'use strict';
     //console.log('Connection.getSocket');
     if ((typeof this.sockets[urlDomain] === 'undefined') || (this.sockets[urlDomain].readyState !== 1)){
 
         // We take the fact there is not an existing valid socket in the buffer to mean that tha last one failed in some way.
-        this.getDataFail(uid);
+        this.getDataFail(uniqueId);
 
         // Make and store new socket.
         this.sockets[urlDomain] = new WebSocket('ws://' + urlDomain, authKey);
@@ -44,9 +45,9 @@ Connection.prototype.send = function(socket, urlQueryList){
 Connection.prototype.clearRepeatTimers = function (clearUid){
     if(typeof clearUid === 'undefined'){
         // Since none was specified, clear all timers.
-        for(var uid in this.repeatTimers){
-            clearTimeout(this.repeatTimers[uid]);
-            delete this.repeatTimers[uid];
+        for(var uniqueId in this.repeatTimers){
+            clearTimeout(this.repeatTimers[uniqueId]);
+            delete this.repeatTimers[uniqueId];
         }
     } else {
         // Only clear the specified timer.
@@ -77,59 +78,62 @@ Connection.prototype.swapServer = function(url){
 };
 
 /* Call when Connection.getData() suceeds. */
-Connection.prototype.getDataSuccess = function (uid, useCallback){
+Connection.prototype.getDataSuccess = function (uniqueId, useCallback){
     'use strict';
     // Clear flag signifying this connection has finished.
-    this.connectionsInProgres[uid] = false;
+    this.connectionsInProgres[uniqueId] = false;
 
-    if(this.successCounter < 10){
-        this.successCounter += 1;
+
+    if(this.successCounter[uniqueId] < 10){
+        this.successCounter[uniqueId] += 1;
         log(this.successCounter, 'Connection success');
         useCallback(true);
     }
 };
 
 /* Call when Connection.getData() fails. */
-Connection.prototype.getDataFail = function (uid){
+Connection.prototype.getDataFail = function (uniqueId){
         'use strict';
         // Clear flag signifying this connection has finished.
-        this.connectionsInProgres[uid] = false;
+        this.connectionsInProgres[uniqueId] = false;
 
-        if(this.successCounter > 0){
-            this.successCounter -= 1;
+        if(this.successCounter[uniqueId] > 0){
+            this.successCounter[uniqueId] -= 1;
             log(this.successCounter, 'Connection success');
         }
 };
 
 /* Args:
- *   uid: A unique identifier string. Must be different for each place in the code thi method is called from.
+ *   uniqueId: A unique identifier string. Must be different for each place in the code thi method is called from.
  *   urlWs: Address of host to query using WebSockets. Set "false" if WebSockets are unaalable on the host.
  *   urlWget: Address of host to query using Wget.
  *   urlQueryListCallback: Can be either a callback function to generate query to send host or the list it's self.
  *   retryIn: Time in ms between repeat requests. ("0" means no repeat requests.)
  *   parseCallback: A callback function to reduce the returned data into a usable format.
  *   useCallback: A callback function to consume the returned data. */
-Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryListCallback, retryIn, parseCallback, useCallback) {
+Connection.prototype.getData = function (uniqueId, urlWs, urlWget, urlQueryListCallback, retryIn, parseCallback, useCallback) {
     'use strict';
-    if(this.connectionsInProgres[uid] === 'undefined'){
-        // first time running this connection uid.
-        this.connectionsInProgres[uid] = false;
+
+    if(typeof this.connectionsInProgres[uniqueId] === 'undefined'){
+        // first time running this connection uniqueId.
+        this.connectionsInProgres[uniqueId] = false;
+        this.successCounter[uniqueId] = 5;
     }
 
-    if(this.connectionsInProgres[uid] === true){
+    if(this.connectionsInProgres[uniqueId] === true){
         // This connection has not finished and cleared flag. Timeout condition.
-        this.getDataFail(uid);
+        this.getDataFail(uniqueId);
     }
-    this.connectionsInProgres[uid] = true;
+    this.connectionsInProgres[uniqueId] = true;
 
 
     // See if there is a timer for this event already and clear it if there is.
-    if(typeof this.repeatTimers[uid] !== 'undefined'){
-        clearTimeout(this.repeatTimers[uid]);
+    if(typeof this.repeatTimers[uniqueId] !== 'undefined'){
+        clearTimeout(this.repeatTimers[uniqueId]);
     }
     // Set a new timer if appropriate.
     if(retryIn > 0){
-        this.repeatTimers[uid] = setTimeout(function(){this.getData(uid, urlWs, urlWget, urlQueryListCallback, retryIn, parseCallback, useCallback);}.bind(this), retryIn);
+        this.repeatTimers[uniqueId] = setTimeout(function(){this.getData(uniqueId, urlWs, urlWget, urlQueryListCallback, retryIn, parseCallback, useCallback);}.bind(this), retryIn);
     }
     log(Object.keys(this.repeatTimers).length, 'Conections');
 
@@ -142,18 +146,18 @@ Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryListCallba
 
     // Now send the request for the data.
     if (this.tryWebSocket && (urlWs !== false) && ('WebSocket' in window)){
-        this.getDataWs(uid, urlWs, urlQueryList, parseCallback, useCallback);
+        this.getDataWs(uniqueId, urlWs, urlQueryList, parseCallback, useCallback);
     } else{
-        this.getDataWget(uid, urlWget, urlQueryList, parseCallback, useCallback);
+        this.getDataWget(uniqueId, urlWget, urlQueryList, parseCallback, useCallback);
     }
 
     // If we haven't sucessfully received data for a while...
-    if(this.successCounter === 0){
+    if(this.successCounter[uniqueId] === 0){
         // switch off dial.
         useCallback(false);
 
         // Abuse this counter so we don't swap hosts every failure.
-        this.successCounter = 5;
+        this.successCounter[uniqueId] = 5;
 
         // Change which server we use.
         if(serverFQDN === serverFQDN1){
@@ -168,12 +172,12 @@ Connection.prototype.getData = function (uid, urlWs, urlWget, urlQueryListCallba
         log(serverFQDN, 'serverFQDN');
     }
 
-    if(typeof this.repeatTimers[uid] !== 'undefined'){
-        return this.repeatTimers[uid];
+    if(typeof this.repeatTimers[uniqueId] !== 'undefined'){
+        return this.repeatTimers[uniqueId];
     }
 };
 
-Connection.prototype.getDataWs = function (uid, urlWs, urlQueryList, parseCallback, useCallback) {
+Connection.prototype.getDataWs = function (uniqueId, urlWs, urlQueryList, parseCallback, useCallback) {
     'use strict';
     log(Object.keys(this.sockets).length, 'WebSockets');
 
@@ -181,7 +185,7 @@ Connection.prototype.getDataWs = function (uid, urlWs, urlQueryList, parseCallba
 
     var retVals = {};
     var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
-    var socket = this.getSocket(uid, urlDomainWs, urlQueryList);
+    var socket = this.getSocket(uniqueId, urlDomainWs, urlQueryList);
     var receivedData = 0;
     console.log(urlDomainWs);
 
@@ -200,7 +204,7 @@ Connection.prototype.getDataWs = function (uid, urlWs, urlQueryList, parseCallba
                 // All expected replies have been recieved.
                 if (typeof useCallback !== 'undefined' && receivedData > 0){
                     useCallback(retVals);
-                    this.getDataSuccess(uid, useCallback);
+                    this.getDataSuccess(uniqueId, useCallback);
                 }
             }
         }
@@ -224,7 +228,7 @@ Connection.prototype.getDataWs = function (uid, urlWs, urlQueryList, parseCallba
 };
 
 
-Connection.prototype.getDataWget = function (uid, urlWget, urlQueryList, parseCallback, useCallback) {
+Connection.prototype.getDataWget = function (uniqueId, urlWget, urlQueryList, parseCallback, useCallback) {
     'use strict';
     log('false', 'WebSockets');
     var retVals = {};
@@ -250,7 +254,7 @@ Connection.prototype.getDataWget = function (uid, urlWget, urlQueryList, parseCa
             // either data has arrived or there was a problem so execute callback function.
             if (typeof useCallback !== 'undefined' && request.readyState === 4){
                 useCallback(retVals);
-                this.getDataSuccess(uid, useCallback);
+                this.getDataSuccess(uniqueId, useCallback);
             }
         }.bind(this);
         var async = true;
@@ -288,19 +292,19 @@ Connection.prototype.getDataWget = function (uid, urlWget, urlQueryList, parseCa
     return retVals;
 };
 
-Connection.prototype.sendData = function (uid, urlWs, urlWget, dataList){
+Connection.prototype.sendData = function (uniqueId, urlWs, urlWget, dataList){
     'use strict';
     if (this.tryWebSocket && (urlWs !== false) && ('WebSocket' in window)){
-        this.sendDataWs(uid, urlWs, dataList);
+        this.sendDataWs(uniqueId, urlWs, dataList);
     } else{
-        this.sendDataWget(uid, urlWget, dataList);
+        this.sendDataWget(uniqueId, urlWget, dataList);
     }
 };
 
-Connection.prototype.sendDataWs = function (uid, urlWs, dataList){
+Connection.prototype.sendDataWs = function (uniqueId, urlWs, dataList){
     'use strict';
     var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
-    var socket = this.getSocket(uid, urlDomainWs, dataList);
+    var socket = this.getSocket(uniqueId, urlDomainWs, dataList);
     console.log(urlDomainWs, dataList);
 
     socket.onopen = function() {
@@ -315,7 +319,7 @@ Connection.prototype.sendDataWs = function (uid, urlWs, dataList){
 
 };
 
-Connection.prototype.sendDataWget = function (uid, urlWget, dataList){
+Connection.prototype.sendDataWget = function (uniqueId, urlWget, dataList){
     'use strict';
     // TODO implement retries on failure.
 
@@ -328,9 +332,9 @@ Connection.prototype.sendDataWget = function (uid, urlWget, dataList){
         if(request.readyState === 4 && request.status === 200) {
             console.log(request.responseText);
         } else if(request.readyState === 4) {
-            // Since request.status !=== 200,
+            // Since request.status !== 200,
             // this is an error.
-            // Rather than handling the error here it is simpler to have a single failure timer that gets canceled on successa (Still TODO.).
+            // Rather than handling the error here it is simpler to have a single failure timer that gets canceled on success (Still TODO.).
         }
     };
     var async = true;
@@ -433,3 +437,159 @@ var parseDataAppEngine = function(type, data, retVals){
         }
 };
 
+
+function UserData(){
+    'use strict';
+    this.deviceList = {};
+    this.userList = {};
+    
+    this.getData();
+}
+
+
+/* Get info on which users devices currently have DHCP leases. */
+UserData.prototype.getData = function(){
+    'use strict';
+    var urlWs,
+        urlWget,
+        urlQueryList;
+
+    // Get User info from AppEngine
+    urlWs = false;
+    urlWget = {'host': 'home-automation-7.appspot.com',
+               'port': '80',
+               'path': '/listUsers/'};
+    urlQueryList = [{'unused': '0'}];
+    nwConnection.getData('PageConfig.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseData.bind(this));
+
+
+    // Get all MAC Address and IP Address mappings in the last hour from server.
+    urlWs = {'host': serverFQDN,
+             'port': serverCubeMetricPort,
+             'path': '/cube-metric-ws/1.0/event/get'};
+    urlWget = {'host': serverFQDN,
+               'port': serverCubeMetricPort,
+               'path': '/cube-metric/1.0/event/get'};
+    var urlQueryListCallback = function(){
+        var dateStartRead = new Date();
+        dateStartRead.setMinutes(dateStartRead.getMinutes() - 60*timeWindow);
+        dateStartRead = dateStartRead.toISOString();
+
+        var dateStop = new Date();
+        dateStop.setMinutes(dateStop.getMinutes() +60);
+        dateStop = dateStop.toISOString();
+
+        return [{'expression': 'sensors(label,key,val).eq(label,\'net_clients\')',
+                'start': dateStartRead,
+                'stop': dateStop }];
+    };
+
+    nwConnection.getData('PageConfig.clients', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, this.parseData.bind(this));
+
+};
+
+/* callback function to parse data retreived by this.getData(). */
+UserData.prototype.parseData = function(data){
+    'use strict';
+    if(typeof data === 'boolean'){
+        // We don't care about the bool indicators of network sucess here.
+        return;
+    }
+
+    console.log('UserData.parseData', data);
+
+    var key;
+    var queryList = [];
+    var macAddr;
+    var newData = false;
+
+    var dateStart = 0;
+    var dateStop = new Date();
+    dateStop.setMinutes(dateStop.getMinutes() +60);     // End time set for 1 hour in the future.
+    dateStop = dateStop.toISOString();
+
+
+    for(key in data){
+        console.log("  ", key);
+
+        if(key === 'net_clients'){
+            // Received macAddr & IPAddr from server.
+            nwConnection.clearRepeatTimers('PageConfig.clients');
+            for(macAddr in data.net_clients){
+                if(!(macAddr in this.deviceList)){
+                    this.deviceList[macAddr] = {ip: data.net_clients[macAddr].slice(-1),
+                        description: '',
+                        userId: '',
+                        userName: '',
+                        userUrl: ''};
+                } else {
+                    this.deviceList[macAddr].ip = data.net_clients[macAddr].slice(-1);
+                }
+//                queryList.push({'expression': 'configuration(label,key,val).eq(key,\'' + macAddr + '\')',
+//                                  'start': dateStart,
+//                                  'stop': dateStop,
+//                                  'limit': 2,
+//                                  'sort': 'time' });
+                console.log(queryList);
+                newData = true;
+            }
+        } else if(key === 'users'){
+            nwConnection.clearRepeatTimers('PageConfig.users');
+            this.userList = data.users;
+            console.log('users', data.users);
+            newData = true;
+        } else if(key === 'userId'){
+            nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
+            console.log('**', key);
+            for(macAddr in data[key]){
+                if(!(macAddr in this.deviceList)){
+                    this.deviceList[macAddr] = {ip: '',
+                        description: '',
+                        userId: data[key][macAddr][0],
+                        userName: '',
+                        userUrl: ''};
+                } else {
+                    this.deviceList[macAddr].userId = data[key][macAddr][0];
+                }
+            }
+            newData = true;
+        } else if(key === 'description'){
+            nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
+            for(macAddr in data[key]){
+                if(!(macAddr in this.deviceList)){
+                    this.deviceList[macAddr] = {ip: '',
+                        description: data[key][macAddr][0],
+                        userId: '',
+                        userName: '',
+                        userUrl: ''};
+                } else {
+                    this.deviceList[macAddr].description = data[key][macAddr];
+                }
+            }
+            newData = true;
+        }
+    }
+
+    // Add this.userList data to this.deviceList.
+    for(macAddr in this.deviceList){
+        var userId = this.deviceList[macAddr].userId;
+        if(userId !== ''){
+            if(this.deviceList[macAddr].userId in this.userList){
+                this.deviceList[macAddr].userName = this.userList[userId].displayName;
+                this.deviceList[macAddr].userUrl = this.userList[userId].image;
+            }
+        }
+    }
+
+    if(queryList.length !== 0){
+        console.log('** More lookup', queryList);
+        var urlWs = {'host': serverFQDN,
+                 'port': serverCubeMetricPort,
+                 'path': '/cube-metric-ws/1.0/event/get'};
+        var urlWget = {'host': serverFQDN,
+                   'port': serverCubeMetricPort,
+                   'path': '/cube-metric/1.0/event/get'};
+        nwConnection.getData('PageConfig.drawPage.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.parseData.bind(this));
+    }
+
+};

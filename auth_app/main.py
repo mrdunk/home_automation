@@ -132,7 +132,8 @@ class ListUsers(webapp2.RequestHandler):
 	    for userId in userList:
 		response['ListUsers'].append(WhoIs(self, userId.key.id()))
 
-	    self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
+            self.response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
 	    self.response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
 	    self.response.headers['Access-Control-Allow-Methods'] = 'GET'
             self.response.headers['Access-Control-Allow-Credentials'] = 'true'
