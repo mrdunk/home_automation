@@ -83,7 +83,6 @@ Connection.prototype.getDataSuccess = function (uniqueId, useCallback){
     // Clear flag signifying this connection has finished.
     this.connectionsInProgres[uniqueId] = false;
 
-
     if(this.successCounter[uniqueId] < 10){
         this.successCounter[uniqueId] += 1;
         log(this.successCounter, 'Connection success');
@@ -186,7 +185,6 @@ Connection.prototype.getDataWs = function (uniqueId, urlWs, urlQueryList, parseC
     var retVals = {};
     var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
     var socket = this.getSocket(uniqueId, urlDomainWs, urlQueryList);
-    var receivedData = 0;
     console.log(urlDomainWs);
 
     socket.onopen = function() {
@@ -196,13 +194,12 @@ Connection.prototype.getDataWs = function (uniqueId, urlWs, urlQueryList, parseC
     socket.onmessage = function(message) {
         if(parseCallback('ws', message.data, retVals) !== null){
             // data still arriving and populating retVals.
-            receivedData += 1;
         } else {
             // Empty message signifies end of reply.
             socket.replyCount += 1;
             if (socket.replyCount === urlQueryList.length){
                 // All expected replies have been recieved.
-                if (typeof useCallback !== 'undefined' && receivedData > 0){
+                if (typeof useCallback !== 'undefined'){
                     useCallback(retVals);
                     this.getDataSuccess(uniqueId, useCallback);
                 }
@@ -438,8 +435,9 @@ var parseDataAppEngine = function(type, data, retVals){
 };
 
 
-function UserData(){
+function UserData(updateCallback){
     'use strict';
+    this.updateCallback = updateCallback;    
     this.deviceList = {};
     this.userList = {};
     
@@ -460,7 +458,7 @@ UserData.prototype.getData = function(){
                'port': '80',
                'path': '/listUsers/'};
     urlQueryList = [{'unused': '0'}];
-    nwConnection.getData('PageConfig.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseData.bind(this));
+    nwConnection.getData('PageConfig.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseDataUsers.bind(this));
 
 
     // Get all MAC Address and IP Address mappings in the last hour from server.
@@ -484,37 +482,52 @@ UserData.prototype.getData = function(){
                 'stop': dateStop }];
     };
 
-    nwConnection.getData('PageConfig.clients', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, this.parseData.bind(this));
+    nwConnection.getData('PageConfig.devices', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, this.parseDataDevices.bind(this));
 
 };
 
 /* callback function to parse data retreived by this.getData(). */
-UserData.prototype.parseData = function(data){
+UserData.prototype.parseDataUsers = function(data){
     'use strict';
+    var key;
+    var newData = false;
+
+    nwConnection.clearRepeatTimers('PageConfig.users');
+
+    for(key in data){
+        if(key === 'users'){
+            this.userList = data.users;
+            console.log('users', data.users);
+            newData = true;
+        }
+    }
+
+    this.combineData();    
+};
+
+/* callback function to parse data retreived by this.getData(). */
+UserData.prototype.parseDataDevices = function(data){
+    'use strict';
+    var key;
+    var newData = false;
+    var queryList = [];
+    var macAddr;
+
     if(typeof data === 'boolean'){
         // We don't care about the bool indicators of network sucess here.
         return;
     }
 
-    console.log('UserData.parseData', data);
-
-    var key;
-    var queryList = [];
-    var macAddr;
-    var newData = false;
+    nwConnection.clearRepeatTimers('PageConfig.devices');
 
     var dateStart = 0;
     var dateStop = new Date();
     dateStop.setMinutes(dateStop.getMinutes() +60);     // End time set for 1 hour in the future.
     dateStop = dateStop.toISOString();
 
-
     for(key in data){
-        console.log("  ", key);
-
         if(key === 'net_clients'){
             // Received macAddr & IPAddr from server.
-            nwConnection.clearRepeatTimers('PageConfig.clients');
             for(macAddr in data.net_clients){
                 if(!(macAddr in this.deviceList)){
                     this.deviceList[macAddr] = {ip: data.net_clients[macAddr].slice(-1),
@@ -525,21 +538,42 @@ UserData.prototype.parseData = function(data){
                 } else {
                     this.deviceList[macAddr].ip = data.net_clients[macAddr].slice(-1);
                 }
-//                queryList.push({'expression': 'configuration(label,key,val).eq(key,\'' + macAddr + '\')',
-//                                  'start': dateStart,
-//                                  'stop': dateStop,
-//                                  'limit': 2,
-//                                  'sort': 'time' });
+                // Since we have a new MacAddr, let's look up if we have stored any information about it.
+                queryList.push({'expression': 'configuration(label,key,val).eq(key,\'' + macAddr + '\')',
+                                  'start': dateStart,
+                                  'stop': dateStop,
+                                  'limit': 2,
+                                  'sort': 'time' });
                 console.log(queryList);
                 newData = true;
             }
-        } else if(key === 'users'){
-            nwConnection.clearRepeatTimers('PageConfig.users');
-            this.userList = data.users;
-            console.log('users', data.users);
-            newData = true;
-        } else if(key === 'userId'){
-            nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
+        }
+    }
+
+    if(queryList.length !== 0){
+        console.log('** More lookup', queryList);
+        var urlWs = {'host': serverFQDN,
+                 'port': serverCubeMetricPort,
+                 'path': '/cube-metric-ws/1.0/event/get'};
+        var urlWget = {'host': serverFQDN,
+                   'port': serverCubeMetricPort,
+                   'path': '/cube-metric/1.0/event/get'};
+        nwConnection.getData('PageConfig.drawPage.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.parseDataConfig.bind(this));
+    }
+
+    this.combineData();
+};
+
+UserData.prototype.parseDataConfig = function(data){
+    'use strict';
+    var macAddr,
+        key;
+    var newData = false;
+
+    nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
+
+    for(key in data){
+        if(key === 'userId'){
             console.log('**', key);
             for(macAddr in data[key]){
                 if(!(macAddr in this.deviceList)){
@@ -554,7 +588,6 @@ UserData.prototype.parseData = function(data){
             }
             newData = true;
         } else if(key === 'description'){
-            nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
             for(macAddr in data[key]){
                 if(!(macAddr in this.deviceList)){
                     this.deviceList[macAddr] = {ip: '',
@@ -569,6 +602,14 @@ UserData.prototype.parseData = function(data){
             newData = true;
         }
     }
+    this.combineData();
+};
+
+/* combine data that may have been parsed by parseDataUsers, parseDataDevices or parseDataConfig */
+UserData.prototype.combineData = function(){
+    'use strict';
+
+    var macAddr;
 
     // Add this.userList data to this.deviceList.
     for(macAddr in this.deviceList){
@@ -581,15 +622,5 @@ UserData.prototype.parseData = function(data){
         }
     }
 
-    if(queryList.length !== 0){
-        console.log('** More lookup', queryList);
-        var urlWs = {'host': serverFQDN,
-                 'port': serverCubeMetricPort,
-                 'path': '/cube-metric-ws/1.0/event/get'};
-        var urlWget = {'host': serverFQDN,
-                   'port': serverCubeMetricPort,
-                   'path': '/cube-metric/1.0/event/get'};
-        nwConnection.getData('PageConfig.drawPage.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.parseData.bind(this));
-    }
-
+    this.updateCallback();
 };
