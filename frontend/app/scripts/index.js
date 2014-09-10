@@ -23,12 +23,15 @@ var useWebSocket = true;
 //var useWebSocket = false;
 var nwConnection = new Connection(useWebSocket);
 var authKey;
+var usersAtHome;
+
 
 window.onload = function () {
     'use strict';
     log('window.onload');
     log(location.hash, 'hash');
     authKey = getAuthKey();
+    usersAtHome = new WhosHome();
 };
 
 window.onhashchange = function () {
@@ -37,6 +40,9 @@ window.onhashchange = function () {
 
     window.clearInterval(pageUpdateTimer);
     nwConnection.clearRepeatTimers();
+
+    // Clear content pannel.
+    document.getElementById('paper').innerHTML = "";
 
     if(location.hash === '#control'){
         new PageControl();

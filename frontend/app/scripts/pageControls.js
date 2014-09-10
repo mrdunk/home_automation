@@ -2,7 +2,6 @@ function PageControl(){
     'use strict';
     console.log('PageControl');
 
-    document.getElementById('paper').innerHTML = "";
     this.paper = new Raphael(document.getElementById('paper'), "100%", 400);
     this.dial = new TemperatureSensor('Temperature', this.paper, tempSensorList, 100, 200, 50, 7, 9, 10, 30, sendDataDelay, this.sendData);
 

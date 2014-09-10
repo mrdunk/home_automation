@@ -8,136 +8,33 @@ function PageConfig(){
     this.showDevicesTemplate = loadTemplate('showDevicesTemplate.html');
     this.updateTimers = [];
 
-    this.updateData(this.drawPage.bind(this));
+//    this.updateData(this.drawPage.bind(this));
+    this.drawPage();
 }
 
-PageConfig.prototype.drawPage = function(data){
+PageConfig.prototype.drawPage = function(){
     'use strict';
-    console.log('drawPage', data);
-    if(typeof data === 'boolean'){
-        // We don't care about the bool indicators of network sucess here.
-        return;
+    console.log('drawPage2', usersAtHome.userData);
+
+    // TODO display message and reload if user data not in buffer yet.
+
+    // Clear paper.
+    var paperDiv = document.getElementById('paper');
+    paperDiv.innerHTML = "";
+
+    var template = Handlebars.compile(this.showDevicesTemplate);
+    var keyDiv = document.createElement('div');
+    paperDiv.appendChild(keyDiv);
+    keyDiv.innerHTML = template({deviceList: usersAtHome.userData.deviceList});
+
+    for(var key in usersAtHome.userData.deviceList){
+        document.getElementById(key).onclick = this.editDevice.bind(this);
     }
-
-    var key;
-    var queryList = [];
-    var macAddr;
-    var newData = false;
-
-    var dateStart = 0;
-    var dateStop = new Date();
-    dateStop.setMinutes(dateStop.getMinutes() +60);     // End time set for 1 hour in the future.
-    dateStop = dateStop.toISOString();
-
-
-    for(key in data){
-        console.log("  ", key);
-
-        if(key === 'net_clients'){
-            nwConnection.clearRepeatTimers('PageConfig.clients');
-            for(macAddr in data.net_clients){
-                if(!(macAddr in this.deviceList)){
-                    this.deviceList[macAddr] = {ip: data.net_clients[macAddr].slice(-1),
-                        description: '',
-                        userId: '',
-                        userName: '',
-                        userUrl: ''};
-                } else {
-                    this.deviceList[macAddr].ip = data.net_clients[macAddr].slice(-1);
-                }
-                queryList.push({'expression': 'configuration(label,key,val).eq(key,\'' + macAddr + '\')',
-                                  'start': dateStart,
-                                  'stop': dateStop,
-                                  'limit': 2,
-                                  'sort': 'time' });
-                console.log(queryList);
-                newData = true;
-            }
-        } else if(key === 'users'){
-            nwConnection.clearRepeatTimers('PageConfig.users');
-            this.userList = data.users;
-            console.log('users', data.users);
-            newData = true;            
-        } else if(key === 'userId'){
-            nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
-            console.log('**', key);
-            for(macAddr in data[key]){
-                if(!(macAddr in this.deviceList)){
-                    this.deviceList[macAddr] = {ip: '',
-                        description: '',
-                        userId: data[key][macAddr][0],
-                        userName: '',
-                        userUrl: ''};
-                } else {
-                    this.deviceList[macAddr].userId = data[key][macAddr][0];
-                }
-            }
-            newData = true;
-        } else if(key === 'description'){
-            nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
-            for(macAddr in data[key]){
-                if(!(macAddr in this.deviceList)){
-                    this.deviceList[macAddr] = {ip: '',
-                        description: data[key][macAddr][0],
-                        userId: '',
-                        userName: '',
-                        userUrl: ''};
-                } else {
-                    this.deviceList[macAddr].description = data[key][macAddr];
-                }
-            }
-            newData = true;
-        }
-    }
-
-    // Combine this.deviceList and this.userList.
-    for(macAddr in this.deviceList){
-        var userId = this.deviceList[macAddr].userId;
-        if(userId !== ''){
-            if(this.deviceList[macAddr].userId in this.userList){
-                this.deviceList[macAddr].userName = this.userList[userId].displayName;
-                this.deviceList[macAddr].userUrl = this.userList[userId].image;
-            }
-        }
-    }
-
-    if(queryList.length !== 0){
-        console.log('** More lookup', queryList);
-        var urlWs = {'host': serverFQDN,
-                 'port': serverCubeMetricPort,
-                 'path': '/cube-metric-ws/1.0/event/get'};
-        var urlWget = {'host': serverFQDN,
-                   'port': serverCubeMetricPort,
-                   'path': '/cube-metric/1.0/event/get'};
-        this.updateTimers.push(
-                nwConnection.getData('PageConfig.drawPage.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.drawPage.bind(this)));
-    }
-
-    if(newData){
-        // Clear paper.
-        document.getElementById('paper').innerHTML = "";
-
-        //console.log('this.deviceList:', this.deviceList);
-        var paperDiv = document.getElementById('paper');
-
-        var template = Handlebars.compile(this.showDevicesTemplate);
-        var keyDiv = document.createElement('div');
-        paperDiv.appendChild(keyDiv);
-        keyDiv.innerHTML = template({deviceList: this.deviceList});
-
-        for(key in this.deviceList){
-            document.getElementById(key).onclick = this.editDevice.bind(this);
-        }
-        //console.log(this.deviceList);
-    }
-
 };
 
 /* Dislay form to edit a network client's properties. */
 PageConfig.prototype.editDevice = function (buttonPress){
     'use strict';
-    console.log(this.deviceList);
-    console.log(this.userList);
     var key = buttonPress.target.id;
 
     // Clear paper.
@@ -152,12 +49,12 @@ PageConfig.prototype.editDevice = function (buttonPress){
 
     var template = Handlebars.compile(this.editDeviceTemplate);
     var record = {key: key,
-                  ip: this.deviceList[key].ip.slice(-1),
-                  userId: this.deviceList[key].userId,
-                  description: this.deviceList[key].description };
+                  ip: usersAtHome.userData.deviceList[key].ip.slice(-1),
+                  userId: usersAtHome.userData.deviceList[key].userId,
+                  description: usersAtHome.userData.deviceList[key].description };
 
     var context = {record: record,
-                   userList: this.userList};
+                   userList: usersAtHome.userData.userList};
 
     keyDiv.innerHTML = template(context);
 
@@ -189,7 +86,9 @@ PageConfig.prototype.saveDevice = function (userInput){
     // TODO add repeat send for failures.
     nwConnection.sendData('PageControl.updateData.userInput', urlWs, urlWget, dataList);
 
-    this.drawPage({});
+    usersAtHome.lookup();
+
+    this.drawPage();
 };
 
 /* Called when any data is updated during this.editDevice() */
@@ -202,64 +101,14 @@ PageConfig.prototype.updateDevice = function (userInput){
 
         console.log(this.deviceList[macAddress]);
         console.log(selectName, description, macAddress);
-        this.deviceList[macAddress].userId = selectName;
-        this.deviceList[macAddress].description = description;
-        if(selectName in this.userList){
-            this.deviceList[macAddress].userName = this.userList[selectName].displayName;
+        usersAtHome.userData.deviceList[macAddress].userId = selectName;
+        usersAtHome.userData.deviceList[macAddress].description = description;
+        if(selectName in usersAtHome.userData.userList){
+            usersAtHome.userData.deviceList[macAddress].userName = usersAtHome.userData.userList[selectName].displayName;
         } else {
-            this.deviceList[macAddress].userName = '';
+            usersAtHome.userData.deviceList[macAddress].userName = '';
         }
 
-};
-
-PageConfig.prototype.updateData = function (callbackFunction) {
-    'use strict';
-    console.log('PageConfig.updateData');
-
-    var urlWs,
-        urlWget,
-        urlQueryList;
-
-    // Get User info from AppEngine
-    urlWs = false;
-    urlWget = {'host': 'home-automation-7.appspot.com',
-               'port': '80',
-               'path': '/listUsers/'};
-    urlQueryList = [{'unused': '0'}];
-    this.updateTimers.push(
-            nwConnection.getData('PageConfig.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, callbackFunction));
-
-    // Get all MAC Address and IP Address mappings in the last hour from server.
-    var dateStartRead = new Date();
-    dateStartRead.setMinutes(dateStartRead.getMinutes() - 60*timeWindow);
-    dateStartRead = dateStartRead.toISOString();
-
-    var dateStop = new Date();
-    dateStop.setMinutes(dateStop.getMinutes() +60);
-    dateStop = dateStop.toISOString();
-
-    urlWs = {'host': serverFQDN,
-             'port': serverCubeMetricPort,
-             'path': '/cube-metric-ws/1.0/event/get'};
-    urlWget = {'host': serverFQDN,
-               'port': serverCubeMetricPort,
-               'path': '/cube-metric/1.0/event/get'};
-    var urlQueryListCallback = function(){
-        var dateStartRead = new Date();
-        dateStartRead.setMinutes(dateStartRead.getMinutes() - 60*timeWindow);
-        dateStartRead = dateStartRead.toISOString();
-
-        var dateStop = new Date();
-        dateStop.setMinutes(dateStop.getMinutes() +60);
-        dateStop = dateStop.toISOString();
-
-        return [{'expression': 'sensors(label,key,val).eq(label,\'net_clients\')',
-                'start': dateStartRead,
-                'stop': dateStop }];
-    };
-
-    this.updateTimers.push(
-        nwConnection.getData('PageConfig.clients', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, callbackFunction));
 };
 
 var loadTemplate = function(filename){

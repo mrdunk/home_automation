@@ -458,8 +458,7 @@ UserData.prototype.getData = function(){
                'port': '80',
                'path': '/listUsers/'};
     urlQueryList = [{'unused': '0'}];
-    nwConnection.getData('PageConfig.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseDataUsers.bind(this));
-
+    nwConnection.getData('UserData.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseDataUsers.bind(this));
 
     // Get all MAC Address and IP Address mappings in the last hour from server.
     urlWs = {'host': serverFQDN,
@@ -482,23 +481,38 @@ UserData.prototype.getData = function(){
                 'stop': dateStop }];
     };
 
-    nwConnection.getData('PageConfig.devices', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, this.parseDataDevices.bind(this));
-
+    nwConnection.getData('UserData.devices', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, this.parseDataDevices.bind(this));
 };
 
-/* callback function to parse data retreived by this.getData(). */
+/* Callback function to parse data retreived by this.getData(). 
+ * This callback deals with data from AppEngine and maps userId to name and picture.*/
 UserData.prototype.parseDataUsers = function(data){
     'use strict';
+    console.log('UserData.parseDataUsers', data);
     var key;
-    var newData = false;
 
-    nwConnection.clearRepeatTimers('PageConfig.users');
+    if(typeof this.parseDataUsersFailcounter === 'undefined'){
+        this.parseDataUsersFailcounter = 0;
+    }
+
+    if(data === {}){
+        this.parseDataUsersFailcounter += 1;
+    }
+    
+    if(this.parseDataUsersFailcounter >= 5){
+        nwConnection.clearRepeatTimers('UserData.users');
+        this.parseDataUsersFailcounter = 0;
+    }
 
     for(key in data){
         if(key === 'users'){
+            nwConnection.clearRepeatTimers('UserData.users');
+            this.parseDataUsersFailcounter = 0;
             this.userList = data.users;
             console.log('users', data.users);
-            newData = true;
+        } else {
+            // Got data from same WebSocket (hence this callback) but query does not match.
+            this.parseDataUsersFailcounter += 1;
         }
     }
 
@@ -508,8 +522,8 @@ UserData.prototype.parseDataUsers = function(data){
 /* callback function to parse data retreived by this.getData(). */
 UserData.prototype.parseDataDevices = function(data){
     'use strict';
+    console.log('UserData.parseDataDevices', data);
     var key;
-    var newData = false;
     var queryList = [];
     var macAddr;
 
@@ -518,7 +532,18 @@ UserData.prototype.parseDataDevices = function(data){
         return;
     }
 
-    nwConnection.clearRepeatTimers('PageConfig.devices');
+    if(typeof this.parseDataDevicesFailcounter === 'undefined'){
+        this.parseDataDevicesFailcounter = 0;
+    }
+
+    if(data === {}){
+        this.parseDataDevicesFailcounter += 1;
+    }
+
+    if(this.parseDataDevicesFailcounter >= 5){
+        nwConnection.clearRepeatTimers('UserData.devices');
+        this.parseDataDevicesFailcounter = 0;
+    }
 
     var dateStart = 0;
     var dateStop = new Date();
@@ -528,6 +553,8 @@ UserData.prototype.parseDataDevices = function(data){
     for(key in data){
         if(key === 'net_clients'){
             // Received macAddr & IPAddr from server.
+            nwConnection.clearRepeatTimers('UserData.devices');
+            this.parseDataDevicesFailcounter = 0;
             for(macAddr in data.net_clients){
                 if(!(macAddr in this.deviceList)){
                     this.deviceList[macAddr] = {ip: data.net_clients[macAddr].slice(-1),
@@ -545,20 +572,21 @@ UserData.prototype.parseDataDevices = function(data){
                                   'limit': 2,
                                   'sort': 'time' });
                 console.log(queryList);
-                newData = true;
             }
+        } else {
+            // Got data from same WebSocket (hence this callback) but query does not match.
+            this.parseDataDevicesFailcounter += 1;
         }
     }
 
     if(queryList.length !== 0){
-        console.log('** More lookup', queryList);
         var urlWs = {'host': serverFQDN,
                  'port': serverCubeMetricPort,
                  'path': '/cube-metric-ws/1.0/event/get'};
         var urlWget = {'host': serverFQDN,
                    'port': serverCubeMetricPort,
                    'path': '/cube-metric/1.0/event/get'};
-        nwConnection.getData('PageConfig.drawPage.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.parseDataConfig.bind(this));
+        nwConnection.getData('UserData.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.parseDataConfig.bind(this));
     }
 
     this.combineData();
@@ -566,11 +594,11 @@ UserData.prototype.parseDataDevices = function(data){
 
 UserData.prototype.parseDataConfig = function(data){
     'use strict';
+    console.log('UserData.parseDataConfig', data);
     var macAddr,
         key;
-    var newData = false;
 
-    nwConnection.clearRepeatTimers('PageConfig.drawPage.configuration');
+    nwConnection.clearRepeatTimers('UserData.configuration');
 
     for(key in data){
         if(key === 'userId'){
@@ -586,7 +614,6 @@ UserData.prototype.parseDataConfig = function(data){
                     this.deviceList[macAddr].userId = data[key][macAddr][0];
                 }
             }
-            newData = true;
         } else if(key === 'description'){
             for(macAddr in data[key]){
                 if(!(macAddr in this.deviceList)){
@@ -599,7 +626,6 @@ UserData.prototype.parseDataConfig = function(data){
                     this.deviceList[macAddr].description = data[key][macAddr];
                 }
             }
-            newData = true;
         }
     }
     this.combineData();
