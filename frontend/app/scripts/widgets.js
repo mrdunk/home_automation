@@ -4,17 +4,26 @@ function WhosHome(){
 
     // Repeat every 5 minutes.
     this.timer = setInterval(this.lookup.bind(this), 1 * 60 * 1000);
+    this.lookupInProgress = false;
 }
+
+WhosHome.prototype.clearCache = function(){
+    'use strict';
+    this.userData.deviceList = {};
+    this.userData.userList = {};
+};
 
 WhosHome.prototype.lookup = function(){
     'use strict';
     console.log('WhosHome.lookup');
+    this.lookupInProgress = true;
     this.userData.getData();
 };
 
 WhosHome.prototype.updateCallback = function(){
     'use strict';
     console.log('WhosHome.updateCallback');
+    this.lookupInProgress = false;
 
     // Clear container.
     document.getElementById('people').innerHTML = "";

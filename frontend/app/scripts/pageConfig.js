@@ -14,13 +14,29 @@ function PageConfig(){
 
 PageConfig.prototype.drawPage = function(){
     'use strict';
-    console.log('drawPage2', usersAtHome.userData);
+    console.log('drawPage', usersAtHome.userData);
 
     // TODO display message and reload if user data not in buffer yet.
 
     // Clear paper.
     var paperDiv = document.getElementById('paper');
-    paperDiv.innerHTML = "";
+    paperDiv.innerHTML = '';
+
+    var failText = '';
+    if(Object.keys(usersAtHome.userData.deviceList).length === 0){
+        failText = 'No devices detected.<br/>';
+    }
+    if(Object.keys(usersAtHome.userData.userList).length === 0){
+        failText += 'No users detected.<br/>';
+    }
+    if(failText !== ''){
+        paperDiv.innerHTML = failText;
+        if(usersAtHome.lookupInProgress !== true){
+            usersAtHome.lookup();
+        }
+        window.setTimeout(function(){this.drawPage();}.bind(this), 1000);
+        return;
+    }
 
     var template = Handlebars.compile(this.showDevicesTemplate);
     var keyDiv = document.createElement('div');
@@ -35,6 +51,8 @@ PageConfig.prototype.drawPage = function(){
 /* Dislay form to edit a network client's properties. */
 PageConfig.prototype.editDevice = function (buttonPress){
     'use strict';
+    console.log('editDevice', usersAtHome.userData);
+
     var key = buttonPress.target.id;
 
     // Clear paper.
@@ -57,6 +75,7 @@ PageConfig.prototype.editDevice = function (buttonPress){
                    userList: usersAtHome.userData.userList};
 
     keyDiv.innerHTML = template(context);
+    console.log(template(context));
 
     document.getElementById('selectName').onchange = this.updateDevice.bind(this);
     document.getElementById('description').onchange = this.updateDevice.bind(this);
@@ -86,6 +105,8 @@ PageConfig.prototype.saveDevice = function (userInput){
     // TODO add repeat send for failures.
     nwConnection.sendData('PageControl.updateData.userInput', urlWs, urlWget, dataList);
 
+    // Now clear the cached user data and re-fetch it.
+    usersAtHome.clearCache();
     usersAtHome.lookup();
 
     this.drawPage();
@@ -93,20 +114,14 @@ PageConfig.prototype.saveDevice = function (userInput){
 
 /* Called when any data is updated during this.editDevice() */
 PageConfig.prototype.updateDevice = function (userInput){
-        console.log(userInput);
+        console.log('updateDevice', userInput);
 
         var selectName = document.getElementById('selectName').value;
         var description = document.getElementById('description').value;
         var macAddress = document.getElementById('macAddress').value;
 
-        console.log(this.deviceList[macAddress]);
-        console.log(selectName, description, macAddress);
-        usersAtHome.userData.deviceList[macAddress].userId = selectName;
-        usersAtHome.userData.deviceList[macAddress].description = description;
         if(selectName in usersAtHome.userData.userList){
-            usersAtHome.userData.deviceList[macAddress].userName = usersAtHome.userData.userList[selectName].displayName;
         } else {
-            usersAtHome.userData.deviceList[macAddress].userName = '';
         }
 
 };

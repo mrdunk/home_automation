@@ -359,6 +359,7 @@ Connection.prototype.sendDataWget = function (uniqueId, urlWget, dataList){
 };
 
 var parseDataCube = function(type, data, retVals){
+        'use strict';
         data = JSON.parse(data);
         if(data === null){
                 return null;
@@ -416,6 +417,7 @@ var parseDataCube = function(type, data, retVals){
 };
 
 var parseDataAppEngine = function(type, data, retVals){
+        'use strict';
         data = JSON.parse(data);
         if(data === null){
                 //console.log('ae: null');
@@ -488,6 +490,10 @@ UserData.prototype.getData = function(){
  * This callback deals with data from AppEngine and maps userId to name and picture.*/
 UserData.prototype.parseDataUsers = function(data){
     'use strict';
+    if(typeof data === "boolean"){
+        return;
+    }
+
     console.log('UserData.parseDataUsers', data);
     var key;
 
@@ -522,6 +528,10 @@ UserData.prototype.parseDataUsers = function(data){
 /* callback function to parse data retreived by this.getData(). */
 UserData.prototype.parseDataDevices = function(data){
     'use strict';
+    if(typeof data === "boolean"){
+        return;
+    }
+
     console.log('UserData.parseDataDevices', data);
     var key;
     var queryList = [];
@@ -594,6 +604,10 @@ UserData.prototype.parseDataDevices = function(data){
 
 UserData.prototype.parseDataConfig = function(data){
     'use strict';
+    if(typeof data === "boolean"){
+        return;
+    }
+
     console.log('UserData.parseDataConfig', data);
     var macAddr,
         key;
