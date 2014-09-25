@@ -2,15 +2,17 @@ function WhosHome(){
     'use strict';
     this.userData = new UserData(this.updateCallback.bind(this));
 
+    this.lookupInProgress = false;
+
     // Repeat every 5 minutes.
     this.timer = setInterval(this.lookup.bind(this), 1 * 60 * 1000);
-    this.lookupInProgress = false;
 }
 
 WhosHome.prototype.clearCache = function(){
     'use strict';
     this.userData.deviceList = {};
     this.userData.userList = {};
+    console.log('clearCache', this.userData);
 };
 
 WhosHome.prototype.lookup = function(){

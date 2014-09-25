@@ -185,7 +185,6 @@ Connection.prototype.getDataWs = function (uniqueId, urlWs, urlQueryList, parseC
     var retVals = {};
     var urlDomainWs = urlWs.host + ':' + urlWs.port + urlWs.path;
     var socket = this.getSocket(uniqueId, urlDomainWs, urlQueryList);
-    console.log(urlDomainWs);
 
     socket.onopen = function() {
         this.send(socket, urlQueryList);
@@ -494,7 +493,7 @@ UserData.prototype.parseDataUsers = function(data){
         return;
     }
 
-    console.log('UserData.parseDataUsers', data);
+    //console.log('UserData.parseDataUsers', data);
     var key;
 
     if(typeof this.parseDataUsersFailcounter === 'undefined'){
@@ -515,7 +514,6 @@ UserData.prototype.parseDataUsers = function(data){
             nwConnection.clearRepeatTimers('UserData.users');
             this.parseDataUsersFailcounter = 0;
             this.userList = data.users;
-            console.log('users', data.users);
         } else {
             // Got data from same WebSocket (hence this callback) but query does not match.
             this.parseDataUsersFailcounter += 1;
@@ -532,7 +530,7 @@ UserData.prototype.parseDataDevices = function(data){
         return;
     }
 
-    console.log('UserData.parseDataDevices', data);
+    //console.log('UserData.parseDataDevices', data);
     var key;
     var queryList = [];
     var macAddr;
@@ -581,7 +579,6 @@ UserData.prototype.parseDataDevices = function(data){
                                   'stop': dateStop,
                                   'limit': 2,
                                   'sort': 'time' });
-                console.log(queryList);
             }
         } else {
             // Got data from same WebSocket (hence this callback) but query does not match.
@@ -608,7 +605,7 @@ UserData.prototype.parseDataConfig = function(data){
         return;
     }
 
-    console.log('UserData.parseDataConfig', data);
+    //console.log('UserData.parseDataConfig', data);
     var macAddr,
         key;
 
@@ -616,7 +613,6 @@ UserData.prototype.parseDataConfig = function(data){
 
     for(key in data){
         if(key === 'userId'){
-            console.log('**', key);
             for(macAddr in data[key]){
                 if(!(macAddr in this.deviceList)){
                     this.deviceList[macAddr] = {ip: '',

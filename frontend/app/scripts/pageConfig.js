@@ -4,8 +4,8 @@ function PageConfig(){
 
     this.deviceList = {};
     this.userList = {};
-    this.editDeviceTemplate = loadTemplate('editDeviceTemplate.html');
-    this.showDevicesTemplate = loadTemplate('showDevicesTemplate.html');
+    this.editDeviceTemplate = loadTemplate('editDeviceTemplate.template');
+    this.showDevicesTemplate = loadTemplate('showDevicesTemplate.template');
     this.updateTimers = [];
 
 //    this.updateData(this.drawPage.bind(this));
@@ -75,7 +75,6 @@ PageConfig.prototype.editDevice = function (buttonPress){
                    userList: usersAtHome.userData.userList};
 
     keyDiv.innerHTML = template(context);
-    console.log(template(context));
 
     document.getElementById('selectName').onchange = this.updateDevice.bind(this);
     document.getElementById('description').onchange = this.updateDevice.bind(this);
@@ -114,7 +113,7 @@ PageConfig.prototype.saveDevice = function (userInput){
 
 /* Called when any data is updated during this.editDevice() */
 PageConfig.prototype.updateDevice = function (userInput){
-        console.log('updateDevice', userInput);
+        //console.log('updateDevice', userInput);
 
         var selectName = document.getElementById('selectName').value;
         var description = document.getElementById('description').value;
