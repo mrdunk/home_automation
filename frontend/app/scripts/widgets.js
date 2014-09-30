@@ -11,7 +11,7 @@ function WhosHome(){
 WhosHome.prototype.clearCache = function(){
     'use strict';
     this.userData.deviceList = {};
-    this.userData.userList = {};
+    this.userData.userList = false;
     console.log('clearCache', this.userData);
 };
 
@@ -24,17 +24,24 @@ WhosHome.prototype.lookup = function(){
 
 WhosHome.prototype.updateCallback = function(){
     'use strict';
-    console.log('WhosHome.updateCallback');
+    //console.log('WhosHome.updateCallback');
     this.lookupInProgress = false;
 
     // Clear container.
     document.getElementById('people').innerHTML = "";
 
+    var alreadyDone = [];
     for(var key in this.userData.deviceList){
-        console.log(key, this.userData.deviceList[key], this.userData.deviceList[key].userUrl);
-        var newElement = document.createElement('img');
-        newElement.src = this.userData.deviceList[key].userUrl;
-        document.getElementById('people').appendChild(newElement);
+        if(this.userData.deviceList[key].userId !== "none" && 
+                this.userData.deviceList[key].userId !== "" &&
+                alreadyDone.indexOf(this.userData.deviceList[key].userId) === -1){
+            //console.log(key, this.userData.deviceList[key], this.userData.deviceList[key].userUrl);
+            var newElement = document.createElement('img');
+            newElement.src = this.userData.deviceList[key].userUrl;
+            document.getElementById('people').appendChild(newElement);
+            alreadyDone.push(this.userData.deviceList[key].userId);
+        }
     }
+    //console.log(alreadyDone);
 };
 

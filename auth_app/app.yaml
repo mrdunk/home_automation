@@ -9,6 +9,8 @@ handlers:
   static_dir: dial
 - url: /fonts
   static_dir: dial/fonts
+- url: /scripts
+  static_dir: dial/scripts
 - url: /.*
   script: main.application
 

@@ -26,7 +26,7 @@ PageConfig.prototype.drawPage = function(){
     if(Object.keys(usersAtHome.userData.deviceList).length === 0){
         failText = 'No devices detected.<br/>';
     }
-    if(Object.keys(usersAtHome.userData.userList).length === 0){
+    if(usersAtHome.userData.userList === false || Object.keys(usersAtHome.userData.userList).length === 0){
         failText += 'No users detected.<br/>';
     }
     if(failText !== ''){

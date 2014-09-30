@@ -134,6 +134,7 @@ class ListUsers(webapp2.RequestHandler):
 
             self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
             #self.response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            #self.response.headers['Access-Control-Allow-Origin'] = 'http://http://home-automation-7.appspot.com/'
 	    self.response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
 	    self.response.headers['Access-Control-Allow-Methods'] = 'GET'
             self.response.headers['Access-Control-Allow-Credentials'] = 'true'

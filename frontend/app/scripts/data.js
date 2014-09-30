@@ -4,7 +4,7 @@ function Connection(tryWebSocket){
     this.sockets = {};                  // Container for currently usable websockets.
     this.repeatTimers = {};             // Dictionary of connections that will re-try at some point in the future.
     this.successCounter = {};           // Counter tracking successfull connections vs failed using uniqueId as key.
-    this.connectionsInProgres = {};        // A dict of flags for monitoring whether connection has completed successfully or not.
+    this.connectionsInProgres = {};     // A dict of flags for monitoring whether connection has completed successfully or not.
 }
 
 /* Only used for WebSockets.
@@ -440,7 +440,7 @@ function UserData(updateCallback){
     'use strict';
     this.updateCallback = updateCallback;    
     this.deviceList = {};
-    this.userList = {};
+    this.userList = false;
     
     this.getData();
 }
@@ -453,13 +453,17 @@ UserData.prototype.getData = function(){
         urlWget,
         urlQueryList;
 
-    // Get User info from AppEngine
-    urlWs = false;
-    urlWget = {'host': 'home-automation-7.appspot.com',
-               'port': '80',
-               'path': '/listUsers/'};
-    urlQueryList = [{'unused': '0'}];
-    nwConnection.getData('UserData.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseDataUsers.bind(this));
+    // Get User info from AppEngine if we don't already have it.
+    // Note that we only get this once. If a new user needs to be added to the system,
+    // the web page must be re-loaded.
+    if(this.userList === false){
+        urlWs = false;
+        urlWget = {'host': 'home-automation-7.appspot.com',
+            'port': '80',
+            'path': '/listUsers/'};
+        urlQueryList = [{'unused': '0'}];
+        nwConnection.getData('UserData.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseDataUsers.bind(this));
+    }
 
     // Get all MAC Address and IP Address mappings in the last hour from server.
     urlWs = {'host': serverFQDN,
@@ -650,7 +654,7 @@ UserData.prototype.combineData = function(){
     // Add this.userList data to this.deviceList.
     for(macAddr in this.deviceList){
         var userId = this.deviceList[macAddr].userId;
-        if(userId !== ''){
+        if(userId !== '' && this.userList !== false){
             if(this.deviceList[macAddr].userId in this.userList){
                 this.deviceList[macAddr].userName = this.userList[userId].displayName;
                 this.deviceList[macAddr].userUrl = this.userList[userId].image;
