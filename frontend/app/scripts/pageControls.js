@@ -23,23 +23,20 @@ PageControl.prototype.sendData = function(temperature, label){
     'use strict';
     console.log('PageControl.sendData');
 
-    // By setting the id to be the time in 10 minute multiples, we ensure there is only ever one value in the db for each 10 minute interval.
-    var id = new Date().getTime()/(1000*600);
-    id = Math.round(id);
-    var dataList = [{'type':'userInput', 'id':id, 'data':{'label':'test_label', 'auth_key':'test_key', 'key':'set_' + label, 'val':temperature}}];
+    var dataList = [{'type':'userInput', 'data':{'label':'test_label', 'auth_key':'test_key', 'key':'set_' + label, 'val':temperature}}];
 
     var urlWs = {'host': serverFQDN,
                  'port': serverCubeMetricPort,
                  'path': '/cube-collect-ws/1.0/event/put'};
     var urlWget = {'host': serverFQDN,
                    'port': serverCubeMetricPort,
-                   'path': '/cube-collect/1.0/event/put'};
+                   'path': '/1.0/event/put'};
 
     // TODO add repeat send for failures.
     nwConnection.sendData('PageControl.updateData.userInput', urlWs, urlWget, dataList);
 };
 
-PageControl.prototype.getDataQueryNWClients = function () {
+/*PageControl.prototype.getDataQueryNWClients = function () {
     var dateStartRead = new Date();
     dateStartRead.setMinutes(dateStartRead.getMinutes() - timeWindow);
     dateStartRead = dateStartRead.toISOString();
@@ -60,7 +57,7 @@ PageControl.prototype.getDataQueryNWClients = function () {
                  'limit': 1,
                  'sort': 'time'
                 }];
-};
+};*/
 
 PageControl.prototype.updateData = function () {
     'use strict';
@@ -69,20 +66,17 @@ PageControl.prototype.updateData = function () {
         urlWget,
         urlQueryList;
 
-    urlWs = false;
-    urlWget = {'host': 'home-automation-7.appspot.com',
-               'port': '80',
-               'path': '/listUsers/'};
-//    nwConnection.getData('PageControl.updateData.users', urlWs, urlWget, [{'unused': '0'}], 1000, parseDataAppEngine, function(){});
-
-    // Get MAC Address and IP Address mappings from server.
+    // Get temperature sensor data.
     urlWs = {'host': serverFQDN,
              'port': serverCubeMetricPort,
              'path': '/cube-metric-ws/1.0/event/get'};
     urlWget = {'host': serverFQDN,
                'port': serverCubeMetricPort,
-               'path': '/cube-metric/1.0/event/get'};
+               //'path': '/cube-metric/1.0/event/get'};
+               'path': '/data'};
 
-    nwConnection.getData('PageControl.updateData.clients', urlWs, urlWget, this.getDataQueryNWClients, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
+    //nwConnection.getData('PageControl.updateData.clients', urlWs, urlWget, this.getDataQueryNWClients, 1000, parseDataCube, this.dial.updateData.bind(this.dial));
+    nwConnection.getData('PageControl.updateData.clients', urlWs, urlWget, [{'type': 'sensors', 'data': '{"label": "1wire"}'},{'type': 'userInput'}],
+                         1000, parseDataCube, this.dial.updateData.bind(this.dial));
 };
 

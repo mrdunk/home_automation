@@ -35,7 +35,7 @@ WhosHome.prototype.updateCallback = function(){
         if(this.userData.deviceList[key].userId !== "none" && 
                 this.userData.deviceList[key].userId !== "" &&
                 alreadyDone.indexOf(this.userData.deviceList[key].userId) === -1){
-            //console.log(key, this.userData.deviceList[key], this.userData.deviceList[key].userUrl);
+            //console.log("*", key, this.userData.deviceList[key], this.userData.deviceList[key].userUrl);
             var newElement = document.createElement('img');
             newElement.src = this.userData.deviceList[key].userUrl;
             document.getElementById('people').appendChild(newElement);

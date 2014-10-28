@@ -70,6 +70,7 @@ PageConfig.prototype.editDevice = function (buttonPress){
                   ip: usersAtHome.userData.deviceList[key].ip.slice(-1),
                   userId: usersAtHome.userData.deviceList[key].userId,
                   description: usersAtHome.userData.deviceList[key].description };
+    console.log(usersAtHome.userData.deviceList[key].description);
 
     var context = {record: record,
                    userList: usersAtHome.userData.userList};
@@ -99,7 +100,7 @@ PageConfig.prototype.saveDevice = function (userInput){
                  'path': '/cube-collect-ws/1.0/event/put'};
     var urlWget = {'host': serverFQDN,
                    'port': serverCubeMetricPort,
-                   'path': '/cube-collect/1.0/event/put'};
+                   'path': '/1.0/event/put'};
 
     // TODO add repeat send for failures.
     nwConnection.sendData('PageControl.updateData.userInput', urlWs, urlWget, dataList);

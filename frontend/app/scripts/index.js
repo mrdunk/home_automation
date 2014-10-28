@@ -4,8 +4,8 @@ var serverFQDN = serverFQDN1;
 
 //var serverCubeMetricPort = '1081';
 //var serverCubeCollectorPort = '1080';
-var serverCubeMetricPort1 = '80';
-var serverCubeCollectorPort1 = '80';
+var serverCubeMetricPort1 = '55555';
+var serverCubeCollectorPort1 = '55555';
 var serverCubeMetricPort2 = '8080';
 var serverCubeCollectorPort2 = '8080';
 var serverCubeMetricPort = serverCubeMetricPort1;
@@ -19,8 +19,8 @@ var pageUpdateTimer;        // A timer controling the repeated calling of a func
 var tempSensorList = ['00000536d60c', '0000053610c1'];
 
 
-var useWebSocket = true;
-//var useWebSocket = false;
+//var useWebSocket = true;
+var useWebSocket = false;
 var nwConnection = new Connection(useWebSocket);
 var authKey;
 var usersAtHome;

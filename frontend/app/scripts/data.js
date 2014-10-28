@@ -359,38 +359,43 @@ Connection.prototype.sendDataWget = function (uniqueId, urlWget, dataList){
 
 var parseDataCube = function(type, data, retVals){
         'use strict';
-        data = JSON.parse(data);
+        if(data === "[]"){
+            return null;
+        }
+        try{
+            data = JSON.parse(data);
+        } catch(err){
+            console.log("Error parsing JSON:");
+            console.log(err);
+            console.log(data);
+            return null;
+        }
         if(data === null){
                 return null;
         }
 
         var label, key, val;
-
         if(type === 'wget'){
-                for (var dataKey in data){
-                        var item = data[dataKey];
-                        label = item.data.label;
-                        key = item.data.key;
-                        val = item.data.val;
-                        if(typeof label === 'undefined'){
-                                // Data is a list of (key,val).
-                                if(!(key in retVals)){
-                                        retVals[key] = [];
-                                }
-                                retVals[key].push(val);
-                        } else {
-                                // Data contains list of (label, key, val).
-                                if(!(label in retVals)){
-                                        retVals[label] = [];
-                                }
-                                if(!(key in retVals[label])){
-                                        retVals[label][key] = [];
-                                }
-                                retVals[label][key].push(val);
-                        }
+            for (var dataKey in data){
+                var item = data[dataKey];
+                label = item.data.label;
+                key = item.data.key;
+                val = item.data.val;
+                //console.log(label, key, val);
+                if(typeof label === 'undefined'){
+                    // Data is a list of (key,val).
+                    retVals[key] = [val];
+                } else {
+                    // Data contains list of (label, key, val).
+                    if(!(label in retVals)){
+                        retVals[label] = [];
+                    }
+                    retVals[label][key] = [val];
                 }
-                return retVals;
+            }
+            return retVals;
         } else {
+            // haven't used this section so it is still un-tested.
             if(typeof data.data !== 'undefined'){
                 label = data.data.label;
                 key = data.data.key;
@@ -412,6 +417,8 @@ var parseDataCube = function(type, data, retVals){
                         retVals[label][key].push(val);
                 }
             }
+            console.log(retVals);
+            return retVals;
         }
 };
 
@@ -459,8 +466,8 @@ UserData.prototype.getData = function(){
     if(this.userList === false){
         urlWs = false;
         urlWget = {'host': 'home-automation-7.appspot.com',
-            'port': '80',
-            'path': '/listUsers/'};
+                   'port': '80',
+                   'path': '/listUsers/'};
         urlQueryList = [{'unused': '0'}];
         nwConnection.getData('UserData.users', urlWs, urlWget, urlQueryList, 1000, parseDataAppEngine, this.parseDataUsers.bind(this));
     }
@@ -471,19 +478,21 @@ UserData.prototype.getData = function(){
              'path': '/cube-metric-ws/1.0/event/get'};
     urlWget = {'host': serverFQDN,
                'port': serverCubeMetricPort,
-               'path': '/cube-metric/1.0/event/get'};
+               //'path': '/cube-metric/1.0/event/get'};
+               'path': '/data'};
     var urlQueryListCallback = function(){
-        var dateStartRead = new Date();
-        dateStartRead.setMinutes(dateStartRead.getMinutes() - 60*timeWindow);
-        dateStartRead = dateStartRead.toISOString();
+        //var dateStartRead = new Date();
+        //dateStartRead.setMinutes(dateStartRead.getMinutes() - 60*timeWindow);
+        //dateStartRead = dateStartRead.toISOString();
 
-        var dateStop = new Date();
-        dateStop.setMinutes(dateStop.getMinutes() +60);
-        dateStop = dateStop.toISOString();
+        //var dateStop = new Date();
+        //dateStop.setMinutes(dateStop.getMinutes() +60);
+        //dateStop = dateStop.toISOString();
 
-        return [{'expression': 'sensors(label,key,val).eq(label,\'net_clients\')',
-                'start': dateStartRead,
-                'stop': dateStop }];
+        //return [{'expression': 'sensors(label,key,val).eq(label,\'net_clients\')',
+        //        'start': dateStartRead,
+        //        'stop': dateStop }];
+        return [{'type': 'sensors', 'data':'{"label": "net_clients"}'}];
     };
 
     nwConnection.getData('UserData.devices', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, this.parseDataDevices.bind(this));
@@ -557,11 +566,12 @@ UserData.prototype.parseDataDevices = function(data){
         this.parseDataDevicesFailcounter = 0;
     }
 
-    var dateStart = 0;
-    var dateStop = new Date();
-    dateStop.setMinutes(dateStop.getMinutes() +60);     // End time set for 1 hour in the future.
-    dateStop = dateStop.toISOString();
+//    var dateStart = 0;
+//    var dateStop = new Date();
+//    dateStop.setMinutes(dateStop.getMinutes() +60);     // End time set for 1 hour in the future.
+//    dateStop = dateStop.toISOString();
 
+    this.deviceList = {};
     for(key in data){
         if(key === 'net_clients'){
             // Received macAddr & IPAddr from server.
@@ -578,11 +588,12 @@ UserData.prototype.parseDataDevices = function(data){
                     this.deviceList[macAddr].ip = data.net_clients[macAddr].slice(-1);
                 }
                 // Since we have a new MacAddr, let's look up if we have stored any information about it.
-                queryList.push({'expression': 'configuration(label,key,val).eq(key,\'' + macAddr + '\')',
-                                  'start': dateStart,
-                                  'stop': dateStop,
-                                  'limit': 2,
-                                  'sort': 'time' });
+//                queryList.push({'expression': 'configuration(label,key,val).eq(key,\'' + macAddr + '\')',
+//                                  'start': dateStart,
+//                                  'stop': dateStop,
+//                                  'limit': 2,
+//                                  'sort': 'time' });
+                queryList.push({'type': 'configuration', 'data':'{"key": ' + macAddr + '}'});
             }
         } else {
             // Got data from same WebSocket (hence this callback) but query does not match.
@@ -596,7 +607,8 @@ UserData.prototype.parseDataDevices = function(data){
                  'path': '/cube-metric-ws/1.0/event/get'};
         var urlWget = {'host': serverFQDN,
                    'port': serverCubeMetricPort,
-                   'path': '/cube-metric/1.0/event/get'};
+//                   'path': '/cube-metric/1.0/event/get'};
+                   'path': '/data'};                   
         nwConnection.getData('UserData.configuration', urlWs, urlWget, queryList, 1000, parseDataCube, this.parseDataConfig.bind(this));
     }
 
@@ -614,7 +626,6 @@ UserData.prototype.parseDataConfig = function(data){
         key;
 
     nwConnection.clearRepeatTimers('UserData.configuration');
-
     for(key in data){
         if(key === 'userId'){
             for(macAddr in data[key]){
@@ -650,7 +661,6 @@ UserData.prototype.combineData = function(){
     'use strict';
 
     var macAddr;
-
     // Add this.userList data to this.deviceList.
     for(macAddr in this.deviceList){
         var userId = this.deviceList[macAddr].userId;

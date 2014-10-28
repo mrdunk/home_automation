@@ -33,9 +33,6 @@ function TemperatureSensor(label, paper, sensorList, centreX, centreY, baseRadiu
     this.active = true;             // Whether to grey out dial (false) or display colour (true).
     this.lastActive = false;        // this.active from last round.
 
-//var attr = {font: "50px Helvetica", opacity: 0.5};
-//this.paper.text(10, 10, 'text').attr(attr).attr({fill: "#f00"});
-        
 	this.elementList.push(new TemperatureSensorElement(label, 'set_' + label, 'bar', this.paper,
                centreX, centreY, diamiter, lineThickness, dialSensitivity, dialOffset));
 	for(var sensor in sensorList){
@@ -66,10 +63,21 @@ TemperatureSensor.prototype.updateData = function(data){
 		this.active = data;
 		return;
 	} else {
-		//console.log(data);
+        var out_data = [];
+        for(var type in data){
+            if(type === "1wire" || type === "test_label"){
+                for(var label in data[type]){
+                    out_data[label] = data[type][label];
+                }
+            }
+        }
+        data = out_data;
 	}
 
-	
+    if (typeof data === 'undefined'){
+        return;
+    }
+    
 	for(var key in this.elementList){
 		var element = this.elementList[key];
 		if(element.identifier in data){
