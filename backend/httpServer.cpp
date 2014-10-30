@@ -36,7 +36,7 @@ int http_server::ahc_response(void * cls,
     vector<http_path> _paths = *(vector<http_path>*)cls;
     for(std::vector<http_path>::iterator it = _paths.begin(); it != _paths.end(); ++it){
         if(strcmp(url, it->path) == 0 && strcmp(method, it->method) == 0){
-            cout << "matching path:  " << url << endl;
+            //cout << "matching path:  " << url << endl;
 
             if(strcmp(method, "GET") == 0){
                 return ahc_response_get(cls, connection, it->callback);

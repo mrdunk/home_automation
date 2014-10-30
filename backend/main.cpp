@@ -1,13 +1,14 @@
 #include "httpServer.h"
 #include "libjson/libjson.h"
 #include "json.h"
+#include "cyclicStore.h"
 
-//#include "leveldb/db.h"
 #include <map>
 #include <list>
 #include <mutex>
 #include <fstream>
 #include <sys/stat.h>
+#include <thread>         // std::thread
 
 using namespace std;
 
@@ -27,6 +28,7 @@ string data_path = "";
 struct data_node{
     string type;
     map<string, string> data;
+    time_t time;
 
     bool operator==(const data_node& rhs) const{
         if(type != rhs.type){
@@ -44,10 +46,16 @@ mutex data_nodes_mutex;
 
 mutex file_mutex;
 
+Cyclic store_whos_home_1_week("whos_home_1_week", 15, MINS_IN_WEEK, 10, 20);
+Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20);
+
+int run = 1;
+
 int SavePostData(string type, map<string, string> data){
     struct data_node new_node;
     new_node.type = type;
     new_node.data = data;
+    time(&(new_node.time));
 
     data_nodes_mutex.lock();
     for (list<struct data_node>::iterator it = data_nodes.begin() ; it != data_nodes.end(); ++it){
@@ -65,33 +73,36 @@ int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
     ParseJSON json(p_buffer->c_str(), &SavePostData);
 }
 
-int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
-    *p_buffer = "";
-    JSONNode array(JSON_ARRAY);
+int GetData(JSONNode* p_array, map<string, string>* p_arguments){
+
+    time_t time_now;
+    time(&time_now);
 
     int prettyprint = 0;
     string arg_type = "";
     JSONNode arg_data;
+    int arg_age = 0;
     for(map<string, string>::iterator it_arguments=p_arguments->begin(); it_arguments!=p_arguments->end(); ++it_arguments){
-        if(it_arguments->first == "pretty"){
-            prettyprint = 1;
-        }
         if(it_arguments->first == "type"){
             arg_type = it_arguments->second;
         }
         if(it_arguments->first == "data"){
             arg_data = libjson::parse(it_arguments->second);
         }
+        if(it_arguments->first == "age"){
+            arg_age = stoi(it_arguments->second);
+        }
     }
 
     data_nodes_mutex.lock();
     for(list<struct data_node>::iterator it = data_nodes.begin() ; it != data_nodes.end(); ++it){
-        if(arg_type.compare(it->type) == 0 || arg_type.compare("") == 0){
+        if((arg_type.compare(it->type) == 0 || arg_type.compare("") == 0) && (arg_age == 0 || arg_age >= time_now - it->time)){
 
             //cout << it->type << endl;
 
             JSONNode node(JSON_NODE);
             node.push_back(JSONNode("type", it->type));
+            node.push_back(JSONNode("age", time_now - it->time));
             JSONNode data(JSON_NODE);
             data.set_name("data");
 
@@ -114,18 +125,24 @@ int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
             }
             if(match_args){
                 node.push_back(data);
-                array.push_back(node);
+                p_array->push_back(node);
             }
         }
     }
     data_nodes_mutex.unlock();
+}
 
-    if(prettyprint){
+int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
+    JSONNode array(JSON_ARRAY);
+    GetData(&array, p_arguments);
+
+    *p_buffer = "";
+    if(p_arguments->count("pretty")){
         p_buffer->append(array.write_formatted());
     } else {
         p_buffer->append(array.write());
     }
-}
+} 
 
 int TestPath(const string path, const string filename){
     static int path_exists = 0;
@@ -166,10 +183,14 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
 
     file_mutex.lock();
 
-    string full_path = data_path + "/configuration.cfg.tmp";
-    ofstream out(full_path.c_str());
+    string full_path_working = data_path + "/configuration.cfg.tmp";
+    string full_path_done = data_path + "/configuration.cfg";
+
+    ofstream out(full_path_working.c_str());
     out << buffer << endl;;
     out.close();
+
+    rename(full_path_working.c_str(), full_path_done.c_str());
 
     file_mutex.unlock();
 
@@ -184,7 +205,7 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
 
     file_mutex.lock();
 
-    string full_path = data_path + "/configuration.cfg.tmp";
+    string full_path = data_path + "/configuration.cfg";
     ifstream file(full_path.c_str());
     string buffer((istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     file.close();
@@ -199,6 +220,60 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
     *p_buffer = "ok";
 }
 
+int minutesIntoWeek(void){
+    time_t rawtime;
+    struct tm * timeinfo;
+    char week[2];
+    char hour[3];
+    char minute[3];
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
+    strftime(week, 2, "%w", timeinfo);
+    strftime(hour, 3, "%H", timeinfo);
+    strftime(minute, 3, "%M", timeinfo);
+    
+    int ret_val = (stoi(week) * 24 * 60) + (stoi(hour) * 60) + stoi(minute);
+
+    return ret_val;
+}
+
+void houseKeeping(void){
+    int counter;
+    map<string, string> arguments;
+    JSONNode array(JSON_ARRAY);
+
+    int mins;
+
+    while(run){
+        counter = 0;
+        while(run && ++counter < 20){
+            sleep(1);
+        }
+
+        // Save any user input from the last 5 minutes.
+        array.clear();
+        arguments["type"] = "userInput";
+        arguments["age"] = "300";  // 5 minutes.
+        GetData(&array, &arguments);
+        cout << array.write_formatted() << endl;
+
+        mins = minutesIntoWeek();
+        float val;
+        // Only save if we see data so 
+        if(array.begin() != array.end() && array.begin()->find("data") != array.end() && array.begin()->find("data")->find("val") != array.end()){
+            val = array.begin()->find("data")->find("val")->as_float();
+            cout << mins << "\t" << val << endl;
+            store_temp_setting_1_week.store(mins, val);
+        } else {
+            // TODO flush store_temp_setting_1_week
+        }
+    }
+
+    cout << "Closing houseKeeping_thread." << endl;
+}
+
 int main(int argc, char **argv){
     if (argc != 2 && argc != 3) {
         printf("%s PORT [DATA_PATH]\n", argv[0]);
@@ -211,11 +286,26 @@ int main(int argc, char **argv){
         data_path = argv[2];
     }
 
+    string str_data_path = data_path;
+    store_temp_setting_1_week.register_path(str_data_path);
+    store_whos_home_1_week.register_path(str_data_path);
+
+    // Read config from disk.
+    string unused_buffer;
+    map<string, string> unused_arguments;
+    CallbackRead(&unused_buffer, &unused_arguments);
+
+    thread houseKeeping_thread(houseKeeping);
+
     daemon.register_path("/save", "GET", &CallbackSave);
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/1.0/event/put", "POST", &CallbackPost);
 
     (void)getchar();
+    
+    run = 0;
+    houseKeeping_thread.join();
+
     return 0;
 }
