@@ -66,7 +66,10 @@ class http_server{
                                  const char *key, const char *value);
         static int ParseHeaders(void *cls, enum MHD_ValueKind kind, const char *key, const char *value);
 
-        static mutex mutex_response_get;
+        static mutex mutex_response;
+
+        // Buffer incoming data from POST request.
+        static string received_so_far;
     public:
         http_server(unsigned short);
         ~http_server(void);

@@ -25,6 +25,7 @@ class ParseJSON{
         void ParseNode(const JSONNode & n);
         void ParseNode(const JSONNode & n, int* p_current_depth, int* p_seen_type, int* p_seen_data, map<string, string>* p_possible_data, string* p_possible_type);
         void RegisterCallback(int(*callback)(string type, map<string, string> data));
+        int error;
 };
 
 

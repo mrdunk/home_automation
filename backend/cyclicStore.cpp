@@ -29,16 +29,18 @@ int FileUtils::writable(const string path, const string filename){
 }
 
 void FileUtils::write(const string path, const string filename, string data_to_write){
-    cout << "writing: " + data_to_write << endl;
-    cout << path << filename << "\t" << path_exists << endl;
+    cout << "writing: \"" + data_to_write << "\"" << endl;
+    cout << "to:      " << path << filename << endl;
 
     if(writable(path, filename) > 0){
         file_mutex.lock();
+
         string full_path = path + "/" + filename;
         ofstream out;
         out.open(full_path.c_str(), ios::app);
         out << data_to_write << endl;;
         out.close();
+
         cout << " done." << endl;
         file_mutex.unlock();
     }
@@ -56,6 +58,7 @@ Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int 
     update_inertia = _update_inertia;
     mins_per_division = _mins_per_division;
     divisions = _mins_in_period / _mins_per_division;
+    mins_in_period = _mins_in_period;
     int default_value = _default_value * _update_inertia;
 
     // Initialise p_container array.
@@ -79,7 +82,6 @@ void Cyclic::register_path(const string _working_dir){
 
 void Cyclic::store(int time, int value){
     // Convert time to number of devisions.
-    cout << "# " << time << "\t";
     time /= mins_per_division;
     while(time < 0){
         time += divisions;
@@ -87,7 +89,6 @@ void Cyclic::store(int time, int value){
     while(time >= divisions){
         time -= divisions;
     }
-    cout << time << "\t" << previous_time << endl;
 
     // If time has looped round to "0", pretend it didn't and extend relative_time beyond the maximum value.
     int relative_time = time;
@@ -97,7 +98,6 @@ void Cyclic::store(int time, int value){
 
     // Only do things if the time is less than half a clock ahead of the last saved value.
     if((relative_time - previous_time) < (divisions / 2) || previous_time == -1){
-        cout << "*" << endl;
 
         if(relative_time > previous_time && previous_time >= 0){
             // We have moved to a new time segment so save results from last cycle.
@@ -109,7 +109,6 @@ void Cyclic::store(int time, int value){
 
                 // write p_container[time] to file.
                 string output_line = to_string(previous_time) + " " + to_string(p_container[previous_time]);
-                cout << working_dir << filename_active << " " << output_line << endl;
                 write(working_dir, filename_active, output_line);
 
                 if(previous_time > time){

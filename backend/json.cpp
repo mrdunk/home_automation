@@ -4,7 +4,15 @@
 ParseJSON::ParseJSON(const char* json_text, int(*callback)(string type, map<string, string> data)){
     //cout << json_text << endl;
     RegisterCallback(callback);
-    JSONNode n = libjson::parse(json_text);
+    JSONNode n;
+    error = 0;
+    try{
+        n = libjson::parse(json_text);
+    } catch(std::invalid_argument exception){
+        cout << "Invalid JSON: " << json_text << endl;
+        error = 1;
+        return;
+    }
     ParseNode(n);
 }
 

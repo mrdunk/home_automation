@@ -4,11 +4,13 @@
 #include "cyclicStore.h"
 
 #include <map>
+#include <vector>
 #include <list>
 #include <mutex>
 #include <fstream>
 #include <sys/stat.h>
 #include <thread>         // std::thread
+#include <algorithm>        // std::count
 
 using namespace std;
 
@@ -46,7 +48,7 @@ mutex data_nodes_mutex;
 
 mutex file_mutex;
 
-Cyclic store_whos_home_1_week("whos_home_1_week", 15, MINS_IN_WEEK, 10, 20);
+Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0);
 Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20);
 
 int run = 1;
@@ -58,7 +60,7 @@ int SavePostData(string type, map<string, string> data){
     time(&(new_node.time));
 
     data_nodes_mutex.lock();
-    for (list<struct data_node>::iterator it = data_nodes.begin() ; it != data_nodes.end(); ++it){
+    for(list<struct data_node>::iterator it = data_nodes.begin() ; it != data_nodes.end(); ++it){
         if(*it == new_node){
             data_nodes.remove(*it);
             break;
@@ -71,6 +73,9 @@ int SavePostData(string type, map<string, string> data){
 
 int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
     ParseJSON json(p_buffer->c_str(), &SavePostData);
+    if(json.error){
+        (*p_arguments)["error"] = "yes";
+    }
 }
 
 int GetData(JSONNode* p_array, map<string, string>* p_arguments){
@@ -78,7 +83,6 @@ int GetData(JSONNode* p_array, map<string, string>* p_arguments){
     time_t time_now;
     time(&time_now);
 
-    int prettyprint = 0;
     string arg_type = "";
     JSONNode arg_data;
     int arg_age = 0;
@@ -220,6 +224,23 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
     *p_buffer = "ok";
 }
 
+void DisplayCyclicBuffer(JSONNode* p_array, Cyclic* cyclic, int step_size){
+    for(int time = 0; time < cyclic->mins_in_period; time += step_size){
+        p_array->push_back(JSONNode(to_string(time), cyclic->read(time)));
+    }
+}
+
+int CallbackDisplayWhosIn(std::string* p_buffer, map<string, string>* p_arguments){
+    JSONNode array(JSON_NODE);
+
+    int step_size = 1;
+    if(p_arguments->count("step_size")){
+        step_size = stoi(p_arguments->find("step_size")->second);
+    }
+    DisplayCyclicBuffer(&array, &store_whos_home_1_week, step_size);
+    *p_buffer = array.write_formatted();
+}
+
 int minutesIntoWeek(void){
     time_t rawtime;
     struct tm * timeinfo;
@@ -248,8 +269,9 @@ void houseKeeping(void){
 
     while(run){
         counter = 0;
-        while(run && ++counter < 20){
-            sleep(1);
+        // Sleep for 30 seconds.
+        while(run && ++counter < 6){
+            sleep(5);
         }
 
         // Save any user input from the last 5 minutes.
@@ -257,7 +279,7 @@ void houseKeeping(void){
         arguments["type"] = "userInput";
         arguments["age"] = "300";  // 5 minutes.
         GetData(&array, &arguments);
-        cout << array.write_formatted() << endl;
+        //cout << array.write_formatted() << endl;
 
         mins = minutesIntoWeek();
         float val;
@@ -269,6 +291,51 @@ void houseKeeping(void){
         } else {
             // TODO flush store_temp_setting_1_week
         }
+
+
+        // Get all active devices on network in the last 5 minutes.
+        array.clear();
+        arguments.clear();
+        arguments["type"] = "sensors";
+        arguments["age"] = "900";  // 15 minutes.
+        arguments["data"] = "{\"label\":\"net_clients\"}";
+        GetData(&array, &arguments);
+
+        vector<string> active_hosts;
+        
+        for(JSONNode::const_iterator it=array.begin(); it!=array.end(); ++it){
+            if(it->find("data") != it->end() && it->find("data")->find("key") != array.end()){
+                active_hosts.push_back(it->find("data")->find("key")->as_string());
+            }
+        }
+
+        // Now cross refernce those with devices that have people assigned to them.
+        // TODO make a setting that allows us to opt a paticular device in/out of this count.
+        array.clear();
+        arguments.clear();
+        arguments["type"] = "configuration";
+        arguments["data"] = "{\"label\":\"userId\"}";
+        GetData(&array, &arguments);
+
+        vector<string> unique_users;
+
+        for(JSONNode::const_iterator it=array.begin(); it!=array.end(); ++it){
+            if(it->find("data") != it->end() && it->find("data")->find("key") != array.end() && 
+                    it->find("data")->find("val") != array.end() && it->find("data")->find("val")->as_string() != "none"){
+                string key = it->find("data")->find("key")->as_string();
+                string userId = it->find("data")->find("val")->as_string();
+                if(count(active_hosts.begin(), active_hosts.end(), key)){
+                    cout << key << endl;
+                    if(count(unique_users.begin(), unique_users.end(), userId) == 0){
+                        unique_users.push_back(userId);
+                        cout << "  " << userId << endl;
+                    }
+                }
+            }
+        }
+        store_whos_home_1_week.store(mins, unique_users.size());
+
+        cout << active_hosts.size() << "\t" << unique_users.size() << endl;
     }
 
     cout << "Closing houseKeeping_thread." << endl;
@@ -301,6 +368,7 @@ int main(int argc, char **argv){
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/1.0/event/put", "POST", &CallbackPost);
+    daemon.register_path("/whoin", "GET", &CallbackDisplayWhosIn);
 
     (void)getchar();
     

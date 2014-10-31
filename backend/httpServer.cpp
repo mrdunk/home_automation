@@ -17,7 +17,8 @@ http_server::http_server(unsigned short port){
 }
 
 std::string http_server::page_content;
-mutex http_server::mutex_response_get;
+mutex http_server::mutex_response;
+string http_server::received_so_far;
 
 http_server::~http_server(void){
     cout << "Object is being destroyed" << endl;
@@ -34,20 +35,21 @@ int http_server::ahc_response(void * cls,
         void ** ptr) {
 
     vector<http_path> _paths = *(vector<http_path>*)cls;
+    int retcode = MHD_NO;
     for(std::vector<http_path>::iterator it = _paths.begin(); it != _paths.end(); ++it){
         if(strcmp(url, it->path) == 0 && strcmp(method, it->method) == 0){
             //cout << "matching path:  " << url << endl;
-
+            mutex_response.lock();
             if(strcmp(method, "GET") == 0){
-                return ahc_response_get(cls, connection, it->callback);
+                retcode = ahc_response_get(cls, connection, it->callback);
             } else if(strcmp(method, "POST") == 0){
-                return ahc_response_post(cls, connection, it->callback,
+                retcode = ahc_response_post(cls, connection, it->callback,
                         upload_data, upload_data_size, ptr);
             }
+            mutex_response.unlock();
         }
     }
-    cout << "bad path:       " << url << endl;
-    return MHD_NO;
+    return retcode;
 }
 
 void http_server::post_request_completed(void *cls, struct MHD_Connection *connection, void **con_cls,
@@ -57,7 +59,7 @@ void http_server::post_request_completed(void *cls, struct MHD_Connection *conne
     if(NULL == con_info){
         return;
     }
-    cout << "http_server::post_request_completed" << endl;
+    //cout << "http_server::post_request_completed" << endl;
 
     free(con_info);
     *con_cls = NULL;
@@ -79,7 +81,6 @@ int http_server::send_page(struct MHD_Connection* connection, const char* page){
 
 int http_server::ahc_response_get(void* cls, struct MHD_Connection* connection,
                                   int(*callback)(std::string*, map<string, string>*)){
-    mutex_response_get.lock();
 
     map<string, string> arguments;
     MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, SaveArguments, &arguments);
@@ -90,11 +91,9 @@ int http_server::ahc_response_get(void* cls, struct MHD_Connection* connection,
         (*callback)(&page_content, &arguments);
 
         int ret = send_page(connection, (const char*)page_content.c_str());
-        mutex_response_get.unlock();
         return ret;
     }
 
-    mutex_response_get.unlock();
     return MHD_NO;
 }
 
@@ -103,29 +102,26 @@ int http_server::ahc_response_post(void* cls, struct MHD_Connection* connection,
                                    int(*callback)(std::string*, map<string, string>*), 
                                    const char * upload_data, size_t * upload_data_size,
                                    void ** ptr){
-    cout << "POST size: " << *upload_data_size << endl;
-
     if(*ptr == NULL){
-        int *con_info;
+        int* con_info = new int;
+        *ptr = (void*)con_info;
 
-        con_info = new int;
-
-        *ptr = (void*)con_info; 
+        received_so_far = "";
         return MHD_YES;
     }
 
     int *con_info = (int*)*ptr;
 
     if(*upload_data_size != 0){
+        cout << "POST size: " << *upload_data_size << endl;
+
         *con_info = 3;
         char* buffer = (char*)malloc(*upload_data_size +1);
         if(buffer == NULL){ return MHD_NO; }
         buffer[*upload_data_size] = '\0';
         strncpy(buffer, upload_data, *upload_data_size);
 
-        string str = buffer;
-        map<string, string> arguments;
-        (*callback)(&str, &arguments);
+        received_so_far += buffer;
 
         free(buffer);
 
@@ -133,6 +129,11 @@ int http_server::ahc_response_post(void* cls, struct MHD_Connection* connection,
 
         return MHD_YES;
     } else if(*con_info == 3){
+        map<string, string> arguments;
+        (*callback)(&received_so_far, &arguments);
+        if(arguments["error"] == "yes"){
+            return send_page(connection, "error");
+        }
         return send_page(connection, "ok");
     }
     return send_page(connection, errorpage); 

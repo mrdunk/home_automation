@@ -30,7 +30,6 @@ class Cyclic : public FileUtils {
         unsigned int mins_per_division;
         unsigned int update_weight;
         int* p_container;
-        unsigned int mins_in_period;
         int update_inertia;
         int previous_time;
         int previous_value;
@@ -45,6 +44,7 @@ class Cyclic : public FileUtils {
         float read(int time);
         unsigned int calculate_average(void);
         void register_path(const string _working_dir);
+        unsigned int mins_in_period;
 };
 
 
