@@ -1,5 +1,4 @@
 #include "httpServer.h"
-#include "libjson/libjson.h"
 #include "json.h"
 #include "cyclicStore.h"
 #include "rapidjson/prettywriter.h"
@@ -44,18 +43,18 @@ int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
 }
 
 int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
-    Document test_array;
-    InternalToJSON(&test_array, p_arguments);
+    Document array;
+    InternalToJSON(&array, p_arguments);
 
     if(p_arguments->count("pretty")){
         StringBuffer buffer;
         PrettyWriter<StringBuffer> writer(buffer);
-        test_array.Accept(writer);
+        array.Accept(writer);
         *p_buffer = buffer.GetString();
     } else {
         StringBuffer buffer;
         Writer<StringBuffer> writer(buffer);
-        test_array.Accept(writer);
+        array.Accept(writer);
         *p_buffer = buffer.GetString();
     }
 } 
@@ -138,14 +137,23 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
 
 
 int CallbackDisplayWhosIn(std::string* p_buffer, map<string, string>* p_arguments){
-    JSONNode array(JSON_NODE);
-
     int step_size = 1;
     if(p_arguments->count("step_size")){
         step_size = stoi(p_arguments->find("step_size")->second);
     }
+    Document array;
     store_whos_home_1_week.to_JSON(&array);
-    *p_buffer = array.write_formatted();
+    if(p_arguments->count("pretty")){
+        StringBuffer buffer;
+        PrettyWriter<StringBuffer> writer(buffer);
+        array.Accept(writer);
+        *p_buffer = buffer.GetString();
+    } else {
+        StringBuffer buffer;
+        Writer<StringBuffer> writer(buffer);
+        array.Accept(writer);
+        *p_buffer = buffer.GetString();
+    }
 }
 
 int minutesIntoWeek(void){

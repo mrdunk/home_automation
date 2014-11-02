@@ -1,12 +1,11 @@
 #ifndef JSON_H
 #define JSON_H
 
-#include "libjson.h"
-
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+#include <iostream>   // std::cout
 #include <map>
 #include <list>
 #include <mutex>
@@ -58,16 +57,6 @@ struct s_data_nodes{
 };
 
 
-/*class ParseJSON{
-        int(*p_callback)(string type, map<string, string> data);
-        void ParseNode(const JSONNode & n);
-        void ParseNode(const JSONNode & n, int* p_current_depth, int* p_seen_type, int* p_seen_data, map<string, string>* p_possible_data, string* p_possible_type);
-        void RegisterCallback(int(*callback)(string type, map<string, string> data));
-    public:
-        ParseJSON(const char* json_text, int(*callback)(string type, map<string, string> data));
-        int error;
-};*/
-
 /* Take JSON and store in internal map. */
 int JSONtoInternal(Document* p_JSON_input);
 
@@ -75,7 +64,5 @@ int JSONtoInternal(Document* p_JSON_input);
  * The map<string, string> can be either created manually or sent by an http POST> */
 void InternalToJSON(Document* p_JSON_output, map<string, string>* p_arguments);
 
-
-//int dataFromInternalSave(string type, map<string, string> data);
 
 #endif  // JSON_H

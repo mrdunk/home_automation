@@ -1,6 +1,7 @@
 #include "cyclicStore.h"
 
 using namespace std;
+using namespace rapidjson;
 
 FileUtils::FileUtils(void){
     int path_exists = 0;
@@ -155,7 +156,6 @@ float Cyclic::read(int time){
 
 /* Re-populate memory from cache files on disk.*/
 void Cyclic::restore_from_disk(void){
-    cout << "+" << endl;
     string line;
     int pos;
     int time, val;
@@ -220,11 +220,15 @@ void Cyclic::restore_from_disk(void){
     remove(fn_p.c_str());
 
     file_mutex.unlock();
-    cout << "-" << endl;
 }
 
-void Cyclic::to_JSON(JSONNode* p_array){
+void Cyclic::to_JSON(Document* p_JSON_output){
+    p_JSON_output->SetObject();
     for(int time = 0; time < mins_in_period; time += mins_per_division){
-        p_array->push_back(JSONNode(to_string(time), read(time)));
+        Value key, val;
+        key.SetString(to_string(time).c_str(), p_JSON_output->GetAllocator());
+        val.SetString(to_string(read(time)).c_str(), p_JSON_output->GetAllocator());
+        p_JSON_output->AddMember(key, val, p_JSON_output->GetAllocator());
     }
 }
+

@@ -6,12 +6,13 @@
 #include <sys/stat.h>
 #include <iostream>   // std::cout
 #include <mutex>
-#include "libjson.h"
+#include "rapidjson/document.h"
 
 #define MINS_IN_WEEK 10080
 #define MINS_IN_DAY 1440
 
 using namespace std;
+using namespace rapidjson;
 
 class FileUtils{
         int path_exists;
@@ -47,7 +48,7 @@ class Cyclic : public FileUtils {
         unsigned int calculate_average(void);
         void register_path(const string _working_dir);
         void restore_from_disk(void);
-        void to_JSON(JSONNode* p_array);
+        void to_JSON(Document* p_JSON_output);
         unsigned int mins_in_period;
 };
 
