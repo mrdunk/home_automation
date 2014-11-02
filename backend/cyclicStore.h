@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <iostream>   // std::cout
 #include <mutex>
+#include "libjson.h"
 
 #define MINS_IN_WEEK 10080
 #define MINS_IN_DAY 1440
@@ -14,11 +15,12 @@ using namespace std;
 
 class FileUtils{
         int path_exists;
+        ifstream read_file;
     protected:
         FileUtils(void);
         int writable(const string path, const string filename);
         void write(const string path, const string filename, string data_to_write);
-        void read(const string path, const string filename, string* data);
+        void read_line(const string path, const string filename, string* data);
         mutex file_mutex;
 
 };
@@ -44,6 +46,8 @@ class Cyclic : public FileUtils {
         float read(int time);
         unsigned int calculate_average(void);
         void register_path(const string _working_dir);
+        void restore_from_disk(void);
+        void to_JSON(JSONNode* p_array);
         unsigned int mins_in_period;
 };
 

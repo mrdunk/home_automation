@@ -46,9 +46,27 @@ void FileUtils::write(const string path, const string filename, string data_to_w
     }
 }
 
-void FileUtils::read(const string path, const string filename, string* data){
-    file_mutex.lock();
-    file_mutex.unlock();
+void FileUtils::read_line(const string path, const string filename, string* data){
+    *data = "";
+
+    if(writable(path, filename) > 0){
+        file_mutex.lock();
+
+        if(read_file.is_open() != true){
+            read_file.open(path + "/" + filename);
+        }
+
+        //getline(read_file, *data);
+        char buffer[256];
+        read_file.getline(buffer, 256);
+        *data = buffer;
+
+        if(*data == ""){
+            read_file.close();
+        }
+
+        file_mutex.unlock();
+    }
 }
 
 
@@ -133,4 +151,80 @@ void Cyclic::store(int time, int value){
 float Cyclic::read(int time){
     time /= mins_per_division;
     return (float)p_container[time] / update_inertia;
+}
+
+/* Re-populate memory from cache files on disk.*/
+void Cyclic::restore_from_disk(void){
+    cout << "+" << endl;
+    string line;
+    int pos;
+    int time, val;
+
+    string filename = filename_previous;
+
+    // Re-populate the older data first (filename_previous) so any entries in the newer file (filename_active) overwrite the older ones.
+    while(filename == filename_previous || filename == filename_active){
+        read_line(working_dir, filename_active, &line);
+        if(line != ""){
+            cout << line << endl;
+            while((pos = line.find(" ")) != std::string::npos) {
+                cout << "t " << line.substr(0, pos) << endl;
+                time = stoi(line.substr(0, pos));
+                line.erase(0, pos + 1);
+            }
+            cout << "v " << line << endl;
+            val = stoi(line);
+
+            if(time >= 0 && time < divisions){
+                p_container[time] = val;
+            }
+        } else {
+            // Empty line from file so presume we have reaced the end.
+            if(filename == filename_previous){
+                filename = filename_active;
+            } else if(filename == filename_active){
+                filename = "invalid";
+            }
+            cout << filename << endl;
+        }
+    }
+
+    // Now we have re-populated the container in memory,
+    // let's write everyhting we know about to filename_active.
+    // 
+    // We write to filename_active because when we get to the ned of a time segment
+    // and filename_active is copied over filename_previous 
+    // we want to make sure there is at least one entry for every time slot.
+    // If the filename_active we start writing to does not contain a full set, there would be gaps
+    // in the new filename_previous.
+    string filename_temp = filename_active + "_temp";
+
+    string fn_t = working_dir + "/" + filename_temp;
+    string fn_a = working_dir + "/" + filename_active;
+    string fn_p = working_dir + "/" + filename_previous;
+    
+    // Remove any only temp file.
+    remove(fn_t.c_str());
+
+    string data_to_write;
+    for(time = 0; time < mins_in_period; time += mins_per_division){
+        data_to_write = to_string(time / mins_per_division) + " " + to_string(read(time) * update_inertia);
+        write(working_dir, filename_temp, data_to_write);
+    }
+
+    file_mutex.lock();
+    // Copy the temp file over the active one.
+    rename(fn_t.c_str(), fn_a.c_str());
+    
+    // and delete the previous one.
+    remove(fn_p.c_str());
+
+    file_mutex.unlock();
+    cout << "-" << endl;
+}
+
+void Cyclic::to_JSON(JSONNode* p_array){
+    for(int time = 0; time < mins_in_period; time += mins_per_division){
+        p_array->push_back(JSONNode(to_string(time), read(time)));
+    }
 }
