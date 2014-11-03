@@ -41,9 +41,9 @@ int http_server::ahc_response(void * cls,
             //cout << "matching path:  " << url << endl;
             mutex_response.lock();
             if(strcmp(method, "GET") == 0){
-                retcode = ahc_response_get(cls, connection, it->callback);
+                retcode = ahc_response_get(cls, connection, &(*it));
             } else if(strcmp(method, "POST") == 0){
-                retcode = ahc_response_post(cls, connection, it->callback,
+                retcode = ahc_response_post(cls, connection, &(*it),
                         upload_data, upload_data_size, ptr);
             }
             mutex_response.unlock();
@@ -79,16 +79,21 @@ int http_server::send_page(struct MHD_Connection* connection, const char* page){
     return ret;
 }
 
-int http_server::ahc_response_get(void* cls, struct MHD_Connection* connection,
-                                  int(*callback)(std::string*, map<string, string>*)){
+int http_server::ahc_response_get(void* cls, struct MHD_Connection* connection, struct http_path* path){
 
     map<string, string> arguments;
     MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, SaveArguments, &arguments);
 //    MHD_get_connection_values(connection, MHD_HEADER_KIND, ParseHeaders, NULL);
 //    MHD_get_connection_values(connection, MHD_RESPONSE_HEADER_KIND, ParseHeaders, NULL);
 
-    if(callback){
-        (*callback)(&page_content, &arguments);
+    if(path->callback){
+        if(path->type == _function){
+            // Callback pointer is a function pointer.
+            ((int (*)(string*, map<string, string>*))(path->callback))(&page_content, &arguments);
+        } else {
+            // Callback pointer is a class instance pointer.
+            ((HttpCallback*)path->callback)->textOutput(&page_content, &arguments);
+        }
 
         int ret = send_page(connection, (const char*)page_content.c_str());
         return ret;
@@ -98,8 +103,8 @@ int http_server::ahc_response_get(void* cls, struct MHD_Connection* connection,
 }
 
 
-int http_server::ahc_response_post(void* cls, struct MHD_Connection* connection,
-                                   int(*callback)(std::string*, map<string, string>*), 
+int http_server::ahc_response_post(void* cls, struct MHD_Connection* connection, struct http_path* path,
+                                   //int(*callback)(std::string*, map<string, string>*), 
                                    const char * upload_data, size_t * upload_data_size,
                                    void ** ptr){
     if(*ptr == NULL){
@@ -130,7 +135,13 @@ int http_server::ahc_response_post(void* cls, struct MHD_Connection* connection,
         return MHD_YES;
     } else if(*con_info == 3){
         map<string, string> arguments;
-        (*callback)(&received_so_far, &arguments);
+        if(path->type == _function){
+            // Callback pointer is a function pointer.
+            ((int (*)(string*, map<string, string>*))(path->callback))(&received_so_far, &arguments);
+        } else {
+            // Callback pointer is a class instance pointer.
+            ((HttpCallback*)path->callback)->textOutput(&received_so_far, &arguments);
+        }
         if(arguments["error"] == "yes"){
             return send_page(connection, "error");
         }
@@ -154,6 +165,18 @@ void http_server::register_path(const char* path, const char* method,
 
     strncpy(new_path.path, path, 48);
     strncpy(new_path.method, method, 5);
+    new_path.type = _function;
+    new_path.callback = (void*)callback;
+
+    paths.push_back(new_path);
+}
+
+void http_server::register_path(const char* path, const char* method, HttpCallback* callback){
+    struct http_path new_path;
+
+    strncpy(new_path.path, path, 48);
+    strncpy(new_path.method, method, 5);
+    new_path.type = _class;
     new_path.callback = callback;
 
     paths.push_back(new_path);

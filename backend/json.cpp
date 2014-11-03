@@ -78,11 +78,13 @@ struct s_data_nodes data_nodes;
 
 int JSONtoInternal(Document* p_JSON_input){
     Document* p_JSON_parent_array;
-    p_JSON_parent_array->SetArray();
+    Document JSON_parent_array;  // A little wasteful as we only use it if p_JSON_input->IsObject() but it's cleaner than using "new".
 
     if(p_JSON_input->IsObject()){
         // We have a single object rather than the expected array.
         // Let's presume it is a valid object and put it in an array.
+        p_JSON_parent_array = &JSON_parent_array;
+        p_JSON_parent_array->SetArray();
         p_JSON_parent_array->PushBack(*p_JSON_input, p_JSON_parent_array->GetAllocator());
     } else if(p_JSON_input->IsArray()){
         // Already in correct format.
@@ -123,6 +125,7 @@ int JSONtoInternal(Document* p_JSON_input){
             data_nodes.push(&new_node);
         }
     }
+    return 0;
 }
 
 void InternalToJSON(Document* p_JSON_output, map<string, string>* p_arguments){

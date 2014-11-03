@@ -15,17 +15,32 @@ extern "C" {
 #include <string>     // std::string, std::to_string
 #include <mutex>
 
+#include "rapidjson/document.h"
+
 
 #define PAGE "<html><head><title>libmicrohttpd</title>"\
              "</head><body>no callback</body></html>"
 
 using namespace std;
+using namespace rapidjson;
 
+enum http_callback_type{
+    _function,
+    _class
+};
 
 struct http_path{
     char path[48];
     char method[5];
-    int (*callback)(std::string*, map<string, string>*);
+    http_callback_type type;
+    //int (*callback)(std::string*, map<string, string>*);
+    void* callback;
+};
+
+/* Make classes we want to use in callbacks inherit from this. */
+class HttpCallback{
+    public:
+        virtual int textOutput(std::string* p_buffer, map<string, string>* p_arguments){ return 0;}
 };
 
 class http_server{
@@ -46,12 +61,13 @@ class http_server{
                                 void** ptr);
 
         /* Called whenever a valid GET is received. */
-        static int ahc_response_get(void*, struct MHD_Connection*,
-                int(*callback)(std::string*, map<string, string>*));
+        static int ahc_response_get(void*, struct MHD_Connection*, struct http_path* path);
+                //int(*callback)(std::string*, map<string, string>*));
 
         /* Called whenever a valid POST is received. */
-        static int ahc_response_post(void*, struct MHD_Connection*,
-                int(*callback)(std::string*, map<string, string>*), const char*, size_t*, void**);
+        static int ahc_response_post(void*, struct MHD_Connection*, struct http_path* path,
+                //int(*callback)(std::string*, map<string, string>*), 
+                const char*, size_t*, void**);
 
         /* Called when a client first makes a TCP connection to the server. */
         static int on_client_connect(void* cls, const struct sockaddr* addr,
@@ -83,6 +99,12 @@ class http_server{
          *  int(*callback)(char*): Callback function that populates char*. */
         void register_path(const char* path, const char* method, 
                            int(*callback)(std::string*, map<string, string>*));
+
+        /* Register the Path and Method (GET,POST,etc) we expect and a  
+         * callback class instance. This class should inheret from class HttpCallback
+         * and the HttpCallback::textOutput function should provide the html response. */
+        void register_path(const char* path, const char* method,
+                HttpCallback* callback);
 
         static std::string page_content;
 };

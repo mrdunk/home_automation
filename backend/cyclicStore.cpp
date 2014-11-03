@@ -4,8 +4,10 @@ using namespace std;
 using namespace rapidjson;
 
 FileUtils::FileUtils(void){
-    int path_exists = 0;
+    path_exists = 0;
 }
+
+mutex FileUtils::file_mutex;
 
 int FileUtils::writable(const string path, const string filename){
     if(path_exists == 0){
@@ -57,12 +59,12 @@ void FileUtils::read_line(const string path, const string filename, string* data
             read_file.open(path + "/" + filename);
         }
 
-        //getline(read_file, *data);
-        char buffer[256];
-        read_file.getline(buffer, 256);
+        char buffer[1024];
+        read_file.getline(buffer, 1024);
         *data = buffer;
 
         if(*data == ""){
+            // Presume EOF.
             read_file.close();
         }
 
@@ -157,7 +159,7 @@ float Cyclic::read(int time){
 /* Re-populate memory from cache files on disk.*/
 void Cyclic::restore_from_disk(void){
     string line;
-    int pos;
+    unsigned int pos;
     int time, val;
 
     string filename = filename_previous;
@@ -222,9 +224,12 @@ void Cyclic::restore_from_disk(void){
     file_mutex.unlock();
 }
 
-void Cyclic::to_JSON(Document* p_JSON_output){
+void Cyclic::to_JSON(Document* p_JSON_output, int step_size){
+    if(step_size <= 0){
+        step_size = mins_per_division;
+    }
     p_JSON_output->SetObject();
-    for(int time = 0; time < mins_in_period; time += mins_per_division){
+    for(int time = 0; time < mins_in_period; time += step_size){
         Value key, val;
         key.SetString(to_string(time).c_str(), p_JSON_output->GetAllocator());
         val.SetString(to_string(read(time)).c_str(), p_JSON_output->GetAllocator());
@@ -232,3 +237,28 @@ void Cyclic::to_JSON(Document* p_JSON_output){
     }
 }
 
+int Cyclic::to_JSON_string(std::string* p_buffer, map<string, string>* p_arguments){
+    int step_size = 0;
+    if(p_arguments->count("step_size")){
+        step_size = stoi(p_arguments->find("step_size")->second);
+    }
+    Document array;
+    to_JSON(&array, step_size);
+
+    if(p_arguments->count("pretty")){
+        StringBuffer buffer;
+        PrettyWriter<StringBuffer> writer(buffer);
+        array.Accept(writer);
+        *p_buffer = buffer.GetString();
+    } else {
+        StringBuffer buffer;
+        Writer<StringBuffer> writer(buffer);
+        array.Accept(writer);
+        *p_buffer = buffer.GetString();
+    }
+    return 0;
+}
+
+int Cyclic::textOutput(std::string* p_buffer, map<string, string>* p_arguments){
+    return to_JSON_string(p_buffer, p_arguments);
+}

@@ -26,7 +26,6 @@ using namespace std;
 
 string data_path = "";
 
-
 mutex file_mutex;
 Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0);
 Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20);
@@ -34,14 +33,18 @@ Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20)
 /* Any threads should exit if run==0. */
 int run = 1;
 
+/* Gets called whenever POST data arrives over http. */
 int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
     Document document;
     document.Parse(p_buffer->c_str());
     if(JSONtoInternal(&document)){
         (*p_arguments)["error"] = "yes";
+        return 1;
     }
+    return 0;
 }
 
+/* Return JSON formated text in response to GET. */
 int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
     Document array;
     InternalToJSON(&array, p_arguments);
@@ -57,35 +60,15 @@ int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
         array.Accept(writer);
         *p_buffer = buffer.GetString();
     }
+    return 0;
 } 
 
-int TestPath(const string path, const string filename){
-    static int path_exists = 0;
-
-    if(path_exists == 0){
-        // First time here. Check for directory.
-        struct stat sb;
-        if (stat(path.c_str(), &sb) == -1) {
-            path_exists = -1;
-            return -1;
-        }
-        if((sb.st_mode & S_IFMT) != S_IFDIR){
-            path_exists = -1;
-            return -1;
-        }
-
-        // TODO test ability to read file.
-
-        // So far, so good.
-        path_exists = 1;
-    }
-    return path_exists;
-}
 
 int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
-    if(TestPath(data_path, "configuration") != 1){
+    FileUtils file;
+    if(file.writable(data_path, "configuration") != 1){
         *p_buffer = "Cannot write to " + data_path + ".";
-        return 0;
+        return 1;
     }
 
     // Path exists and is writable.
@@ -95,7 +78,7 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     arguments_to_save["pretty"] = "1";
     CallbackGetData(&buffer, &arguments_to_save);
 
-
+    // TODO use FileUtils for this.
     file_mutex.lock();
 
     string full_path_working = data_path + "/configuration.cfg.tmp";
@@ -110,16 +93,19 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     file_mutex.unlock();
 
     *p_buffer = "ok";
+    return 0;
 }
 
 int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
-    if(TestPath(data_path, "configuration") != 1){
-        *p_buffer = "Cannot read from " + data_path + ".";
-        return 0;
+    FileUtils file_util;
+    if(file_util.writable(data_path, "configuration") != 1){
+        *p_buffer = "Cannot write to " + data_path + ".";
+        return 1;
     }
 
+    // TODO use FileUtils for this.
     file_mutex.lock();
-
+    
     string full_path = data_path + "/configuration.cfg";
     ifstream file(full_path.c_str());
     string buffer((istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -130,30 +116,12 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
     file_mutex.unlock();
 
     map<string, string> unused_map;
-    CallbackPost(&buffer, &unused_map);
-
+    if(CallbackPost(&buffer, &unused_map)){
+        *p_buffer = "Error reading cached config.";
+        return 1;
+    }
     *p_buffer = "ok";
-}
-
-
-int CallbackDisplayWhosIn(std::string* p_buffer, map<string, string>* p_arguments){
-    int step_size = 1;
-    if(p_arguments->count("step_size")){
-        step_size = stoi(p_arguments->find("step_size")->second);
-    }
-    Document array;
-    store_whos_home_1_week.to_JSON(&array);
-    if(p_arguments->count("pretty")){
-        StringBuffer buffer;
-        PrettyWriter<StringBuffer> writer(buffer);
-        array.Accept(writer);
-        *p_buffer = buffer.GetString();
-    } else {
-        StringBuffer buffer;
-        Writer<StringBuffer> writer(buffer);
-        array.Accept(writer);
-        *p_buffer = buffer.GetString();
-    }
+    return 0;
 }
 
 int minutesIntoWeek(void){
@@ -302,7 +270,8 @@ int main(int argc, char **argv){
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/1.0/event/put", "POST", &CallbackPost);
-    daemon.register_path("/whoin", "GET", &CallbackDisplayWhosIn);
+//    daemon.register_path("/whoin", "GET", &CallbackDisplayWhosIn);
+    daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
 
     (void)getchar();
     
