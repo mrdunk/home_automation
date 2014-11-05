@@ -7,6 +7,9 @@
 #include <iostream>   // std::cout
 #include <mutex>
 #include <map>
+#include <algorithm>    // std::count
+#include <vector>
+
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
 #include "httpServer.h"
@@ -59,7 +62,11 @@ class Cyclic : public FileUtils, public HttpCallback {
 
         string filename_active;
         string filename_previous;
+
     public:
+        /* Register all instances of this class. */
+        static vector<Cyclic*> allCyclic;
+
         /* Args:
          *      _unique_id: Used for filename. Must be unique among all class instances.
          *      _mins_per_division: Number of minutes between samples.
@@ -67,8 +74,13 @@ class Cyclic : public FileUtils, public HttpCallback {
          *      _update_inertia: How much weight to give new data when averaging over multiple itterations.
          *          "1" means only this rounds data will be stored. Higher numbers mean new data has less affect.
          *      _default_value: Value to assign all values if a cache file cannot be found. */
-        Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int _mins_in_period, unsigned int _update_inertia, int _default_value);
+        Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int _mins_in_period, unsigned int _update_inertia, int _default_value, string _working_dir);
         ~Cyclic(void);
+
+        /* Return pointer to an instance of Cyclic based on unique_id.
+         * Note that this function is static sh should not be called on an instance but rather as a class function:
+         *      Cyclic::lookup("some_unique_id")->some_function(); */
+        static Cyclic* lookup(string unique_id);
 
         /* Queue data to be committed at end of time segment. */
         void store(int time, int value);
@@ -78,9 +90,6 @@ class Cyclic : public FileUtils, public HttpCallback {
 
         /* TODO */
         unsigned int calculate_average(void);
-
-        /* Path to save cache file. */
-        void register_path(const string _working_dir);
 
         /* Load values from cache file. TODO call this automatically from constructor. */
         void restore_from_disk(void);

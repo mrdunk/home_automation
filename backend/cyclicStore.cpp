@@ -72,15 +72,17 @@ void FileUtils::read_line(const string path, const string filename, string* data
     }
 }
 
+vector<Cyclic*> Cyclic::allCyclic;
 
 Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int _mins_in_period,
-               unsigned int _update_inertia, int _default_value) : FileUtils(){
+               unsigned int _update_inertia, int _default_value, string _working_dir) : FileUtils(){
     unique_id = _unique_id;
     update_inertia = _update_inertia;
     mins_per_division = _mins_per_division;
     divisions = _mins_in_period / _mins_per_division;
     mins_in_period = _mins_in_period;
     int default_value = _default_value * _update_inertia;
+    working_dir = _working_dir;
 
     // Initialise p_container array.
     p_container = new int[divisions];
@@ -90,15 +92,30 @@ Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int 
 
     filename_active = _unique_id + "_active";
     filename_previous = _unique_id + "_previous";
+
+    //for(std::vector<Cyclic*>::iterator it = allCyclic.begin(); it != allCyclic.end(); ++it){
+    //}
+    if(count(allCyclic.begin(), allCyclic.end(), this) == 0){
+        allCyclic.push_back(this);
+    }
 }
 
 Cyclic::~Cyclic(void){
     cout << "Closing Cyclic: " << unique_id << endl;
     delete p_container;
+    if(count(allCyclic.begin(), allCyclic.end(), this)){
+        allCyclic.erase(remove(allCyclic.begin(), allCyclic.end(), this), allCyclic.end());
+    }
+    cout << allCyclic.size() << endl;
 }
 
-void Cyclic::register_path(const string _working_dir){
-        working_dir = _working_dir;
+Cyclic* Cyclic::lookup(string unique_id){
+    for(std::vector<Cyclic*>::iterator it = allCyclic.begin(); it != allCyclic.end(); ++it){
+        if((*it)->unique_id == unique_id){
+            return *it;
+        }
+    }
+    return NULL;
 }
 
 void Cyclic::store(int time, int value){

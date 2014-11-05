@@ -32,9 +32,14 @@ vector<struct data_node> s_data_nodes::lookup(map<string,string>* p_arguments){
             arg_data.Parse(it_arguments->second.c_str()); 
         }
         if(it_arguments->first == "age"){
-            // TODO find way to sanitize input. (isdigit()?)
-            arg_age = stoi(it_arguments->second);
-
+            // Sanitise string before converting to intiger.
+            // We only need to clear peceeding shite because stoi() can handle trailing.
+            string str = it_arguments->second;
+            std::size_t found = str.find_first_of("0123456789.");
+            if((found!=std::string::npos)){
+                str.erase(0, found);
+            }
+            arg_age = stoi(str);
         }
     }
 

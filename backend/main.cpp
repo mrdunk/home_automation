@@ -27,8 +27,6 @@ using namespace std;
 string data_path = "";
 
 mutex file_mutex;
-Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0);
-Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20);
 
 /* Any threads should exit if run==0. */
 int run = 1;
@@ -63,7 +61,7 @@ int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
     return 0;
 } 
 
-
+/* Save configuration to disk cache. */
 int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     FileUtils file;
     if(file.writable(data_path, "configuration") != 1){
@@ -78,24 +76,13 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     arguments_to_save["pretty"] = "1";
     CallbackGetData(&buffer, &arguments_to_save);
 
-    // TODO use FileUtils for this.
-    file_mutex.lock();
-
-    string full_path_working = data_path + "/configuration.cfg.tmp";
-    string full_path_done = data_path + "/configuration.cfg";
-
-    ofstream out(full_path_working.c_str());
-    out << buffer << endl;;
-    out.close();
-
-    rename(full_path_working.c_str(), full_path_done.c_str());
-
-    file_mutex.unlock();
+    file.write(data_path, "test", buffer);
 
     *p_buffer = "ok";
     return 0;
 }
 
+/* Read saved configuration to disk cache. */
 int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
     FileUtils file_util;
     if(file_util.writable(data_path, "configuration") != 1){
@@ -103,17 +90,11 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
         return 1;
     }
 
-    // TODO use FileUtils for this.
-    file_mutex.lock();
-    
-    string full_path = data_path + "/configuration.cfg";
-    ifstream file(full_path.c_str());
-    string buffer((istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
-    
-    cout << buffer << endl;
-
-    file_mutex.unlock();
+    string line, buffer;
+    do{
+        file_util.read_line(data_path, "test", &line);
+        buffer += line + "\n";
+    }while(line != "");
 
     map<string, string> unused_map;
     if(CallbackPost(&buffer, &unused_map)){
@@ -121,6 +102,7 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
         return 1;
     }
     *p_buffer = "ok";
+
     return 0;
 }
 
@@ -142,6 +124,7 @@ int minutesIntoWeek(void){
 
     return ret_val;
 }
+
 
 void houseKeeping(void){
     int counter;
@@ -179,7 +162,7 @@ void houseKeeping(void){
                         Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
                         if(itr_val != itr_data->value.MemberEnd()){
                             val = stof(itr_val->value.GetString());
-                            store_temp_setting_1_week.store(mins, val);
+                            Cyclic::lookup("temp_setting_1_week")->store(mins, val);
                             cout << "Stored userInput. age: " << itr_age->value.GetInt() << " val: " << val << endl;
                         }
                     }
@@ -235,7 +218,7 @@ void houseKeeping(void){
         cout << "Number of active hosts: " << active_hosts.size() << endl;
         cout << "Number of unique users: " << unique_users.size() << endl;
 
-        store_whos_home_1_week.store(mins, unique_users.size());
+        Cyclic::lookup("whos_home_1_week")->store(mins, unique_users.size());
     }
 
     cout << "Closing houseKeeping_thread." << endl;
@@ -247,17 +230,19 @@ int main(int argc, char **argv){
         return 1;
     }
 
-    http_server daemon(atoi(argv[1]));
-
     if (argc == 3){
         data_path = argv[2];
     }
-
     string str_data_path = data_path;
-    store_temp_setting_1_week.register_path(str_data_path);
-    store_whos_home_1_week.register_path(str_data_path);
 
-    store_whos_home_1_week.restore_from_disk();
+    http_server daemon(atoi(argv[1]));
+
+    Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path);
+    Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20, str_data_path);
+
+    Cyclic::lookup("whos_home_1_week")->restore_from_disk();
+
+    cout << "allCyclic.size: " << Cyclic::allCyclic.size() << endl;
 
     // Read config from disk.
     string unused_buffer;
@@ -270,11 +255,12 @@ int main(int argc, char **argv){
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/1.0/event/put", "POST", &CallbackPost);
-//    daemon.register_path("/whoin", "GET", &CallbackDisplayWhosIn);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
 
+
     (void)getchar();
-    
+
+    // Tell threads to quit and wait for that to happen.    
     run = 0;
     houseKeeping_thread.join();
 
