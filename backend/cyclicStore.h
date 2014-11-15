@@ -54,7 +54,7 @@ class Cyclic : public FileUtils, public HttpCallback {
         long long int average_total;
         unsigned int mins_per_division;
         unsigned int update_weight;
-        int* p_container;
+        float* p_container;
         int update_inertia;
         int previous_time;
         int previous_value;

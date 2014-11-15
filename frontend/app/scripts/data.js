@@ -480,7 +480,7 @@ UserData.prototype.getData = function(){
                'port': serverCubeMetricPort,
                //'path': '/cube-metric/1.0/event/get'};
                'path': '/data'};
-    var urlQueryListCallback = function(){
+    //var urlQueryListCallback = function(){
         //var dateStartRead = new Date();
         //dateStartRead.setMinutes(dateStartRead.getMinutes() - 60*timeWindow);
         //dateStartRead = dateStartRead.toISOString();
@@ -492,10 +492,11 @@ UserData.prototype.getData = function(){
         //return [{'expression': 'sensors(label,key,val).eq(label,\'net_clients\')',
         //        'start': dateStartRead,
         //        'stop': dateStop }];
-        return [{'type': 'sensors', 'data':'{"label": "net_clients"}'}];
-    };
+    //    return [{'type': 'sensors', 'age': activeClientTimeout, 'data':'{"label": "net_clients"}'}];
+    //};
 
-    nwConnection.getData('UserData.devices', urlWs, urlWget, urlQueryListCallback, 1000, parseDataCube, this.parseDataDevices.bind(this));
+    nwConnection.getData('UserData.devices', urlWs, urlWget, [{'type': 'sensors', 'age': activeClientTimeout, 'data':'{"label": "net_clients"}'}],
+            1000, parseDataCube, this.parseDataDevices.bind(this));
 };
 
 /* Callback function to parse data retreived by this.getData(). 

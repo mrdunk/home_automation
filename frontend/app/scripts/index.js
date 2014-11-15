@@ -2,6 +2,7 @@ var serverFQDN1 = '192.168.192.254';
 var serverFQDN2 = 'peeping.toythieves.com';
 var serverFQDN = serverFQDN1;
 
+var activeClientTimeout = 300;   // How old an entry about a client device connecting should be viewed for.
 //var serverCubeMetricPort = '1081';
 //var serverCubeCollectorPort = '1080';
 var serverCubeMetricPort1 = '55555';

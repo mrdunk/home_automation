@@ -2,6 +2,7 @@
 #include "json.h"
 #include "cyclicStore.h"
 #include "rapidjson/prettywriter.h"
+#include "wsServer.h"
 
 #include <map>
 #include <vector>
@@ -25,8 +26,6 @@ using namespace std;
  */
 
 string data_path = "";
-
-mutex file_mutex;
 
 /* Any threads should exit if run==0. */
 int run = 1;
@@ -106,21 +105,23 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
     return 0;
 }
 
+/* How many minutes have passed since the start of the week.
+ * Sunday is the first day of the week. */
 int minutesIntoWeek(void){
     time_t rawtime;
     struct tm * timeinfo;
-    char week[2];
+    char day[2];
     char hour[3];
     char minute[3];
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
 
-    strftime(week, 2, "%w", timeinfo);
+    strftime(day, 2, "%w", timeinfo);
     strftime(hour, 3, "%H", timeinfo);
     strftime(minute, 3, "%M", timeinfo);
     
-    int ret_val = (stoi(week) * 24 * 60) + (stoi(hour) * 60) + stoi(minute);
+    int ret_val = (stoi(day) * 24 * 60) + (stoi(hour) * 60) + stoi(minute);
 
     return ret_val;
 }
@@ -163,7 +164,7 @@ void houseKeeping(void){
                         if(itr_val != itr_data->value.MemberEnd()){
                             val = stof(itr_val->value.GetString());
                             Cyclic::lookup("temp_setting_1_week")->store(mins, val);
-                            cout << "Stored userInput. age: " << itr_age->value.GetInt() << " val: " << val << endl;
+                            //cout << "Stored userInput. age: " << itr_age->value.GetInt() << " val: " << val << endl;
                         }
                     }
                 }
@@ -254,8 +255,11 @@ int main(int argc, char **argv){
     daemon.register_path("/save", "GET", &CallbackSave);
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
-    daemon.register_path("/1.0/event/put", "POST", &CallbackPost);
+    daemon.register_path("/put", "POST", &CallbackPost);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
+
+    broadcast_server ws_daemon(atoi(argv[1]) +1);
+    ws_daemon.register_path("/data", &CallbackGetData);
 
 
     (void)getchar();

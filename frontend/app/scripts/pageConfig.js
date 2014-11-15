@@ -100,7 +100,7 @@ PageConfig.prototype.saveDevice = function (userInput){
                  'path': '/cube-collect-ws/1.0/event/put'};
     var urlWget = {'host': serverFQDN,
                    'port': serverCubeMetricPort,
-                   'path': '/1.0/event/put'};
+                   'path': '/put'};
 
     // TODO add repeat send for failures.
     nwConnection.sendData('PageControl.updateData.userInput', urlWs, urlWget, dataList);

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>WebSocket Test</title>
+<script language="javascript" type="text/javascript">
+    var wsUri = "ws://192.168.192.254:55556/";
+    var output;
+    var timer;
+    var websocket;
+    var path = "get";
+    var content = "/data?pretty=1";
+    function init() {
+        output = document.getElementById("output");
+        document.getElementById("path").value = path;
+        document.getElementById("content").value = content;
+    }
+    function setTimer(){
+        if(typeof timer !== "undefined"){
+            clearTimeout(timer);
+        }
+        timer = setTimeout(function(){websocket.close()}, 10000);
+    }
+    function wsInitialise() { 
+        console.log(typeof websocket);
+
+        if(typeof websocket !== "undefined"){
+            if(websocket.readyState === websocket.CONNECTING || websocket.readyState === websocket.CLOSING){
+                return;
+            }
+        }
+
+        if(typeof websocket === "undefined" || websocket.readyState === websocket.CLOSED){
+            websocket = new WebSocket(wsUri + path);
+            websocket.onopen = function(evt) { onOpen(evt) };
+            websocket.onclose = function(evt) { onClose(evt) };
+            websocket.onmessage = function(evt) { onMessage(evt) };
+            websocket.onerror = function(evt) { onError(evt) };
+        } else {
+            console.log("else");
+            setTimer();
+        }
+    }  
+    function onOpen(evt) { 
+        writeToScreen("CONNECTED");
+        setTimer();
+    }  
+    function onClose(evt) { 
+        writeToScreen("DISCONNECTED");
+    }  
+    function onMessage(evt) { 
+        writeToScreen('<span style="color: blue;"> RESPONSE: ' + evt.data+'</span> ');
+    }  
+    function onError(evt) { 
+        writeToScreen('<span style="color: red;"> ERROR:</span> ' + evt.data);
+    }  
+    function doSend(message) {
+        if(typeof websocket === "undefined" || websocket.readyState !== websocket.OPEN){
+            // WS not open.
+            // TODO error counter.
+            writeToScreen("OPENING...");
+            wsInitialise();
+
+            // Now let's go away and re-call this function when WS has had time to open.
+            setTimeout(function(){doSend(message)}, 10);
+            return;
+        }
+        writeToScreen("SENT: " + message);
+        websocket.send(message);
+        setTimer();
+    }  
+    function writeToScreen(message) { 
+        var pre = document.createElement("p");
+        pre.style.wordWrap = "break-word";
+        pre.innerHTML = message;
+        output.appendChild(pre);
+    }
+    function setPath(_path){
+        path = _path;
+        clearTimeout(timer);
+        if(typeof websocket !== "undefined"){
+            websocket.close();
+        }
+    }
+    window.addEventListener("load", init, false);
+</script>
+<h2>WebSocket Test</h2>
+<div> Path:    <input type="text" name="path" id="path" onchange="setPath(this.value);"></div>
+<div> Content: <input type="text" name="content" id="content" onchange="doSend(this.value);"></div>
+<pre><div id="output"></div></pre>
+ 

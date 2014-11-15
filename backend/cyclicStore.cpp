@@ -85,7 +85,7 @@ Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int 
     working_dir = _working_dir;
 
     // Initialise p_container array.
-    p_container = new int[divisions];
+    p_container = new float[divisions];
     fill(p_container, p_container + divisions, default_value);
     
     previous_time = -1;
@@ -106,7 +106,6 @@ Cyclic::~Cyclic(void){
     if(count(allCyclic.begin(), allCyclic.end(), this)){
         allCyclic.erase(remove(allCyclic.begin(), allCyclic.end(), this), allCyclic.end());
     }
-    cout << allCyclic.size() << endl;
 }
 
 Cyclic* Cyclic::lookup(string unique_id){
@@ -143,7 +142,9 @@ void Cyclic::store(int time, int value){
             // This allows things like multiple user input events to only save the final setting.
             if(previous_time < divisions){
                 //p_container[previous_time] = previous_value;
+                cout << "previous value: " << p_container[previous_time] << " " << previous_value << endl;
                 p_container[previous_time] = (p_container[previous_time] * (update_inertia - 1) / update_inertia) + previous_value;
+                cout << "new value:      " << p_container[previous_time] << endl;
 
                 // write p_container[time] to file.
                 string output_line = to_string(previous_time) + " " + to_string(p_container[previous_time]);
@@ -160,11 +161,15 @@ void Cyclic::store(int time, int value){
             } else {
                 cout << "Attempted to write outside alocated array." << endl;
             }
-        }
 
-        // "value" gets saved for writing in a future time segment.
-        previous_value = value;
-        previous_time = time;
+            // "value" gets saved for writing in a future time segment.
+            previous_value = value;
+            previous_time = time;
+        } else if(previous_time < 0){
+            // "value" gets saved for writing in a future time segment.
+            previous_value = value;
+            previous_time = time;
+        }
     }
 }
 

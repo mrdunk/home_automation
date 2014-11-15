@@ -33,7 +33,8 @@ WhosHome.prototype.updateCallback = function(){
     var alreadyDone = [];
     for(var key in this.userData.deviceList){
         if(this.userData.deviceList[key].userId !== "none" && 
-                this.userData.deviceList[key].userId !== "" &&
+                this.userData.deviceList[key].userId !== "" &&          // Device is associated with a user.
+                this.userData.deviceList[key].ip !== "" &&              // Device has been assigned IP so it's in range.
                 alreadyDone.indexOf(this.userData.deviceList[key].userId) === -1){
             //console.log("*", key, this.userData.deviceList[key], this.userData.deviceList[key].userUrl);
             var newElement = document.createElement('img');
