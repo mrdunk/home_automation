@@ -1,7 +1,7 @@
 
 var setupConnections = function(){
-    serverConnections.registerRequest([[serverFQDN1, "55556", "55555"],
-                                       [serverFQDN2, "55556", "55555"]], "test/path", 2000);
+    serverConnections.registerRequest([[serverFQDN1, "55556", "55555"], [serverFQDN2, "55556", "55555"]], "GET", '/data?data={"label":"userId"}&pretty=1', 2000);
+    serverConnections.registerRequest([[serverFQDN1, "55556", "55555"], [serverFQDN2, "55556", "55555"]], "GET", '/data?data={"label":"1wire"}&pretty=1', 2000);
 };
 
 
@@ -9,24 +9,30 @@ function Connections(){
     'use strict';
     this.wsOpen = {};
     this.htmlSucessRate = {};
-    this.wsSucessRate = {};
     this.requestQueue = {};
-    this.timeout = 200;     // ms
+    this.wsTimeout = 200;     // ms
     this.retryConnectionTimeout = 20000; // ms
 }
 
-Connections.prototype.registerRequest = function(serverList, path, timeBetweenRequests){
+/* Register a query to be sent to server(s) at specified intervals.
+ *
+ * Args:
+ *   serverList: [[server_FQDN, WebSoccket_port, HTTP_port], [server_FQDN_2, WebSoccket_port_2, HTTP_port_2], [etc]]
+ *   method:     GET/POST/etc
+ *   path:       Data to be sent. Sent in Path for HTTP-GET. Sent as payload for WS-GET.
+ *   timeBetweenRequests: Number of ms to wait before doing this again. */
+Connections.prototype.registerRequest = function(serverList, method, path, timeBetweenRequests){
     'use strict';
     console.log("Connections.registerRequest");
 
     if(path in this.requestQueue){
         clearTimeout(this.requestQueue.path[2]);
     }
-    var timer = window.setInterval(function(){this.doRequest(serverList, path);}.bind(this), timeBetweenRequests);
+    var timer = window.setInterval(function(){this.doRequest(serverList, method, path);}.bind(this), timeBetweenRequests);
     this.requestQueue[path] = [serverList, timeBetweenRequests, timer];
 };
 
-Connections.prototype.doRequest = function(serverList, path){
+Connections.prototype.doRequest = function(serverList, method, path){
     'use strict';
     //console.log("Connections.doRequest(" + serverList + ", " + path + ")");
 
@@ -44,52 +50,56 @@ Connections.prototype.doRequest = function(serverList, path){
         wsPort = serverList[server][1];
         httpPort = serverList[server][2];
 
+        if("stop_WS_sw" in controlSettings && controlSettings["stop_WS_sw"] === 1){
+            // Deliberately cause WS to fail for debugging.
+            wsPort = String(parseInt(wsPort) +1);
+        }
 
         if(wsPort){
             url = address + ":" + wsPort;
-
-            if(url in this.wsOpen && this.wsOpen[url][0] === "yes"){
+            if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null && this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.OPEN){
                 var openFor = Date.now() - this.wsOpen[url][1];
                 console.log("WS already open to " + url + " for " + openFor + " ms.");
                 ws_sucess = url;
+
+                // Send the request.
+                this.wsOpen[url][0].websocket.send(path);
                 break;
             } 
         }
-        //if(httpPort){
-        //    url = address + ":" + httpPort;
-        //}
     }
+
     if(ws_sucess === 0){
         for(server in serverList){
             address = serverList[server][0];
             wsPort = serverList[server][1];
             httpPort = serverList[server][2];
+
+            if("stop_WS_sw" in controlSettings && controlSettings["stop_WS_sw"] === 1){
+                // Deliberately cause WS to fail for debugging.
+                wsPort = String(parseInt(wsPort) +1);
+            }
+
             if(wsPort){
                 url = address + ":" + wsPort;
-console.log(this.wsOpen);
-                if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null && this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CONNECTING 
-                        && Date.now() - this.wsOpen[url][1] < this.timeout){
+                if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null &&
+                        this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CONNECTING &&
+                        Date.now() - this.wsOpen[url][1] < this.wsTimeout){
+                    // In the process of connecting to WebSocket.
                     console.log("WS connecting to " + url);
 
                     retrySoon = 1;
-
-                    //if(Math.random() < 0.1){
-                    //    console.log("*");
-                    //    this.wsOpen[url] = ["yes", Date.now()];
-                    //}
-
                     break;
                 } else if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null && 
                         this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CONNECTING){
+                    // TODO don't know if we need this.
                     // Must have timed out while connecting. Treat as failure.
-                    console.log("f", Date.now() - this.wsOpen[url][1], this.timeout);
-                    this.wsOpen[url] = ["fail", Date.now()];
+                    console.log("*** FAIL ***", Date.now() - this.wsOpen[url][1], this.wsTimeout);
                 } else if((!(url in this.wsOpen)) || this.wsOpen[url][0].websocket === null || 
-                            (this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CLOSED 
-                            && Date.now() - this.wsOpen[url][1] > this.retryConnectionTimeout)){
+                            (this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CLOSED &&
+                            Date.now() - this.wsOpen[url][1] > this.retryConnectionTimeout)){
                     // Haven't tried this connection before or it's been so long it's worth trying again.
                     console.log("Opening WS to " + url);
-                    //this.wsOpen[url] = ["connecting", Date.now()];
                     var websocket = new WS(url);
                     this.wsOpen[url] = [websocket, Date.now()];
 
@@ -98,11 +108,16 @@ console.log(this.wsOpen);
                     break;
                 }
             }
+            //console.log(this.wsOpen);
+            if(httpPort){
+                url = address + ":" + httpPort;
+                console.log("Try HTTP.");
+            }
         }
     }
     if(retrySoon == 1){
         // Come back soon to see if we ahve managed to connect.
-        window.setTimeout(function(){this.doRequest(serverList, path);}.bind(this), this.timeout / 10);
+        window.setTimeout(function(){this.doRequest(serverList, method, path);}.bind(this), this.wsTimeout / 10);
     }
 };
 
@@ -152,12 +167,13 @@ WS.prototype.onClose = function(evt){
 
 WS.prototype.onMessage = function(evt){
     'use strict';
-    console.log("WS.onMessage", evt);
+    console.log("WS.onMessage", evt.data.length);
+    //console.log("WS.onMessage", evt.data);
 };
 
 WS.prototype.onError = function(evt){
     'use strict';
-    console.log("WS.onError", evt);
+    console.log("WS.onError", evt.data);
 
 };
 
