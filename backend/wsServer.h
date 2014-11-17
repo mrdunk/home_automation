@@ -13,6 +13,8 @@
 #include <websocketpp/server.hpp>
 #include <websocketpp/common/thread.hpp>
 
+#include "httpServer.h"
+
 using namespace std;
 
 string get_path(const string url);
@@ -24,9 +26,10 @@ enum ws_callback_type{
 };
 
 struct ws_path{
-    string path;
-    ws_callback_type type;
-    void* callback;
+    string path;                // Path of incoming data that matches this ws_path instance.
+    string method;              // GET, POST, etc.
+    ws_callback_type type;      // One of enum ws_callback_type{}. 
+    void* callback;             // A pointer to either a function or class instance.
 };
 
 
@@ -38,114 +41,58 @@ using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;
 using websocketpp::lib::bind;
 
-class broadcast_server{
+class ws_server{
   public:
     string user_agent;
     string url;
     string host_address;
     string origin;
 
-    broadcast_server(uint16_t port){
-        m_server.clear_access_channels(websocketpp::log::alevel::all);
-        m_server.init_asio();
+    /* Constructor.
+     * 
+     * Args: (uint16_t)port:  Network port server should listen on. */
+    ws_server(uint16_t port);
 
-        m_server.set_open_handler(bind(&broadcast_server::on_open,this,::_1));
-        m_server.set_close_handler(bind(&broadcast_server::on_close,this,::_1));
-        m_server.set_message_handler(bind(&broadcast_server::on_message,this,::_1,::_2));
+    /* Destructor. */
+    ~ws_server();
 
-        m_server.listen(port);
+    /* Register the Path and Method (GET,POST,etc) we expect and a  
+     * callback function to execute when we get them.
+     *
+     * Since WebSockets don't have the same concept of Methods as HTTP,
+     * the Method is simply the path when the connection if first made.
+     * ("/get", "/post", etc.)
+     *
+     * Args:
+     *  const char* path:   Path in incoming URL.
+     *  const char* method: GET or POST.
+     *  int(*callback)(char*): Callback function that populates char*. */
+    void register_path(string const path, string method, int(*callback)(std::string*, map<string, string>*));
 
-        m_server.start_accept();
-        m_thread = websocketpp::lib::make_shared<websocketpp::lib::thread>(&server::run, &m_server);
-    }
-
-    ~broadcast_server(){
-        cout << "Shutting down ws." << endl;
-        m_server.stop();
-        m_thread->join();
-        cout << "Shut down ws." << endl;
-    }
-
-    void on_open(connection_hdl hdl) {
-        m_connections.insert(hdl);
-
-        user_agent = m_server.get_user_agent();
-        url = m_server.get_con_from_hdl(hdl)->get_resource();
-        host_address = m_server.get_con_from_hdl(hdl)->get_host();
-        origin = m_server.get_con_from_hdl(hdl)->get_origin();
-
-        cout << "** " << user_agent << endl;
-        cout << "** " << url << endl;
-        cout << "** " << host_address << endl;
-        cout << "** " << origin << endl;
-        cout << "** " << m_server.get_con_from_hdl(hdl)->get_uri() << endl;
-
-        string header;  // Set value of header if we want to read it.
-        while(m_server.get_con_from_hdl(hdl)->get_request_header(header) != ""){
-            cout << "** " << header << endl;
-        }
-
-        map<string, string> args;
-        string path;
-        parse_url(url, &path, &args);
-    }
-
-    void on_close(connection_hdl hdl) {
-        m_connections.erase(hdl);
-    }
-
-    void on_message(connection_hdl hdl, server::message_ptr msg) {
-        for (auto it : m_connections) {
-            if(it.lock().get() == hdl.lock().get()){
-
-                string const method = get_path(m_server.get_con_from_hdl(hdl)->get_resource());
-                string page_content;
-
-                if(method == "/GET" || method == "/get"){
-                    do_get(hdl, msg, &page_content);
-                } else if(method == "/POST" || method == "/post"){
-                    // TODO
-                }
-                m_server.send(it, page_content, msg->get_opcode());
-            }
-        }
-    }
-
-    void do_get(connection_hdl hdl, server::message_ptr msg, string* returned_content) {
-        string path;
-        map<string, string> arguments;
-        parse_url(msg->get_payload(), &path, &arguments);
-
-        vector<ws_path>::iterator it_path = find_if(paths.begin(), paths.end(), [&path](ws_path const& i){return i.path == path;});
-        if(it_path != paths.end()){
-            if(it_path->type == _ws_function){
-                // Callback pointer is a function pointer.
-                ((int (*)(string*, map<string, string>*))(it_path->callback))(returned_content, &arguments);
-            } else {
-                // Callback pointer is a class instance pointer.
-                //((HttpCallback*)path->callback)->textOutput(&page_content, &arguments);
-            }
-        } else {
-            *returned_content = msg->get_payload();
-        }
-    }
-
-    void register_path(string path, int(*callback)(std::string*, map<string, string>*)){
-        vector<ws_path>::iterator it = find_if(paths.begin(), paths.end(), [&path](ws_path const& i){return i.path == path;});
-        if(it != paths.end()){
-            it->path = path;
-            it->type = _ws_function;
-            it->callback = (void*)callback;
-        } else {
-            const struct ws_path tmp_path = { path,
-                                              _ws_function,
-                                              (void*)callback };
-            paths.push_back(tmp_path);
-        }
-    }
-
+    /* Register the Path and Method (GET,POST,etc) we expect and a  
+     * callback class instance. This class should inheret from class HttpCallback
+     * and the HttpCallback::textOutput function should provide the html response. */
+    void register_path(string const path, string method, HttpCallback* callback);
 
   private:
+    /* Called whenever a new network connection is made to server. 
+     * The path section of the URL is taken to indicate whether this connection
+     * should be mapped as a GET/POST/etc. 
+     * eg. "192.168.192.254:55556/post" would be passed to the do_post() method.*/
+    void on_open(connection_hdl hdl);
+
+    /* Called whenever a connection to the server is closed. */
+    void on_close(connection_hdl hdl);
+
+    /* Called whenever data arrives on an open connection. */
+    void on_message(connection_hdl hdl, server::message_ptr msg); 
+
+    /* Called by on_message() when incoming data is destined for a "GET" target. */
+    void do_get(connection_hdl hdl, server::message_ptr msg, string* p_returned_content);
+
+    /* Called by on_message() when incoming data is destined for a "POST" target. */
+    void do_post(connection_hdl hdl, server::message_ptr msg, string* p_returned_content);
+
     vector<ws_path> paths;
     websocketpp::lib::shared_ptr<websocketpp::lib::thread> m_thread;
     typedef std::set<connection_hdl> con_list;

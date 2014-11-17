@@ -207,7 +207,8 @@ void houseKeeping(void){
                 if(itr_key != itr_data->value.MemberEnd() && itr_val != itr_data->value.MemberEnd()){
                     string key = itr_key->value.GetString();
                     string userId = itr_val->value.GetString();
-                    cout << "MAC: " << key << "\tuserId: " << userId << endl;
+                    //cout << "MAC: " << key << "\tuserId: " << userId << endl;
+
                     // Check the key is in both tables and userId has only been couted once.
                     if(userId != "none" && count(active_hosts.begin(), active_hosts.end(), key) && 
                             count(unique_users.begin(), unique_users.end(), userId) == 0){
@@ -216,8 +217,8 @@ void houseKeeping(void){
                 }
             }
         }
-        cout << "Number of active hosts: " << active_hosts.size() << endl;
-        cout << "Number of unique users: " << unique_users.size() << endl;
+        cout << "Number of active hosts: " << active_hosts.size();
+        cout << "\tNumber of unique users: " << unique_users.size() << endl;
 
         Cyclic::lookup("whos_home_1_week")->store(mins, unique_users.size());
     }
@@ -236,8 +237,6 @@ int main(int argc, char **argv){
     }
     string str_data_path = data_path;
 
-    http_server daemon(atoi(argv[1]));
-
     Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path);
     Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20, str_data_path);
 
@@ -252,14 +251,16 @@ int main(int argc, char **argv){
 
     thread houseKeeping_thread(houseKeeping);
 
+    http_server daemon(atoi(argv[1]));
     daemon.register_path("/save", "GET", &CallbackSave);
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/put", "POST", &CallbackPost);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
 
-    broadcast_server ws_daemon(atoi(argv[1]) +1);
-    ws_daemon.register_path("/data", &CallbackGetData);
+    ws_server ws_daemon(atoi(argv[1]) +1);
+    ws_daemon.register_path("/data", "GET", &CallbackGetData);
+    ws_daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
 
 
     (void)getchar();
