@@ -4,7 +4,7 @@ var serverFQDN2 = 'peeping.toythieves.com';
 var tempSensorList = ['00000536d60c', '0000053610c1'];
 
 
-var serverConnections = new Connections();
+var dataStore = new DataStore();
 
 window.onload = function () {
     'use strict';
@@ -20,7 +20,8 @@ window.onload = function () {
 
 
     verticalSwitchInit();
-    setupConnections();
+    //whoshome();
+    //whoshome2();
 };
 
 window.onhashchange = function () {
