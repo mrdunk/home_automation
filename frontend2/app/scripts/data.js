@@ -7,6 +7,7 @@ function DataStore(){
     this.userDataContainer = {};
 
     this.setupConnections("users");
+    this.setupConnections("temperature");
 }
 
 DataStore.prototype.parseIncoming = function(incomingData){
@@ -80,6 +81,8 @@ DataStore.prototype.parseIncoming = function(incomingData){
     
     console.log(this.allDataContainer);
     console.log(this.userDataContainer);
+
+    displayTemperature();
     whoshome();
 };
 
@@ -100,7 +103,7 @@ DataStore.prototype.setupConnections = function(role){
     if(role === "users"){
         querysHouse = querysHouseUsers;
         querysAppEngine = querysAppEngineUsers;
-    } else if(role === "temperaature"){
+    } else if(role === "temperature"){
         querysHouse = querysHouseSensors;
         querysAppEngine = querysAppEngineSensors;
     }
@@ -150,7 +153,7 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
     'use strict';
     //console.log("Connections.doRequest(" + serverList + ", " + path + ")");
 
-    if("stop_data_sw" in controlSettings && controlSettings["stop_data_sw"] === 1){
+    if("stopDataSwitch" in controlSettings && controlSettings.stopDataSwitch === 1){
         // Don't try to connect.
         return;
     }
@@ -166,7 +169,7 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
         wsPort = serverList[server][1];
         httpPort = serverList[server][2];
 
-        if("stop_WS_sw" in controlSettings && controlSettings["stop_WS_sw"] === 1){
+        if("stopWsSwitch" in controlSettings && controlSettings.stopWsSwitch === 1){
             // Deliberately cause WS to fail for debugging.
             wsPort = String(parseInt(wsPort) +1);
         }
@@ -192,7 +195,7 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
             wsPort = serverList[server][1];
             httpPort = serverList[server][2];
 
-            if("stop_WS_sw" in controlSettings && controlSettings["stop_WS_sw"] === 1){
+            if("stopWsSwitch" in controlSettings && controlSettings.stopWsSwitch === 1){
                 // Deliberately cause WS to fail for debugging.
                 wsPort = String(parseInt(wsPort) +1);
             }

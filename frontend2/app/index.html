@@ -51,13 +51,17 @@
     </nav>
 
     <main>
+     <div style='display: inline-block;'>
       <p>Welcome to Web Temperature Control.</p>
-      <div id="people" style="overflow: hidden;"></div>
+      <div id="people" style="height: 68px;"></div>
+      <div id="dials"><svg id="dialsSvg"></svg></div>
       <div id="content">
-          <verticalswitch id="stop_data_sw"></verticalswitch>
-          <verticalswitch id="stop_WS_sw"/></verticalswitch>
+          <verticalswitch id="stopDataSwitch"></verticalswitch>
+          <verticalswitch id="stopWsSwitch"></verticalswitch>
+          <verticalswitch id="temperatureColourLogScale"></verticalswitch>
       </div>
       <div id="log"></div>
+     </div>
     </main>
 
     <!-- build:js scripts/main.min.js -->
@@ -66,6 +70,10 @@
 
     <!-- build:js scripts/3rdparty/d3/d3.min.js -->
     <script src="/scripts/3rdparty/d3/d3.min.js"></script>
+    <!-- endbuild -->
+
+    <!-- build:js scripts/3rdparty/handlebars-v2.0.0.js -->
+    <script src="/scripts/3rdparty/handlebars-v2.0.0.js"></script>
     <!-- endbuild -->
 
     <!-- build:js scripts/data.js -->

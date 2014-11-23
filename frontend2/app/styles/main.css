@@ -375,16 +375,19 @@ main {
     padding: 2px;
     text-align: center;
     border: 1px solid black;
+    z-index: 10;
 }
 
 div.displayUser
 {
+    position: absolute;     /* Must be absolute or relative for z-index to work. */
     border: 1px solid #000;
     background: #000;
     padding: 5px;
     margin: 0;
     overflow: hidden;
-    display:inline-block;
+    display: inline-block;
+    z-index: 10;    /* So divs overlap the temperature bar. */
 }
 
 dl.displayUser
@@ -417,4 +420,46 @@ dl.displayUserTitle
 {
     margin: 0;
     padding: 0;
+}
+
+* { -moz-box-sizing: border-box; box-sizing: border-box; }
+
+div.temperature
+{
+    width:2rem;
+    margin-right:2rem;
+    float:left;
+    /*position:relative;*/
+    height:10em;
+}
+
+meter.temperature
+{
+    width:10em;
+    position: absolute;     /* Must be absolute or relative for z-index to work. */
+    display: block;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background: #fff;
+    /*width: 300px; height: 20px;*/
+    border-radius: 10px; border: 5px double #aaa;
+    display: block;
+    -webkit-transform-origin: center left;
+    -webkit-transform: rotate(-90deg) translateX(-100%);
+    transform-origin: center left;
+    transform: rotate(-90deg) translateX(-100%);
+    margin-left: 1em;
+    z-index: 1;         /* So pop-up divs overlap these elements. */
+}
+
+meter::-webkit-meter-bar {
+    float: left;
+    background: #EEE;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.2) inset;
+    border-radius: 5px;
+    -webkit-box-orient: vertical;
+}
+
+svg
+{
+    border: 1px solid #000;
 }

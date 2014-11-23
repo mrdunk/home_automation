@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="svg2" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" style="enable-background:new;" xmlns="http://www.w3.org/2000/svg" height="275.56" width="87.525" version="1.1" xmlns:cc="http://creativecommons.org/ns#" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <defs id="defs4">
+  <linearGradient id="linearGradient12542-5-6-3-1" x1="1170.7" gradientUnits="userSpaceOnUse" x2="1186.5" gradientTransform="translate(244,-2)" y1="693.08" y2="693.08">
+   <stop id="stop9384-5-1-4-1" stop-color="#FFF" offset="0"/>
+   <stop id="stop9386-9-9-9-3" stop-color="#FFF" stop-opacity="0" offset="1"/>
+  </linearGradient>
+  <radialGradient id="radialGradient7056" gradientUnits="userSpaceOnUse" xlink:href="#linearGradient12542-5-6-3-1" cx="1171.5" cy="811.37" r="39.871" gradientTransform="matrix(0.61897167,-0.67951966,0.63995979,0.59228714,-72.876644,1126.8459)"/>
+  <radialGradient id="radialGradient7126" gradientUnits="userSpaceOnUse" cy="1008.4" cx="1070.1" gradientTransform="matrix(1,0,0,0.2,0,806.69)" r="58.865">
+   <stop id="stop9469-1" stop-color="#000" offset="0"/>
+   <stop id="stop9471-3" stop-color="#000" stop-opacity="0" offset="1"/>
+  </radialGradient>
+  <radialGradient id="radialGradient7227" xlink:href="#linearGradient12542-5-6-3-1" gradientUnits="userSpaceOnUse" cy="2127.3" cx="191.65" gradientTransform="matrix(0.66336341,7.1011803e-4,-0.00954781,8.9192655,-84.80182,-16821.57)" r="13.707"/>
+ </defs>
+ <metadata id="metadata7">
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title/>
+    <cc:license rdf:resource="http://creativecommons.org/licenses/publicdomain/"/>
+   </cc:Work>
+   <cc:License rdf:about="http://creativecommons.org/licenses/publicdomain/">
+    <cc:permits rdf:resource="http://creativecommons.org/ns#Reproduction"/>
+    <cc:permits rdf:resource="http://creativecommons.org/ns#Distribution"/>
+    <cc:permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/>
+   </cc:License>
+  </rdf:RDF>
+ </metadata>
+ <g id="layer10" transform="translate(-0.61037009,-37.866531)">
+  <path id="thermometerBackground" opacity="0.98470998" style="color:#000000;enable-background:new;" d="m30.728,38.959c-6.6181,0-11.961,5.2961-11.939,11.862l0.53602,163.41c0.000093,0.0285-0.000221,0.0572,0,0.0856-7.2702,4.5464-12.094,12.583-12.094,21.738,0,14.182,11.585,25.675,25.88,25.675s25.88-11.493,25.88-25.675c0-9.3564-5.0405-17.541-12.578-22.029l-0.536-163.21c-0.02156-6.5656-5.321-11.862-11.939-11.862h-3.2091z" fill="#e6e6e6"/>
+ </g>
+ <g id="layer1" transform="translate(5.4080266,-2058.8348)">
+  <g id="layer4">
+   <g id="layer3">
+    <path id="thermometerTube8unit" opacity="0.98470998" style="color:#000000;enable-background:new;" d="m13.314,2228.9-0.000001,40.137,27.105,0,0-40c-3.7923,0.7325-8.3385,1.164-13.233,1.164-5.1762,0-9.9551-0.4896-13.872-1.3009z" fill="#c51d1d"/>
+   </g>
+   <g id="layer5">
+    <path id="thermometerTube16unit" opacity="0.98470998" style="color:#000000;enable-background:new;" d="m12.919,2233.8,0,80.137,27.105,0,0-80c-3.7923,0.7325-8.3385,1.164-13.233,1.164-5.1762,0-9.9551-0.4896-13.872-1.3009z" display="none" fill="#c51d1d"/>
+   </g>
+   <g id="layer13">
+    <path id="thermometerTube32unit" opacity="0.98470998" style="color:#000000;enable-background:new;" d="m12.92,2233.8,0,160.14,27.105,0,0-160c-3.7923,0.7325-8.3385,1.164-13.233,1.164-5.1762,0-9.9551-0.4896-13.872-1.3009z" display="none" fill="#c51d1d"/>
+   </g>
+  </g>
+  <g id="layer2">
+   <g id="g7023">
+    <g id="g9507" style="enable-background:new;" transform="matrix(0.5521086,0,0,0.54773321,-765.41765,1803.3862)">
+     <g id="g5329"></g>
+    </g>
+   </g>
+   <path id="thermometerTubeHighlight" opacity="0.98470998" style="color:#000000;enable-background:new;" d="m24.87,2059.4c-6.6181,0-11.948,5.296-11.939,11.862l0.21622,164.4c0.000037,0.028-0.00022,0.057,0,0.086l27.088-0.2908-0.21623-164.2c-0.0086-6.5657-5.321-11.862-11.939-11.862h-3.2091z" fill="url(#radialGradient7227)"/>
+  </g>
+ </g>
+ <g id="layer6" transform="translate(-0.61037009,-37.866531)">
+  <g id="layer9">
+   <path id="thermometerBulb" style="color:#000000;enable-background:new;" d="m1229.4,817.95c0,22.02-17.851,39.871-39.871,39.871s-39.871-17.851-39.871-39.871,17.851-39.871,39.871-39.871,39.871,17.851,39.871,39.871z" transform="matrix(0.64916929,0,0,0.64402471,-739.12207,-289.73627)" fill="#c51d1d"/>
+  </g>
+  <g id="layer8">
+   <g id="thermometerBulbHighlight">
+    <path id="path9249-3" style="color:#000000;enable-background:new;" d="m1229.4,817.95c0,22.02-17.851,39.871-39.871,39.871s-39.871-17.851-39.871-39.871,17.851-39.871,39.871-39.871,39.871,17.851,39.871,39.871z" fill-rule="nonzero" transform="matrix(0.64916929,0,0,0.64402471,-739.12207,-289.73627)" fill="url(#radialGradient7056)"/>
+    <path id="path9503" opacity="0.5" style="color:#000000;enable-background:new;" d="m1129,1008.4c0,6.5021-26.355,11.773-58.865,11.773s-58.865-5.271-58.865-11.773,26.355-11.773,58.865-11.773,58.865,5.271,58.865,11.773z" transform="matrix(0.5521086,0,0,0.54773321,-557.70541,-283.14423)" fill="url(#radialGradient7126)"/>
+   </g>
+  </g>
+ </g>
+ <g id="layer15">
+  <text id="tempValue" style="enable-background:new;letter-spacing:0px;text-anchor:middle;word-spacing:0px;text-align:center;" font-weight="normal" xml:space="preserve" font-size="20px" line-height="125%" y="261.25848" x="43.707741" font-family="Sans" font-style="normal" fill="#000000"><title id="title6664">Temperature text</title><tspan id="tspan6640" x="43.707741" y="261.25848">?°C</tspan></text>
+ </g>
+ <g id="layer11" transform="translate(-0.61037009,-37.866531)">
+  <g id="thermometerOutline">
+   <path id="path9353" opacity="0.98470998" style="block-progression:tb;text-indent:0;color:#000000;enable-background:new;text-transform:none;" d="m30.728,37.867c-6.9152,0-12.514,5.5502-12.491,12.409l0.536,164.21c-7.2735,4.6726-12.094,12.78-12.094,22.012,0,14.478,11.839,26.223,26.432,26.223s26.432-11.745,26.432-26.223c0-9.4325-5.0387-17.683-12.578-22.303l-0.536-163.92c-0.022-6.859-5.576-12.41-12.491-12.41h-3.2091zm0,1.0955,3.2091,0c6.3216,0,11.367,5.0419,11.387,11.314l0.53569,164.19v0.3081l0.27605,0.15405c7.3762,4.3929,12.302,12.406,12.302,21.567,0,13.886-11.331,25.127-25.328,25.127s-25.328-11.241-25.328-25.127c0-8.9648,4.7207-16.826,11.836-21.276l0.25883-0.15405v-0.3081c-0.000221-0.0228,0.000102-0.0543,0-0.0856l-0.536-164.4c-0.02044-6.2721,5.0658-11.314,11.387-11.314z" fill="#333"/>
+   <path id="path6457" stroke-linejoin="miter" d="m46.438,209.46h15z" stroke="#000" stroke-linecap="butt" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="2.5" fill="none"/>
+   <path id="path6457-76" stroke-linejoin="miter" style="enable-background:new;" d="m46.438,158.96h15z" stroke="#000" stroke-linecap="butt" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="2.5" fill="none"/>
+   <path id="path6457-3" stroke-linejoin="miter" style="enable-background:new;" d="m46.438,108.96h15z" stroke="#000" stroke-linecap="butt" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="2.5" fill="none"/>
+   <path id="path6457-74" stroke-linejoin="miter" style="enable-background:new;" d="m46.438,58.962h15z" stroke="#000" stroke-linecap="butt" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="2.5" fill="none"/>
+   <path id="path6457-74-0" stroke-linejoin="miter" style="enable-background:new;" d="m46.438,82.871h7.5z" stroke="#000" stroke-linecap="butt" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="1.76776695" fill="none"/>
+   <path id="path6457-74-0-1" stroke-linejoin="miter" style="enable-background:new;" d="m46.438,182.87h7.5z" stroke="#000" stroke-linecap="butt" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="1.76776695" fill="none"/>
+   <path id="path6457-74-0-0" stroke-linejoin="miter" style="enable-background:new;" d="m46.438,132.87h7.5z" stroke="#000" stroke-linecap="butt" stroke-miterlimit="4" stroke-dasharray="none" stroke-width="1.76776695" fill="none"/>
+   <text id="text6606" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" transform="translate(0,27.224335)" line-height="125%" xml:space="preserve" font-size="16px" font-style="normal" y="35.902195" x="68.070175" font-family="Sans" fill="#000000"><tspan id="tspan6608" y="35.902195" x="68.070175">40</tspan></text>
+   <text id="text6610" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" transform="translate(0,27.224335)" line-height="125%" xml:space="preserve" font-size="16px" font-style="normal" y="85.338631" x="68.830734" font-family="Sans" fill="#000000"><tspan id="tspan6612" y="85.338631" x="68.830734">30</tspan></text>
+   <text id="text6614" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" transform="translate(0,27.224335)" line-height="125%" xml:space="preserve" font-size="16px" font-style="normal" y="135.15535" x="68.450455" font-family="Sans" fill="#000000"><tspan id="tspan6616" y="135.15535" x="68.450455">20</tspan></text>
+   <text id="text6618" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" transform="translate(0,27.224335)" line-height="125%" xml:space="preserve" font-size="16px" font-style="normal" y="186.11292" x="67.689896" font-family="Sans" fill="#000000"><tspan id="tspan6620" y="186.11292" x="67.689896">10</tspan></text>
+  </g>
+  <flowRoot id="flowRoot6630" style="letter-spacing:0px;text-anchor:middle;word-spacing:0px;text-align:center;" font-weight="normal" xml:space="preserve" font-size="32px" transform="translate(0,27.224335)" line-height="125%" font-style="normal" font-family="Sans" fill="#000000"><flowRegion id="flowRegion6632"><rect id="rect6634" style="text-align:center;" height="34.943" width="74.811" y="255.7" x="9.1267"/></flowRegion><flowPara id="flowPara6636">20</flowPara></flowRoot>
+ </g>
+</svg>
