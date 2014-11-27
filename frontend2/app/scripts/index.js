@@ -36,6 +36,7 @@ window.onload = function () {
 
 
     verticalSwitchInit();
+    verticalSliderInit();
 };
 
 window.onhashchange = function () {

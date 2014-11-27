@@ -54,7 +54,10 @@
      <div style='display: inline-block;'>
       <p>Welcome to Web Temperature Control.</p>
       <div id="people" style="height: 68px;"></div>
-      <div id="dials"><svg id="dialsSvg"></svg></div>
+      <div id="dials">
+        <verticalslider id="setTemperatureSlider"></verticalslider>
+        <div style="float: left;"><svg id="dialsSvg"></svg></div>
+      </div>
       <div id="content">
           <verticalswitch id="stopDataSwitch"></verticalswitch>
           <verticalswitch id="stopWsSwitch"></verticalswitch>
