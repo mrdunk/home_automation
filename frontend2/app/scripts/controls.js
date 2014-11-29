@@ -13,10 +13,7 @@ var LOGMIN = Math.log(TEMPMIN_COLOR) *10;
 
 function preventBehavior(e) {
     e.preventDefault(); 
-};
-
-document.addEventListener("touchmove", preventBehavior, false);
-
+}
 
 var changeColourGreen = function(switchInstance){
     switchInstance.target.classList.remove("switch-unselected");
@@ -41,10 +38,10 @@ function verticalSwitchInit(){
         console.log(switchId);
         if(controlSettings[switchId] === undefined || controlSettings[switchId] === 0){
             controlSettings[switchId] = 1;
-            document.getElementById(switchId).getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top = "20px"
+            document.getElementById(switchId).getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top = "20px";
         } else {
             controlSettings[switchId] = 0;
-            document.getElementById(switchId).getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top = "0px"
+            document.getElementById(switchId).getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top = "0px";
         }
     };
 
@@ -63,74 +60,146 @@ function verticalSwitchInit(){
         switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseover = changeColourGreen;
         switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseleave = changeColourGrey;
         switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onclick = toggleSwitch;
-    };
+    }
 }
 
 var verticalSliderStoreYPos;    // Tempory storage while a slider is being dragged.
+/* An analouge slider. */
+var verticalSliderUpdate = [];
 function verticalSliderInit(){
     'use strict';
 
     var height = 200;
-    var width = 20;
+    var width = 30;
+    var slideHeight = (200 - 6) * 0.8;      // (height - (2 * border)) * ((height - knob_height) / height)
     var heightPx = height + "px";
     var widthPx = width + "px";
+    var maxVal = 42;
+    var minVal = 5;
+    var rangeVal = minVal - maxVal;
+    var scaledVal;
+
 
     // Called while slider is being dragged.
     function dragSlider(switchInstance){
-        if(switchInstance.clientX && switchInstance.clientY){
-            var switchId = switchInstance.target.id.slice(0, switchInstance.target.id.lastIndexOf("-"));
-            console.log(switchId, switchInstance.clientY - verticalSliderStoreYPos, controlSettings[switchId]);
+        console.log("dragSlider");
+        var switchId;
+        if(switchInstance.target === undefined){
+            switchId = switchInstance.id;
+        } else {
+            switchId = switchInstance.target.id;
+        }
 
-            controlSettings[switchId] += switchInstance.clientY - verticalSliderStoreYPos;
-            if(controlSettings[switchId] < 0) controlSettings[switchId] = 0;
-            if(controlSettings[switchId] > 100) controlSettings[switchId] = 100;
-            verticalSliderStoreYPos = switchInstance.clientY;
-            document.getElementById(switchId).getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top =
-                controlSettings[switchId] * (height -6) * 0.8 / 100 + "px";
+        var x,y,switchId;
+        if(switchInstance.clientX && switchInstance.clientY){
+            // This is a mouse event.
+            x = switchInstance.clientX;
+            y = switchInstance.clientY;
+            console.log(x,y);
+        } else if(switchInstance.touches !== undefined) {
+            // Touch event.
+            x = switchInstance.touches[0].pageX;
+            y = switchInstance.touches[0].pageY;
+        } else {
+            if(verticalSliderStoreYPos === undefined){
+                y = maxVal;
+                verticalSliderStoreYPos = y;
+            } else {
+                return;
+            }
+        }
+
+        var pos = switchId.lastIndexOf("-");
+        if(pos > -1){
+            switchId = switchId.substr(0, pos);
+        }
+
+        controlSettings[switchId] += (y - verticalSliderStoreYPos) * rangeVal / slideHeight;
+
+        if(controlSettings[switchId] < minVal) controlSettings[switchId] = minVal;
+        if(controlSettings[switchId] > maxVal) controlSettings[switchId] = maxVal;
+        verticalSliderStoreYPos = y;
+
+        function doTheThings(_switchId){
+            console.log("doTheThings");
+            var node = document.getElementById(_switchId);
+            node.getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top =
+                ((controlSettings[switchId] - maxVal) * slideHeight / rangeVal) + "px";
+
+            node.getElementsByTagName("p")[0].innerHTML = (Math.round(controlSettings[switchId] * 10) / 10) + "°C";
 
             displayTemperature();
+            
+            delete verticalSliderUpdate[_switchId];
         }
+
+        // We don't want to update things every time a drag event is detected.
+        // Insstead do it every 20ms.
+        if(verticalSliderUpdate[switchId] === undefined){
+            verticalSliderUpdate[switchId] = setTimeout(function(){ doTheThings(switchId); }, 20);
+        }
+
     }
 
     // Called when slider is first dragged.
     function dragSliderStart(switchInstance){
-        var crt = this.cloneNode(true);
-        crt.style.backgroundColor = "black";
-        crt.innerHTML = "";
-        crt.style.position = "absolute"; crt.style.top = "0px"; crt.style.right = "0px";
-        crt.style.height = "20px";
-        crt.style.width = widthPx;
-        document.body.appendChild(crt);
-        switchInstance.dataTransfer.setDragImage(crt, 0, 0);
+        var x,y;
+        if(switchInstance.clientX !== undefined && switchInstance.clientY !== undefined){
+            console.log("dragSliderStart click");
+            var crt = this.cloneNode(true);
+            crt.style.backgroundColor = "black";
+            crt.innerHTML = "";
+            crt.style.position = "absolute"; crt.style.top = "0px"; crt.style.right = "0px";
+            crt.style.height = "20px";
+            crt.style.width = widthPx;
+            document.body.appendChild(crt);
+            switchInstance.dataTransfer.setDragImage(crt, 0, 0);
 
-        verticalSliderStoreYPos = switchInstance.clientY;
+            x = switchInstance.clientX;
+            y = switchInstance.clientY;
+        } else {
+            console.log("dragSliderStart touch");
+            x = switchInstance.changedTouches[0].pageX;
+            y = switchInstance.changedTouches[0].pageY;
+        }
+        verticalSliderStoreYPos = y;
     }
 
     // The HTML that makes up a switch.
-    var switchHtml = "<div class='switch-footprint'><div class='switch-outer switch-unselected'><div class='slider-inner'></div></div></div>";
+    var switchHtml = "<div class='switch-footprint'><div class='switch-outer switch-unselected'>" +
+                     "<div class='slider-inner'></div></div><div><p class='switch-display'></p></div></div>";
 
     // Fetch all sliders.
     var switches = document.getElementsByTagName("verticalslider");
 
     for(var sw = 0; sw < switches.length; sw++){
         if(controlSettings[switches[sw].id] === undefined){
-            controlSettings[switches[sw].id] = 0;
+            controlSettings[switches[sw].id] = minVal;
         }
         switches[sw].innerHTML = switchHtml;
         switches[sw].getElementsByTagName("div")[0].id = switches[sw].id + "-footprint";
         switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].id = switches[sw].id + "-outer";
         switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].id = switches[sw].id + "-inner";
-        switches[sw].getElementsByTagName("div")[0].style.width = widthPx;
-        switches[sw].getElementsByTagName("div")[0].style.height = heightPx;
+        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.width = widthPx;
+        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.height = heightPx;
         switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseover = changeColourGreen;
         switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseleave = changeColourGrey;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].ondrag = dragSlider;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].draggable = true;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].ondragstart = dragSliderStart;
 
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].ontouchmove = dragSlider;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].ontouchstart = function(switchInstance){verticalSliderStoreYPos = switchInstance.clientY;};
-    };
+        // Mouse click events
+        switches[sw].ondrag = dragSlider;
+        switches[sw].draggable = true;
+        switches[sw].ondragstart = dragSliderStart;
+
+        // Mobile touch events.
+        switches[sw].ontouchmove = dragSlider;
+        switches[sw].ontouchstart = dragSliderStart;
+       
+        // Don't scroll screen when clicking/touching slider.
+        switches[sw].addEventListener("touchmove", preventBehavior, false);
+
+        // Draw slider in starting position.
+        dragSlider(switches[sw]);
+    }
 }
 
 function whoshome(clear){
@@ -225,7 +294,7 @@ function displayTemperature(){
                 retData[i] = inputData[i];
             }
         }
-        retData['test'] = {"1wire": [(100 - controlSettings["setTemperatureSlider"]) / 2, 0]};
+        retData.test = {"1wire": [controlSettings.setTemperatureSlider, 0]};
         console.log(retData);
         return retData;
     }
@@ -257,17 +326,17 @@ var loadTemplate = function(filename){
 };
 
 function setThermometerTemp(d, i){
-    
+    var hue;
     var temperature = d.value["1wire"][0];
 
     if(temperature > TEMPMAX_SCALE) temperature = TEMPMAX_SCALE;
 
     if("temperatureColourLogScale" in controlSettings && controlSettings.temperatureColourLogScale === 1){
         console.log("Log scale colour.");
-        var hue = (240 * (LOGMAX - Math.log(temperature) *10) / (LOGMAX - LOGMIN));
+        hue = (240 * (LOGMAX - Math.log(temperature) *10) / (LOGMAX - LOGMIN));
     } else {
         console.log("Linear scale colour.");
-        var hue = (240 * (TEMPMAX_COLOR - temperature) / (TEMPMAX_COLOR - TEMPMIN_COLOR));
+        hue = (240 * (TEMPMAX_COLOR - temperature) / (TEMPMAX_COLOR - TEMPMIN_COLOR));
         
     }
     if(hue > 256) hue = 256;
@@ -290,24 +359,23 @@ function setThermometerTemp(d, i){
     thermometerTube32unit.style.display="none";
 
     var transform = "translate(0, " + (5 * (TEMPMIN_SCALE - temperature) -5) + ")";
-console.log("hue: ", hue);
 
     if(temperature >= 10 && temperature < 16){
         thermometerTube8unit.style.display="inline";
         thermometerTube8unit.setAttribute("transform", transform);
-    } else if(temperature >= 16 && temperature < 32){
+    } else if(temperature >= 16 && temperature < 31.5){
         thermometerTube8unit.style.display="inline";
         thermometerTube8unit.setAttribute("transform", "translate(0, -35)");
         thermometerTube16unit.style.display="inline";
         thermometerTube16unit.setAttribute("transform", transform);
-    } else if(temperature >= 32){
+    } else if(temperature >= 31.5){
         thermometerTube8unit.style.display="inline";
         thermometerTube8unit.setAttribute("transform", "translate(0, -31)");
         thermometerTube32unit.style.display="inline";
         thermometerTube32unit.setAttribute("transform", transform);
     }
 
-    thermometerSvg.getElementById("tempValue").getElementsByTagName("tspan")[0].innerHTML = temperature + "°C";
+    thermometerSvg.getElementById("tempValue").getElementsByTagName("tspan")[0].innerHTML = (Math.round(temperature * 10) / 10) + "°C";
 
     console.log(temperature);
     return thermometerSvg.innerHTML;
