@@ -20,8 +20,15 @@
 using namespace std;
 using namespace rapidjson;
 
-class FileUtils{
-        int path_exists;
+class statWrapper{
+    protected:
+        virtual int _stat(const char *path, struct stat *buf){
+            cout << "***" << endl;
+            return stat(path, buf);
+        }
+};
+
+class FileUtils : public statWrapper {
         ifstream read_file;
     public:
         FileUtils(void);
@@ -43,6 +50,7 @@ class FileUtils{
          * it's cheap to implement and threadsafe.*/
         static mutex file_mutex;
 
+        virtual int _stat(const char *path, struct stat *buf) = 0;
 };
 
 /* Indexed storage container that loops back to begining when it reaches it's defined end.

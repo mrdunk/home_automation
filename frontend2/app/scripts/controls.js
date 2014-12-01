@@ -90,7 +90,7 @@ function verticalSliderInit(){
             switchId = switchInstance.target.id;
         }
 
-        var x,y,switchId;
+        var x,y;
         if(switchInstance.clientX && switchInstance.clientY){
             // This is a mouse event.
             x = switchInstance.clientX;

@@ -4,31 +4,29 @@ using namespace std;
 using namespace rapidjson;
 
 FileUtils::FileUtils(void){
-    path_exists = 0;
 }
 
 mutex FileUtils::file_mutex;
 
 int FileUtils::writable(const string path, const string filename){
-    if(path_exists == 0){
-        file_mutex.lock();
-        // First time here. Check for directory.
-        struct stat sb;
-        if (stat(path.c_str(), &sb) == -1) {
-            path_exists = -1;
-            cout << "Unable to stat: " << path.c_str() << endl;
-        } else if((sb.st_mode & S_IFMT) != S_IFDIR){
-            path_exists = -1;
-            cout << "Directory missing: " << path.c_str() << endl;
-        } else {
-            path_exists = 1;
-        }
-
-        // TODO test ability to read file.
-
-        file_mutex.unlock();
+    file_mutex.lock();
+    int retVal;
+    struct stat sb;
+    if (_stat(path.c_str(), &sb) == -1) {
+        retVal = -1;
+        cout << "Unable to stat: " << path.c_str() << endl;
+    } else if((sb.st_mode & S_IFMT) != S_IFDIR){
+        retVal = -1;
+        cout << "Directory missing: " << path.c_str() << endl;
+    } else {
+        retVal = 1;
     }
-    return path_exists;
+
+    // TODO test ability to read file.
+
+    file_mutex.unlock();
+
+    return retVal;
 }
 
 void FileUtils::write(const string path, const string filename, string data_to_write){
