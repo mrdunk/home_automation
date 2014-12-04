@@ -9,6 +9,7 @@
 #include <map>
 #include <algorithm>    // std::count
 #include <vector>
+#include <memory>       // unique_ptr
 
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
@@ -20,23 +21,91 @@
 using namespace std;
 using namespace rapidjson;
 
-class statWrapper{
+class StatWrapperInterface {
+    public:
+        virtual ~StatWrapperInterface(){};
+        virtual int _stat(const char *path, struct stat *buf) = 0;
+
     protected:
+        StatWrapperInterface(){};
+};
+
+class StatWrapper : public StatWrapperInterface{
+    public:
         virtual int _stat(const char *path, struct stat *buf){
-            cout << "***" << endl;
             return stat(path, buf);
         }
 };
 
-class FileUtils : public statWrapper {
-        ifstream read_file;
+class OFstreamWrapperInterface {
     public:
-        FileUtils(void);
+        virtual ~OFstreamWrapperInterface(){};
+        virtual void ofStreamOpen(const char* filename, ios_base::openmode mode) = 0;
+        virtual void ofStreamClose(void) = 0;
+        virtual void ofStreamWrite(const string data_to_write) = 0;
+    protected:
+        OFstreamWrapperInterface(){};
+};
+
+class OFstreamWrapper : public OFstreamWrapperInterface{
+    protected:
+        ofstream ofStream;       
+    public:
+        virtual void ofStreamOpen(const char* filename, ios_base::openmode mode){
+            ofStream.open(filename, mode);
+        }
+        virtual void ofStreamClose(void){
+            ofStream.close();
+        }
+        virtual void ofStreamWrite(const string data_to_write){
+            ofStream << data_to_write << endl;
+        }
+};
+
+class IFstreamWrapperInterface {
+    public:
+        virtual ~IFstreamWrapperInterface(){};
+        virtual void ifStreamOpen(const char* filename) = 0;
+        virtual bool ifStreamIsOpen() = 0;
+        virtual void ifStreamGetline(char* s, streamsize n) = 0;
+        virtual void ifStreamClose(void) = 0;
+    protected:
+        IFstreamWrapperInterface(){};
+};
+
+class IFstreamWrapper : public IFstreamWrapperInterface{
+    protected:
+        ifstream ifStream;
+    public:
+        virtual void ifStreamOpen(const char* filename){
+            ifStream.open(filename);
+        }
+        virtual bool ifStreamIsOpen(){
+            return ifStream.is_open();
+        }
+        virtual void ifStreamGetline(char* s, streamsize n){
+            ifStream.getline(s, n);
+        }
+        virtual void ifStreamClose(void){
+            ifStream.close();
+        }
+};
+
+
+class FileUtils {
+    private:    
+        StatWrapper* Stater;
+        OFstreamWrapper* OFstreamer;
+        IFstreamWrapper* IFstreamer;
+        string readFileName;
+        //const std::unique_ptr<StatWrapperInterface> Stater;
+    public:
+        FileUtils(StatWrapper* p_Stater, OFstreamWrapper* p_OFstreamer, IFstreamWrapper* p_IFstreamer);
 
         /* Test whether path and filename are writable. */
-        int writable(const string path, const string filename);
+        virtual int writable(const string path, const string filename);
 
-        /* Append a line of test to file. */
+        /* Append a line to file. */
         void write(const string path, const string filename, string data_to_write);
 
         /* Read the next line from file. Subsiquent reads will read the next line.
@@ -50,7 +119,7 @@ class FileUtils : public statWrapper {
          * it's cheap to implement and threadsafe.*/
         static mutex file_mutex;
 
-        virtual int _stat(const char *path, struct stat *buf) = 0;
+        //virtual int _stat(const char *path, struct stat *buf) = 0;
 };
 
 /* Indexed storage container that loops back to begining when it reaches it's defined end.

@@ -3,7 +3,7 @@
 using namespace std;
 using namespace rapidjson;
 
-FileUtils::FileUtils(void){
+FileUtils::FileUtils(StatWrapper* p_Stater, OFstreamWrapper* p_OFstreamer, IFstreamWrapper* p_IFstreamer) : Stater(p_Stater), OFstreamer(p_OFstreamer), IFstreamer(p_IFstreamer){
 }
 
 mutex FileUtils::file_mutex;
@@ -12,7 +12,7 @@ int FileUtils::writable(const string path, const string filename){
     file_mutex.lock();
     int retVal;
     struct stat sb;
-    if (_stat(path.c_str(), &sb) == -1) {
+    if (Stater->_stat(path.c_str(), &sb) == -1) {
         retVal = -1;
         cout << "Unable to stat: " << path.c_str() << endl;
     } else if((sb.st_mode & S_IFMT) != S_IFDIR){
@@ -37,10 +37,10 @@ void FileUtils::write(const string path, const string filename, string data_to_w
         file_mutex.lock();
 
         string full_path = path + "/" + filename;
-        ofstream out;
-        out.open(full_path.c_str(), ios::app);
-        out << data_to_write << endl;;
-        out.close();
+
+        OFstreamer->ofStreamOpen(full_path.c_str(), ios::app);
+        OFstreamer->ofStreamWrite(data_to_write);
+        OFstreamer->ofStreamClose();
 
         cout << " done." << endl;
         file_mutex.unlock();
@@ -53,17 +53,25 @@ void FileUtils::read_line(const string path, const string filename, string* data
     if(writable(path, filename) > 0){
         file_mutex.lock();
 
-        if(read_file.is_open() != true){
-            read_file.open(path + "/" + filename);
+        if(path + "/" + filename == readFileName && IFstreamer->ifStreamIsOpen() != true){
+            IFstreamer->ifStreamClose();
+            readFileName = "";
+        }
+
+        if(IFstreamer->ifStreamIsOpen() != true){
+            IFstreamer->ifStreamOpen((path + "/" + filename).c_str());
+            readFileName = path + "/" + filename;
         }
 
         char buffer[1024];
-        read_file.getline(buffer, 1024);
+        buffer[0] = 0;  // NULL terminate.
+        IFstreamer->ifStreamGetline(buffer, 1024);
         *data = buffer;
 
         if(*data == ""){
             // Presume EOF.
-            read_file.close();
+            IFstreamer->ifStreamClose();
+            readFileName = "";
         }
 
         file_mutex.unlock();
@@ -71,9 +79,11 @@ void FileUtils::read_line(const string path, const string filename, string* data
 }
 
 vector<Cyclic*> Cyclic::allCyclic;
-
+StatWrapper statWrapper;
+OFstreamWrapper ofStreamWrapper;
+IFstreamWrapper ifStreamWrapper;
 Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int _mins_in_period,
-               unsigned int _update_inertia, int _default_value, string _working_dir) : FileUtils(){
+               unsigned int _update_inertia, int _default_value, string _working_dir) : FileUtils(&statWrapper, &ofStreamWrapper, &ifStreamWrapper){
     unique_id = _unique_id;
     update_inertia = _update_inertia;
     mins_per_division = _mins_per_division;
