@@ -28,7 +28,7 @@ gtest-all.o:
 	ar -rv libgtest.a gtest-all.o
 
 test: gtest-all.o gmock-all.o
-	$(CC) $(CFLAGS) -isystem ${GTEST_DIR}/include -isystem ${GMOCK_DIR}/include -pthread tests/cyclicStore_test.cpp cyclicStore.cpp \
+	$(CC) $(CFLAGS) -Og -isystem ${GTEST_DIR}/include -isystem ${GMOCK_DIR}/include -pthread tests/cyclicStore_test.cpp cyclicStore.cpp \
 		${GTEST_DIR}/src/gtest_main.cc libgtest.a libgmock.a -o tests/cyclicStore_test
 
 gmock-all.o:

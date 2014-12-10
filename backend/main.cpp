@@ -27,6 +27,12 @@ using namespace std;
 
 string data_path = "";
 
+StatWrapperInterface statWrapper;
+OFstreamWrapper ofStreamWrapper;
+IFstreamWrapper ifStreamWrapper;
+
+FileUtils fileUtilsInstance(&statWrapper, &ofStreamWrapper, &ifStreamWrapper);
+
 /* Any threads should exit if run==0. */
 int run = 1;
 
@@ -62,7 +68,7 @@ int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
 
 /* Save configuration to disk cache. */
 int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
-    FileUtils file;
+    FileUtils file(&statWrapper, &ofStreamWrapper, &ifStreamWrapper);
     if(file.writable(data_path, "configuration") != 1){
         *p_buffer = "Cannot write to " + data_path + ".";
         return 1;
@@ -83,7 +89,7 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
 
 /* Read saved configuration to disk cache. */
 int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
-    FileUtils file_util;
+    FileUtils file_util(&statWrapperInterface, &ofStreamWrapper, &ifStreamWrapper);
     if(file_util.writable(data_path, "configuration") != 1){
         *p_buffer = "Cannot write to " + data_path + ".";
         return 1;
@@ -237,8 +243,8 @@ int main(int argc, char **argv){
     }
     string str_data_path = data_path;
 
-    Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path);
-    Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20, str_data_path);
+    Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path, &fileUtilsInstance);
+    Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20, str_data_path, &fileUtilsInstance);
 
     Cyclic::lookup("whos_home_1_week")->restore_from_disk();
 

@@ -3,7 +3,8 @@
 using namespace std;
 using namespace rapidjson;
 
-FileUtils::FileUtils(StatWrapper* p_Stater, OFstreamWrapper* p_OFstreamer, IFstreamWrapper* p_IFstreamer) : Stater(p_Stater), OFstreamer(p_OFstreamer), IFstreamer(p_IFstreamer){
+
+FileUtils::FileUtils(StatWrapperInterface* p_Stater, OFstreamWrapper* p_OFstreamer, IFstreamWrapper* p_IFstreamer) : Stater(p_Stater), OFstreamer(p_OFstreamer), IFstreamer(p_IFstreamer){
 }
 
 mutex FileUtils::file_mutex;
@@ -49,20 +50,22 @@ void FileUtils::write(const string path, const string filename, string data_to_w
 
 void FileUtils::read_line(const string path, const string filename, string* data){
     *data = "";
+    const string fullPath = path + "/" + filename;
 
     if(writable(path, filename) > 0){
         file_mutex.lock();
-
-        if(path + "/" + filename == readFileName && IFstreamer->ifStreamIsOpen() != true){
+        
+        int isOpen = IFstreamer->ifStreamIsOpen();
+        if(fullPath != readFileName && isOpen == true){
             IFstreamer->ifStreamClose();
             readFileName = "";
         }
 
-        if(IFstreamer->ifStreamIsOpen() != true){
-            IFstreamer->ifStreamOpen((path + "/" + filename).c_str());
-            readFileName = path + "/" + filename;
+        if(isOpen != true){
+            IFstreamer->ifStreamOpen((fullPath).c_str());
+            readFileName = fullPath;
         }
-
+        
         char buffer[1024];
         buffer[0] = 0;  // NULL terminate.
         IFstreamer->ifStreamGetline(buffer, 1024);
@@ -73,27 +76,34 @@ void FileUtils::read_line(const string path, const string filename, string* data
             IFstreamer->ifStreamClose();
             readFileName = "";
         }
-
         file_mutex.unlock();
     }
 }
 
+void FileUtils::rename(const string oldFilename, const string newFilename){
+    file_mutex.lock();
+    rename(oldFilename.c_str(), newFilename.c_str());
+    file_mutex.unlock();
+}
+
 vector<Cyclic*> Cyclic::allCyclic;
-StatWrapper statWrapper;
-OFstreamWrapper ofStreamWrapper;
-IFstreamWrapper ifStreamWrapper;
+
 Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int _mins_in_period,
-               unsigned int _update_inertia, int _default_value, string _working_dir) : FileUtils(&statWrapper, &ofStreamWrapper, &ifStreamWrapper){
-    unique_id = _unique_id;
-    update_inertia = _update_inertia;
-    mins_per_division = _mins_per_division;
+               unsigned int _update_inertia, int _default_value, string _working_dir, FileUtils* _p_fileUtilsInstance) : 
+               unique_id(_unique_id),
+               mins_per_division(_mins_per_division),
+               update_inertia(_update_inertia),
+               working_dir(_working_dir),
+               p_fileUtilsInstance(_p_fileUtilsInstance),
+               mins_in_period(_mins_in_period){
+
     divisions = _mins_in_period / _mins_per_division;
-    mins_in_period = _mins_in_period;
+
     int default_value = _default_value * _update_inertia;
-    working_dir = _working_dir;
 
     // Initialise p_container array.
     p_container = new float[divisions];
+        
     fill(p_container, p_container + divisions, default_value);
     
     previous_time = -1;
@@ -101,9 +111,8 @@ Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int 
     filename_active = _unique_id + "_active";
     filename_previous = _unique_id + "_previous";
 
-    //for(std::vector<Cyclic*>::iterator it = allCyclic.begin(); it != allCyclic.end(); ++it){
-    //}
     if(count(allCyclic.begin(), allCyclic.end(), this) == 0){
+        // This instance not in buffer yet.
         allCyclic.push_back(this);
     }
 }
@@ -125,9 +134,9 @@ Cyclic* Cyclic::lookup(string unique_id){
     return NULL;
 }
 
-void Cyclic::store(int time, int value){
+void Cyclic::store(int _time, int value){
     // Convert time to number of devisions.
-    time /= mins_per_division;
+    int time = _time / mins_per_division;
     while(time < 0){
         time += divisions;
     }
@@ -150,34 +159,34 @@ void Cyclic::store(int time, int value){
             // This allows things like multiple user input events to only save the final setting.
             if(previous_time < divisions){
                 //p_container[previous_time] = previous_value;
-                cout << "previous value: " << p_container[previous_time] << " " << previous_value << endl;
-                p_container[previous_time] = (p_container[previous_time] * (update_inertia - 1) / update_inertia) + previous_value;
+                cout << "time: " << _time << " " << time << endl;
+                cout << "previous value: " << p_container[previous_time] << " " << 
+                    previous_value << endl;
+                p_container[previous_time] = (p_container[previous_time] * (update_inertia - 1) / 
+                        update_inertia) + previous_value;
                 cout << "new value:      " << p_container[previous_time] << endl;
 
                 // write p_container[time] to file.
-                string output_line = to_string(previous_time) + " " + to_string(p_container[previous_time]);
-                write(working_dir, filename_active, output_line);
+                string output_line = to_string(previous_time) + " " + 
+                    to_string(p_container[previous_time]);
+                p_fileUtilsInstance->write(working_dir, filename_active, output_line);
 
                 if(previous_time > time){
                     // We have reached the end of one clock cycle and re-started the next.
                     string fn_a = working_dir + "/" + filename_active;
                     string fn_p = working_dir + "/" + filename_previous;
-                    file_mutex.lock();
-                    rename(fn_a.c_str(), fn_p.c_str());
-                    file_mutex.unlock();
+                    p_fileUtilsInstance->rename(fn_a, fn_p);
                 }
             } else {
                 cout << "Attempted to write outside alocated array." << endl;
             }
 
-            // "value" gets saved for writing in a future time segment.
-            previous_value = value;
             previous_time = time;
         } else if(previous_time < 0){
-            // "value" gets saved for writing in a future time segment.
-            previous_value = value;
             previous_time = time;
         }
+        // "value" gets saved for writing in a future time segment. 
+        previous_value = value;
     }
 }
 
@@ -190,13 +199,13 @@ float Cyclic::read(int time){
 void Cyclic::restore_from_disk(void){
     string line;
     unsigned int pos;
-    int time, val;
+    int time = 0, val;
 
     string filename = filename_previous;
 
     // Re-populate the older data first (filename_previous) so any entries in the newer file (filename_active) overwrite the older ones.
     while(filename == filename_previous || filename == filename_active){
-        read_line(working_dir, filename_active, &line);
+        p_fileUtilsInstance->read_line(working_dir, filename_active, &line);
         if(line != ""){
             cout << line << endl;
             while((pos = line.find(" ")) != std::string::npos) {
@@ -241,17 +250,17 @@ void Cyclic::restore_from_disk(void){
     string data_to_write;
     for(time = 0; time < mins_in_period; time += mins_per_division){
         data_to_write = to_string(time / mins_per_division) + " " + to_string(read(time) * update_inertia);
-        write(working_dir, filename_temp, data_to_write);
+        p_fileUtilsInstance->write(working_dir, filename_temp, data_to_write);
     }
 
-    file_mutex.lock();
+    p_fileUtilsInstance->file_mutex.lock();
     // Copy the temp file over the active one.
     rename(fn_t.c_str(), fn_a.c_str());
     
     // and delete the previous one.
     remove(fn_p.c_str());
 
-    file_mutex.unlock();
+    p_fileUtilsInstance->file_mutex.unlock();
 }
 
 void Cyclic::to_JSON(Document* p_JSON_output, int step_size){
