@@ -100,8 +100,8 @@ class FileUtilsInterface{
         virtual ~FileUtilsInterface(){};
         virtual void write(const string path, const string filename, string data_to_write) = 0;
         virtual int writable(const string path, const string filename) = 0;
-        virtual void read_line(const string path, const string filename, string* data) = 0;
-        virtual void rename(const string oldFilename, const string newFilename) = 0;
+        virtual void readLine(const string path, const string filename, string* data) = 0;
+        virtual void _rename(const string oldFilename, const string newFilename) = 0;
     //protected:
     //    FileUtilsInterface(StatWrapperInterface* p_Stater, OFstreamWrapper* p_OFstreamer, IFstreamWrapper* p_IFstreamer);
 };
@@ -126,9 +126,9 @@ class FileUtils : FileUtilsInterface {
         /* Read the next line from file. Subsiquent reads will read the next line.
          * If nothing is returned, the end of file has been reached.
          * The next time this function is called, it witt start from the top aagain. */
-        virtual void read_line(const string path, const string filename, string* data);
+        virtual void readLine(const string path, const string filename, string* data);
 
-        virtual void rename(const string oldFilename, const string newFilename);
+        virtual void _rename(const string oldFilename, const string newFilename);
 
         /* Use this to lock all files accessed by all instances of this class. 
          * While the argument could be made locking all files is wasteful,
@@ -185,7 +185,7 @@ class Cyclic : public HttpCallback {
         unsigned int calculate_average(void);
 
         /* Load values from cache file. TODO call this automatically from constructor. */
-        void restore_from_disk(void);
+        void restoreFromDisk(void);
 
         /* Export all values as JSON object. */
         void to_JSON(Document* p_JSON_output, int step_size);
@@ -196,7 +196,8 @@ class Cyclic : public HttpCallback {
         /* Set by constructor. Number of minutes before looping back to start. */
         int mins_in_period;
 
-        /* Wrapper round to_JSON_string for HttpCallback. TODO can this be protected rather than public? */
+        /* Wrapper round to_JSON_string for HttpCallback.
+         * TODO can this be protected rather than public? */
         int textOutput(std::string* p_buffer, map<string, string>* p_arguments);
 };
 

@@ -48,7 +48,7 @@ void FileUtils::write(const string path, const string filename, string data_to_w
     }
 }
 
-void FileUtils::read_line(const string path, const string filename, string* data){
+void FileUtils::readLine(const string path, const string filename, string* data){
     *data = "";
     const string fullPath = path + "/" + filename;
 
@@ -80,10 +80,14 @@ void FileUtils::read_line(const string path, const string filename, string* data
     }
 }
 
-void FileUtils::rename(const string oldFilename, const string newFilename){
+void FileUtils::_rename(const string oldFilename, const string newFilename){
+    cout << "*" << 1 << endl;
     file_mutex.lock();
+    cout << 2 << endl;
     rename(oldFilename.c_str(), newFilename.c_str());
+    cout << 3 << endl;
     file_mutex.unlock();
+    cout << 4 << endl;
 }
 
 vector<Cyclic*> Cyclic::allCyclic;
@@ -144,7 +148,8 @@ void Cyclic::store(int _time, int value){
         time -= divisions;
     }
 
-    // If time has looped round to "0", pretend it didn't and extend relative_time beyond the maximum value.
+    // If time has looped round to "0",
+    // pretend it didn't and extend relative_time beyond the maximum value.
     int relative_time = time;
     if(previous_time > time){
         relative_time += divisions;
@@ -175,7 +180,7 @@ void Cyclic::store(int _time, int value){
                     // We have reached the end of one clock cycle and re-started the next.
                     string fn_a = working_dir + "/" + filename_active;
                     string fn_p = working_dir + "/" + filename_previous;
-                    p_fileUtilsInstance->rename(fn_a, fn_p);
+                    p_fileUtilsInstance->_rename(fn_a, fn_p);
                 }
             } else {
                 cout << "Attempted to write outside alocated array." << endl;
@@ -196,16 +201,16 @@ float Cyclic::read(int time){
 }
 
 /* Re-populate memory from cache files on disk.*/
-void Cyclic::restore_from_disk(void){
+void Cyclic::restoreFromDisk(void){
     string line;
     unsigned int pos;
     int time = 0, val;
 
+    // Re-populate the older data first (filename_previous)
+    // so any entries in the newer file (filename_active) overwrite the older ones.
     string filename = filename_previous;
-
-    // Re-populate the older data first (filename_previous) so any entries in the newer file (filename_active) overwrite the older ones.
     while(filename == filename_previous || filename == filename_active){
-        p_fileUtilsInstance->read_line(working_dir, filename_active, &line);
+        p_fileUtilsInstance->readLine(working_dir, filename, &line);
         if(line != ""){
             cout << line << endl;
             while((pos = line.find(" ")) != std::string::npos) {
@@ -220,13 +225,12 @@ void Cyclic::restore_from_disk(void){
                 p_container[time] = val;
             }
         } else {
-            // Empty line from file so presume we have reaced the end.
+            // Empty line from file so presume we have reached the end.
             if(filename == filename_previous){
                 filename = filename_active;
             } else if(filename == filename_active){
                 filename = "invalid";
             }
-            cout << filename << endl;
         }
     }
 
@@ -244,12 +248,13 @@ void Cyclic::restore_from_disk(void){
     string fn_a = working_dir + "/" + filename_active;
     string fn_p = working_dir + "/" + filename_previous;
     
-    // Remove any only temp file.
+    // Remove any old temp file.
     remove(fn_t.c_str());
 
     string data_to_write;
     for(time = 0; time < mins_in_period; time += mins_per_division){
-        data_to_write = to_string(time / mins_per_division) + " " + to_string(read(time) * update_inertia);
+        data_to_write = to_string(time / mins_per_division) + " " +
+            to_string(read(time) * update_inertia);
         p_fileUtilsInstance->write(working_dir, filename_temp, data_to_write);
     }
 

@@ -33,11 +33,14 @@ class MockIFstreamWrapper : public IFstreamWrapper {
 
 class MockFileUtils : public FileUtils {
     public:
-        MockFileUtils(StatWrapperInterface* p_statWrapper, OFstreamWrapper* p_ofStreamWrapper, IFstreamWrapper* p_ifStreamWrapper) :
+        MockFileUtils(StatWrapperInterface* p_statWrapper,
+                      OFstreamWrapper* p_ofStreamWrapper,
+                      IFstreamWrapper* p_ifStreamWrapper) :
             FileUtils(p_statWrapper, p_ofStreamWrapper, p_ifStreamWrapper){};
+
         MOCK_METHOD3(write, void(const string path, const string filename, string data_to_write));
-        MOCK_METHOD2(rename, void(const string oldFilename, const string newFilename));
-        
+        MOCK_METHOD2(_rename, void(const string oldFilename, const string newFilename));
+        MOCK_METHOD3(readLine, void(const string path, const string filename, string* data));
 };
 
 //TEST(FileUtilsTest, DefaultConstructor){
@@ -158,9 +161,9 @@ TEST(FileUtilsTest, readSucces){
                 .Times(AtLeast(0));
 
     string receivedData;
-    fileUtilsInstance.read_line(path, filename, &receivedData);
+    fileUtilsInstance.readLine(path, filename, &receivedData);
     ASSERT_STREQ(outputData1, receivedData.c_str());
-    fileUtilsInstance.read_line(path, filename, &receivedData);
+    fileUtilsInstance.readLine(path, filename, &receivedData);
     ASSERT_STREQ(outputData2, receivedData.c_str());
 };
 
@@ -199,13 +202,13 @@ TEST(FileUtilsTest, readMultipleSucces){
                 .Times(AtLeast(1));
 
     string receivedData;
-    fileUtilsInstance.read_line(path, filename, &receivedData);
+    fileUtilsInstance.readLine(path, filename, &receivedData);
     ASSERT_STREQ(outputData1, receivedData.c_str());
-    fileUtilsInstance.read_line(path, filename2, &receivedData);
+    fileUtilsInstance.readLine(path, filename2, &receivedData);
     ASSERT_STREQ(outputData1, receivedData.c_str());
-    fileUtilsInstance.read_line(path, filename, &receivedData);
+    fileUtilsInstance.readLine(path, filename, &receivedData);
     ASSERT_STREQ(outputData2, receivedData.c_str());
-    fileUtilsInstance.read_line(path, filename2, &receivedData);
+    fileUtilsInstance.readLine(path, filename2, &receivedData);
     ASSERT_STREQ(outputData2, receivedData.c_str());
 };
 
@@ -244,6 +247,7 @@ TEST(CyclicTest, lookup){
 
         pointer_to_instance = Cyclic::lookup("test2");
         ASSERT_EQ(pointer_to_instance->mins_in_period, 120);
+        ASSERT_EQ(pointer_to_instance, &test2);
     }
     pointer_to_instance = Cyclic::lookup("test3");
     ASSERT_EQ(NULL, pointer_to_instance);
@@ -273,8 +277,12 @@ TEST(CyclicTest, store){
     test1.store(9, 9);
     test1.store(10, 10);
     test1.store(11, 11);
+    test1.store(11, 11);
+    test1.store(11, 11);
     EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
         .Times(1);
+    test1.store(12, 12);
+    test1.store(12, 12);
     test1.store(12, 12);
 
     test1.store(13, 13);
@@ -300,7 +308,7 @@ TEST(CyclicTest, store){
     EXPECT_CALL(mockFileUtilsInstance, write(_,_,MatchesRegex("^9\\s\\w+\\.\\w+$")))
         .Times(1);
     // rename should happen after previous time segment has been written out.
-    EXPECT_CALL(mockFileUtilsInstance, rename(_,_))
+    EXPECT_CALL(mockFileUtilsInstance, _rename(_,_))
         .Times(1);
     test1.store(0, 60);
 
@@ -312,22 +320,166 @@ TEST(CyclicTest, store){
 
 };
 
-/*
-TEST(CyclicTest, storeRollover){
-    // Clock gets to and and re-starts from 0.
-    // Also test behavious of clock greater than maximum value.
+
+TEST(CyclicTest, storeStartHigh){
+    // first value saved is over half way through the buffer.
     MockStatWrapper mockStatInstance;
     MockOFstreamWrapper mockOFstreamInstance;
     MockIFstreamWrapper mockIFstreamInstance;
     MockFileUtils mockFileUtilsInstance(&mockStatInstance, &mockOFstreamInstance, &mockIFstreamInstance);
 
-    Cyclic test1("test1", 6, 60, 100, 0, "/test/path/", &mockFileUtilsInstance);
-    test1.store(1, 1);
-    test1.store(2, 2);
-    test1.store(3, 3);
-    test1.store(4, 4);
-    test1.store(5, 5);
-    test1.store(6, 6);
-    test1.store(7, 7);
+    InSequence dummy;
 
-};*/
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(0);
+
+    Cyclic test1("test1", 6, 60, 100, 0, "/test/path/", &mockFileUtilsInstance);
+    test1.store(35, 35);
+    test1.store(34, 34);
+    test1.store(30, 30);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.store(36, 36);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, _rename(_,_))
+        .Times(1);
+    test1.store(1, 61);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.store(12, 72);
+    
+};
+
+TEST(CyclicTest, read){
+    MockStatWrapper mockStatInstance;
+    MockOFstreamWrapper mockOFstreamInstance;
+    MockIFstreamWrapper mockIFstreamInstance;
+    MockFileUtils mockFileUtilsInstance(&mockStatInstance, &mockOFstreamInstance, &mockIFstreamInstance);
+
+    InSequence dummy;
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(0);
+
+    Cyclic test1("test1", 2, 12, 4, 0, "/test/path/", &mockFileUtilsInstance);
+
+    test1.store(0, 100);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.store(4, 100);
+    
+    ASSERT_EQ(test1.read(0), 100/4);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.store(8, 100);
+    
+    ASSERT_EQ(test1.read(4), 100/4);
+    
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.store(0, 100);
+    
+    ASSERT_EQ(test1.read(8), 100/4);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.store(4, 100);
+
+    ASSERT_EQ(test1.read(0), 100/4 + (3.0/4)*(100/4));
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.store(8, 100);
+
+    ASSERT_EQ(test1.read(4), 100/4 + (3.0/4)*(100/4));
+}
+
+TEST(CyclicTest, restoreFromDisk){
+    struct stat buf_pass;   // Contents of buffer modified by stat() indicate path missing.
+    buf_pass.st_mode = S_IFDIR;
+
+    MockStatWrapper mockStatInstance;
+    MockOFstreamWrapper mockOFstreamInstance;
+    MockIFstreamWrapper mockIFstreamInstance;
+    MockFileUtils mockFileUtilsInstance(&mockStatInstance, &mockOFstreamInstance, &mockIFstreamInstance);
+    
+    Cyclic test1("test1", 2, 12, 4, 0, "/test/path/", &mockFileUtilsInstance);
+
+    EXPECT_CALL(mockFileUtilsInstance, readLine(_,"test1_previous",_))
+        .WillOnce(SetArgPointee<2>("0 1"))
+        .WillOnce(SetArgPointee<2>("1 1"))
+        .WillOnce(SetArgPointee<2>("2 1"))
+        .WillOnce(SetArgPointee<2>("3 1"))
+        .WillOnce(SetArgPointee<2>("4 1"))
+        .WillOnce(SetArgPointee<2>("5 1"))
+        .WillRepeatedly(SetArgPointee<2>(""));
+
+    EXPECT_CALL(mockFileUtilsInstance, readLine(_,"test1_active",_))
+        .WillOnce(SetArgPointee<2>("1 2"))
+        .WillRepeatedly(SetArgPointee<2>(""));
+
+
+    EXPECT_CALL(mockStatInstance, _stat(_,_))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(buf_pass), Return(1)));
+
+    InSequence dummy;
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"0 1.000000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"1 2.000000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"2 1.000000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"3 1.000000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"4 1.000000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"5 1.000000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_)) .Times(0);
+    test1.restoreFromDisk();
+}
+
+TEST(CyclicTest, realInstance){
+    const char* filenameActive = "/tmp/test1_active";
+    const char* filenamePrevious = "/tmp/test1_previous";
+
+    remove(filenameActive);
+    remove(filenamePrevious);
+
+    StatWrapperInterface statWrapper;
+    OFstreamWrapper ofStreamWrapper;
+    IFstreamWrapper ifStreamWrapper;
+
+    FileUtils fileUtilsInstance(&statWrapper, &ofStreamWrapper, &ifStreamWrapper);
+
+    {
+        Cyclic test1("test1", 2, 12, 4, 0, "/tmp/", &fileUtilsInstance);
+
+        test1.store(6, 10);
+        test1.store(8, 10);
+        test1.store(10, 10);
+        test1.store(0, 20);
+        test1.store(2, 20);
+        test1.store(4, 20);
+        test1.store(6, 20);
+        test1.store(8, 20);
+        test1.store(10, 20);
+    }
+
+    Cyclic test1("test1", 2, 12, 4, 0, "/tmp/", &fileUtilsInstance);
+
+    test1.restoreFromDisk();
+
+    test1.store(0, 30);
+    test1.store(2, 30);
+
+    struct stat buffer;   
+    ASSERT_EQ(stat(filenameActive, &buffer), 0);    // file exists.
+    ASSERT_EQ(stat(filenamePrevious, &buffer), -1); // file missing.
+
+    // TODO parse /tmp/test1_active to make sure it's contents are sane.
+
+    ASSERT_EQ(test1.read(0), 45.0/4);
+    ASSERT_EQ(test1.read(2), 20.0/4);
+    ASSERT_EQ(test1.read(10), 10.0/4);
+}

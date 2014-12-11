@@ -68,8 +68,7 @@ int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
 
 /* Save configuration to disk cache. */
 int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
-    FileUtils file(&statWrapper, &ofStreamWrapper, &ifStreamWrapper);
-    if(file.writable(data_path, "configuration") != 1){
+    if(fileUtilsInstance.writable(data_path, "configuration") != 1){
         *p_buffer = "Cannot write to " + data_path + ".";
         return 1;
     }
@@ -81,7 +80,7 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     arguments_to_save["pretty"] = "1";
     CallbackGetData(&buffer, &arguments_to_save);
 
-    file.write(data_path, "test", buffer);
+    fileUtilsInstance.write(data_path, "test", buffer);
 
     *p_buffer = "ok";
     return 0;
@@ -89,15 +88,14 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
 
 /* Read saved configuration to disk cache. */
 int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
-    FileUtils file_util(&statWrapperInterface, &ofStreamWrapper, &ifStreamWrapper);
-    if(file_util.writable(data_path, "configuration") != 1){
+    if(fileUtilsInstance.writable(data_path, "configuration") != 1){
         *p_buffer = "Cannot write to " + data_path + ".";
         return 1;
     }
 
     string line, buffer;
     do{
-        file_util.read_line(data_path, "test", &line);
+        fileUtilsInstance.readLine(data_path, "test", &line);
         buffer += line + "\n";
     }while(line != "");
 
@@ -246,7 +244,7 @@ int main(int argc, char **argv){
     Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path, &fileUtilsInstance);
     Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20, str_data_path, &fileUtilsInstance);
 
-    Cyclic::lookup("whos_home_1_week")->restore_from_disk();
+    Cyclic::lookup("whos_home_1_week")->restoreFromDisk();
 
     cout << "allCyclic.size: " << Cyclic::allCyclic.size() << endl;
 
