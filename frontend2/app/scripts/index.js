@@ -1,3 +1,6 @@
+var AuthKey = GetAuthKey();
+
+
 var serverFQDN1 = '192.168.192.254';
 var serverFQDN2 = 'peeping.toythieves.com';
 
@@ -25,7 +28,7 @@ d3.ns.prefix.inkscape = "http://www.inkscape.org/namespaces/inkscape";
 window.onload = function () {
     'use strict';
     console.log('window.onload');
-    location.hash = 'startup';
+    //location.hash = 'startup';
 
     var main = d3.select("main");
     main.style("background-color", "white");

@@ -1,0 +1,35 @@
+{{!-- The following tags are valid in this template:
+        key:                The Google id.
+        value.image:        Default Google icon.
+        value.displayName:  Default display name.
+        value.description:  List of device names associated with this user.
+        value.net_clients:  List of IPs associated with this user.
+        value.macAddr:      List of MAC addresses.                  --}}
+
+<dl class="displayUserTitle">
+    <dt>User</dt>
+    <dd><img src="{{value.image}}" width="60" height="60"></dd>
+    <dd>{{value.displayName}}</dd>
+</dl>
+<dl class="displayUser">
+    <dt>Device</dt>
+    {{#each value.description}}
+        <dd>{{this}}</dd>
+    {{/each}}
+</dl>
+<dl class="displayUser">
+    <dt>IP-Address</dt>
+    {{#each value.net_clients}}
+        <dd>{{this}}</dd>
+    {{else}}
+        <dd>Unknown</dd>
+    {{/each}}
+</dl>
+<dl class="displayUser">
+    <dt>MAC-Address</dt>
+    {{#each value.macAddr}}
+        <dd>{{this}}</dd>
+    {{else}}
+        <dd>Unknown</dd>
+    {{/each}}
+</dl>

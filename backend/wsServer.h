@@ -14,6 +14,7 @@
 #include <websocketpp/common/thread.hpp>
 
 #include "httpServer.h"
+#include "auth.h"
 
 using namespace std;
 
@@ -51,7 +52,7 @@ class ws_server{
     /* Constructor.
      * 
      * Args: (uint16_t)port:  Network port server should listen on. */
-    ws_server(uint16_t port);
+    ws_server(uint16_t port, Auth* _p_authInstance);
 
     /* Destructor. */
     ~ws_server();
@@ -88,10 +89,10 @@ class ws_server{
     void on_message(connection_hdl hdl, server::message_ptr msg); 
 
     /* Called by on_message() when incoming data is destined for a "GET" target. */
-    void do_get(connection_hdl hdl, server::message_ptr msg, string* p_returned_content);
+    void do_get(connection_hdl hdl, server::message_ptr msg, map<string, string>* p_arguments, string* p_path, string* p_returned_content);
 
     /* Called by on_message() when incoming data is destined for a "POST" target. */
-    void do_post(connection_hdl hdl, server::message_ptr msg, string* p_returned_content);
+    void do_post(connection_hdl hdl, server::message_ptr msg, map<string, string>* p_arguments, string* p_returned_content);
 
     vector<ws_path> paths;
     websocketpp::lib::shared_ptr<websocketpp::lib::thread> m_thread;
@@ -99,6 +100,8 @@ class ws_server{
 
     server m_server;
     con_list m_connections;
+
+    Auth* p_authInstance;
 };
 
 

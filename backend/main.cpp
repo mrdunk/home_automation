@@ -33,7 +33,9 @@ IFstreamWrapper ifStreamWrapper;
 
 FileUtils fileUtilsInstance(&statWrapper, &ofStreamWrapper, &ifStreamWrapper);
 
-/* Any threads should exit if run==0. */
+Auth authInstance(&fileUtilsInstance);
+
+/* All threads should exit if run==0. */
 int run = 1;
 
 /* Gets called whenever POST data arrives over http. */
@@ -51,6 +53,8 @@ int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
 int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
     Document array;
     InternalToJSON(&array, p_arguments);
+
+    //cout << KeyFromArguments(p_arguments) << endl;
 
     if(p_arguments->count("pretty")){
         StringBuffer buffer;
@@ -154,7 +158,6 @@ void houseKeeping(void){
         double val;
         int most_recent = 300;  // Matches 5 minutes for "age" above.
         // Loop through all nodes received.
-        cout << endl;
         for(SizeType i = 0; i < array.Size(); i++){
             // We are only interested if this is a more recent node.
             Value::ConstMemberIterator itr_age = array[i].FindMember("age");
@@ -241,6 +244,7 @@ int main(int argc, char **argv){
     }
     string str_data_path = data_path;
 
+
     Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path, &fileUtilsInstance);
     Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20, str_data_path, &fileUtilsInstance);
 
@@ -255,17 +259,18 @@ int main(int argc, char **argv){
 
     thread houseKeeping_thread(houseKeeping);
 
-    http_server daemon(atoi(argv[1]));
+    http_server daemon(atoi(argv[1]));//, &authInstance);
     daemon.register_path("/save", "GET", &CallbackSave);
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/put", "POST", &CallbackPost);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
 
-    ws_server ws_daemon(atoi(argv[1]) +1);
+    ws_server ws_daemon(atoi(argv[1]) +1, &authInstance);
     ws_daemon.register_path("/data", "GET", &CallbackGetData);
     ws_daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
 
+    authInstance.populateUsers("./", "autherisedusers");
 
     (void)getchar();
 

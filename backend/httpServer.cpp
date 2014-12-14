@@ -118,7 +118,7 @@ int http_server::ahc_response_post(void* cls, struct MHD_Connection* connection,
     int *con_info = (int*)*ptr;
 
     if(*upload_data_size != 0){
-        cout << "POST size: " << *upload_data_size << endl;
+        cout << "POST size: " << *upload_data_size  << "\tpath: " << path << endl;
 
         *con_info = 3;
         char* buffer = (char*)malloc(*upload_data_size +1);

@@ -1,4 +1,48 @@
+/* No point using the regular framework to get this key because nothing else will work without it.
+ * We do a blocking wget for the key. */
+function GetAuthKey(){
+    'use strict';
+    
+    // See if key has been sent as POST.
+    if(location.hash.indexOf('key=') === 1){
+        console.log(location.hash.substr(5), 'Auth');
+        return location.hash.substr(5);
+    }
 
+    // Otherwise, get key from server.
+    var returnedData;
+    var url = '/authKey/';
+    var request = new XMLHttpRequest();
+
+    request.onreadystatechange = function() { //Call a function when the state changes.
+        console.log(request.readyState, request.status);
+        if(request.readyState === 4 && request.status === 200) {
+            returnedData = request.responseText;
+            returnedData = JSON.parse(returnedData);
+            console.log(returnedData.key);
+        }
+    };
+
+    var async = false;
+    var method = 'GET';
+    request.open(method, url, async);
+
+    // Nasty way round the fact that AppEngine server will cause re-direct if user not logged in.
+    try{
+        request.send(null);
+    }catch(err){
+        console.log(err);
+        returnedData = {loginStatus: false,
+                url: '/logIn/'};
+    }
+
+    if(returnedData.loginStatus === true){
+        console.log(returnedData.key, 'Auth');
+        return returnedData.key;
+    }
+
+    window.location = returnedData.url;
+}
 
 function DataStore(){
     'use strict';
@@ -29,7 +73,11 @@ DataStore.prototype.parseIncoming = function(incomingData){
         newObj = newObj.ListUsers;
     }
     for(i in newObj){
-        if("data" in newObj[i] && "key" in newObj[i].data && "label" in newObj[i].data && "val" in newObj[i].data){
+        if(newObj[i] === 'invalid user'){
+            console.log('Not logged in with registered Google account.');
+            // TODO redirect to login page?
+        } else if(typeof newObj[i] === 'string') {
+        } else if("data" in newObj[i] && "key" in newObj[i].data && "label" in newObj[i].data && "val" in newObj[i].data){
             // Data in format from Home server
             key = newObj[i].data.key;
             label = newObj[i].data.label;
@@ -94,7 +142,7 @@ DataStore.prototype.setupConnections = function(role){
     var querysHouseUsers = [['/data?type=configuration&data={"label":"userId"}', 30000],
                             ['/data?type=configuration&data={"label":"description"}', 30000],
                             ['/data?type=sensors&data={"label":"net_clients"}', 30000]];
-    var querysAppEngineUsers = [['/listUsers/', 30000]];
+    var querysAppEngineUsers = [['/listUsers/?', 30000]];
     var querysHouseSensors = [['/data?type=sensors&data={"label":"1wire"}', 30000]];
     var querysAppEngineSensors = [];
 
@@ -169,9 +217,9 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
         wsPort = serverList[server][1];
         httpPort = serverList[server][2];
 
-        if("stopWsSwitch" in controlSettings && controlSettings.stopWsSwitch === 1){
+        if(wsPort && "stopWsSwitch" in controlSettings && controlSettings.stopWsSwitch === 1){
             // Deliberately cause WS to fail for debugging.
-            wsPort = String(parseInt(wsPort) +1);
+            wsPort = String(parseInt(wsPort) +10);
         }
 
         if(wsPort){
@@ -182,7 +230,7 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
                 ws_sucess = url;
 
                 // Send the request.
-                this.wsOpen[url][0].websocket.send(path);
+                this.wsOpen[url][0].websocket.send(path + "&key=" +  AuthKey);
                 break;
             } 
         }
@@ -195,9 +243,9 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
             wsPort = serverList[server][1];
             httpPort = serverList[server][2];
 
-            if("stopWsSwitch" in controlSettings && controlSettings.stopWsSwitch === 1){
+            if(wsPort && "stopWsSwitch" in controlSettings && controlSettings.stopWsSwitch === 1){
                 // Deliberately cause WS to fail for debugging.
-                wsPort = String(parseInt(wsPort) +1);
+                wsPort = String(parseInt(wsPort) +10);
             }
 
             // try to open a WebSocket.
@@ -219,8 +267,9 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
                             (this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CLOSED &&
                             Date.now() - this.wsOpen[url][1] > this.retryConnectionTimeout)){
                     // Haven't tried this connection before or it's been so long it's worth trying again.
-                    console.log("Opening WS to " + url);
+                    console.log("##### Opening WS to " + url);
                     var websocket = new WS(url, callback);
+                    console.log("*****");
                     this.wsOpen[url] = [websocket, Date.now()];
 
                     retrySoon = 1;
@@ -232,7 +281,7 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
             if(httpPort){
                 var httpRequest;
 
-                url = address + ":" + httpPort + path;
+                url = address + ":" + httpPort + path + "&key=" + AuthKey;
                 //console.log("Try HTTP.");
                 if(!(url in this.htmlAttempt)){
                     httpRequest = new HTTP(callback);
@@ -318,7 +367,6 @@ WS.prototype.onMessage = function(evt){
 WS.prototype.onError = function(evt){
     'use strict';
     console.log("WS.onError", evt.data);
-
 };
 
 /* If WebSocket is idle for a long time (ie, has not triggered the onMessage() event,
@@ -414,7 +462,9 @@ HTTP.prototype.onloadend = function(evt){
     //console.log(evt.type);
     if(!this.error){
         console.log("HTTP.onloadend", this.xmlHttp.responseText.length);
-        this.callback(this.xmlHttp.responseText);
+        if(this.callback !== undefined){
+            this.callback(this.xmlHttp.responseText);
+        }
     }
     this.busy = 0;
     this.error = 0;

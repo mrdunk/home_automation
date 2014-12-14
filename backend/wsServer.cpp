@@ -43,15 +43,15 @@ int parse_url(const string url, string* p_path, map<string, string>* p_arguments
             }
         }
     }
-    cout << "path:    " << *p_path << endl;
-    cout << "arg_str: " << arg_str << endl;
-    for (auto& x: *p_arguments) {
-        std::cout << x.first << ": " << x.second << '\n';
-    }
+    //cout << "path:    " << *p_path << endl;
+    //cout << "arg_str: " << arg_str << endl;
+    //for (auto& x: *p_arguments) {
+    //    cout << x.first << ": " << x.second << '\n';
+    //}
     return 0;
 }
 
-ws_server::ws_server(uint16_t port){ 
+ws_server::ws_server(uint16_t port, Auth* _p_authInstance) : p_authInstance(_p_authInstance){ 
     m_server.clear_access_channels(websocketpp::log::alevel::all);
     m_server.init_asio();
 
@@ -90,10 +90,6 @@ void ws_server::on_open(connection_hdl hdl) {
     while(m_server.get_con_from_hdl(hdl)->get_request_header(header) != ""){
         cout << "** " << header << endl;
     }
-
-    map<string, string> args;
-    string path;
-    parse_url(url, &path, &args);
 }
 
 void ws_server::on_close(connection_hdl hdl) {
@@ -104,32 +100,43 @@ void ws_server::on_message(connection_hdl hdl, server::message_ptr msg) {
     for (auto it : m_connections) {
         if(it.lock().get() == hdl.lock().get()){
 
+            map<string, string> arguments;
+            string path;
+            parse_url(msg->get_payload(), &path, &arguments);
+
             string const method = get_path(m_server.get_con_from_hdl(hdl)->get_resource());
             string page_content;
 
-            if(method == "/GET" || method == "/get" || method == "GET" || method == "get"){
-                do_get(hdl, msg, &page_content);
+            string key = "";
+            auto it_arg = arguments.find("key");
+            if (it_arg != arguments.end()) { key = it_arg->second; };
+
+            string unathenticatedUser;
+            string validUser = p_authInstance->decrypt(key, &unathenticatedUser);
+            
+            if(validUser == ""){
+                cout << "unathenticatedUser: " << unathenticatedUser << endl;
+                page_content = "{\"error\": \"invalid user\", \"name\": \"" + unathenticatedUser + "\"}";
+            } else if(method == "/GET" || method == "/get" || method == "GET" || method == "get"){
+                do_get(hdl, msg, &arguments, &path, &page_content);
             } else if(method == "/POST" || method == "/post" || method == "POST" || method == "post"){
                 // TODO
             }
+
             m_server.send(it, page_content, msg->get_opcode());
         }
     }
 }
 
-void ws_server::do_get(connection_hdl hdl, server::message_ptr msg, string* p_returned_content) {
-    string path;
-    map<string, string> arguments;
-    parse_url(msg->get_payload(), &path, &arguments);
-
-    vector<ws_path>::iterator it_path = find_if(paths.begin(), paths.end(), [&path](ws_path const& i){return ((i.path == path) && (i.method == "GET"));});
+void ws_server::do_get(connection_hdl hdl, server::message_ptr msg, map<string, string>* p_arguments, string* p_path, string* p_returned_content) {
+    vector<ws_path>::iterator it_path = find_if(paths.begin(), paths.end(), [p_path](ws_path const& i){return ((i.path == *p_path) && (i.method == "GET"));});
     if(it_path != paths.end()){
         if(it_path->type == _ws_function){
             // Callback pointer is a function pointer.
-            ((int (*)(string*, map<string, string>*))(it_path->callback))(p_returned_content, &arguments);
+            ((int (*)(string*, map<string, string>*))(it_path->callback))(p_returned_content, p_arguments);
         } else {
             // Callback pointer is a class instance pointer.
-            ((HttpCallback*)it_path->callback)->textOutput(p_returned_content, &arguments);
+            ((HttpCallback*)it_path->callback)->textOutput(p_returned_content, p_arguments);
         }
     } else {
         *p_returned_content = msg->get_payload();

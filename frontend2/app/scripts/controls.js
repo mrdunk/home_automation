@@ -121,7 +121,6 @@ function verticalSliderInit(){
         verticalSliderStoreYPos = y;
 
         function doTheThings(_switchId){
-            console.log("doTheThings");
             var node = document.getElementById(_switchId);
             node.getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top =
                 ((controlSettings[switchId] - maxVal) * slideHeight / rangeVal) + "px";
@@ -295,7 +294,6 @@ function displayTemperature(){
             }
         }
         retData.test = {"1wire": [controlSettings.setTemperatureSlider, 0]};
-        console.log(retData);
         return retData;
     }
 
@@ -326,16 +324,17 @@ var loadTemplate = function(filename){
 };
 
 function setThermometerTemp(d, i){
+    if(thermometerSvg === undefined){
+        return;
+    }
     var hue;
     var temperature = d.value["1wire"][0];
 
     if(temperature > TEMPMAX_SCALE) temperature = TEMPMAX_SCALE;
 
     if("temperatureColourLogScale" in controlSettings && controlSettings.temperatureColourLogScale === 1){
-        console.log("Log scale colour.");
         hue = (240 * (LOGMAX - Math.log(temperature) *10) / (LOGMAX - LOGMIN));
     } else {
-        console.log("Linear scale colour.");
         hue = (240 * (TEMPMAX_COLOR - temperature) / (TEMPMAX_COLOR - TEMPMIN_COLOR));
         
     }
@@ -377,6 +376,5 @@ function setThermometerTemp(d, i){
 
     thermometerSvg.getElementById("tempValue").getElementsByTagName("tspan")[0].innerHTML = (Math.round(temperature * 10) / 10) + "°C";
 
-    console.log(temperature);
     return thermometerSvg.innerHTML;
 }

@@ -81,13 +81,9 @@ void FileUtils::readLine(const string path, const string filename, string* data)
 }
 
 void FileUtils::_rename(const string oldFilename, const string newFilename){
-    cout << "*" << 1 << endl;
     file_mutex.lock();
-    cout << 2 << endl;
     rename(oldFilename.c_str(), newFilename.c_str());
-    cout << 3 << endl;
     file_mutex.unlock();
-    cout << 4 << endl;
 }
 
 vector<Cyclic*> Cyclic::allCyclic;
@@ -204,7 +200,8 @@ float Cyclic::read(int time){
 void Cyclic::restoreFromDisk(void){
     string line;
     unsigned int pos;
-    int time = 0, val;
+    int time = 0;
+    float val;
 
     // Re-populate the older data first (filename_previous)
     // so any entries in the newer file (filename_active) overwrite the older ones.
@@ -212,14 +209,14 @@ void Cyclic::restoreFromDisk(void){
     while(filename == filename_previous || filename == filename_active){
         p_fileUtilsInstance->readLine(working_dir, filename, &line);
         if(line != ""){
-            cout << line << endl;
+            cout << "string: " << line << "\t";
             while((pos = line.find(" ")) != std::string::npos) {
-                cout << "t " << line.substr(0, pos) << endl;
+                cout << "t: " << line.substr(0, pos) << "\t";
                 time = stoi(line.substr(0, pos));
                 line.erase(0, pos + 1);
             }
-            cout << "v " << line << endl;
-            val = stoi(line);
+            val = stod(line);
+            cout << "v: " << val << endl;
 
             if(time >= 0 && time < divisions){
                 p_container[time] = val;

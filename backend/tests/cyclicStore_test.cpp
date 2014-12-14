@@ -411,8 +411,8 @@ TEST(CyclicTest, restoreFromDisk){
     Cyclic test1("test1", 2, 12, 4, 0, "/test/path/", &mockFileUtilsInstance);
 
     EXPECT_CALL(mockFileUtilsInstance, readLine(_,"test1_previous",_))
-        .WillOnce(SetArgPointee<2>("0 1"))
-        .WillOnce(SetArgPointee<2>("1 1"))
+        .WillOnce(SetArgPointee<2>("0 1.09"))   // Make sure floating point numbers work.
+        .WillOnce(SetArgPointee<2>("1 1.01"))
         .WillOnce(SetArgPointee<2>("2 1"))
         .WillOnce(SetArgPointee<2>("3 1"))
         .WillOnce(SetArgPointee<2>("4 1"))
@@ -420,7 +420,7 @@ TEST(CyclicTest, restoreFromDisk){
         .WillRepeatedly(SetArgPointee<2>(""));
 
     EXPECT_CALL(mockFileUtilsInstance, readLine(_,"test1_active",_))
-        .WillOnce(SetArgPointee<2>("1 2"))
+        .WillOnce(SetArgPointee<2>("2 2"))      // This "active" entry shold over-ride "previous" one.
         .WillRepeatedly(SetArgPointee<2>(""));
 
 
@@ -429,9 +429,9 @@ TEST(CyclicTest, restoreFromDisk){
 
     InSequence dummy;
 
-    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"0 1.000000")) .Times(1);
-    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"1 2.000000")) .Times(1);
-    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"2 1.000000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"0 1.090000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"1 1.010000")) .Times(1);
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,"2 2.000000")) .Times(1);
     EXPECT_CALL(mockFileUtilsInstance, write(_,_,"3 1.000000")) .Times(1);
     EXPECT_CALL(mockFileUtilsInstance, write(_,_,"4 1.000000")) .Times(1);
     EXPECT_CALL(mockFileUtilsInstance, write(_,_,"5 1.000000")) .Times(1);
@@ -466,20 +466,51 @@ TEST(CyclicTest, realInstance){
         test1.store(10, 20);
     }
 
-    Cyclic test1("test1", 2, 12, 4, 0, "/tmp/", &fileUtilsInstance);
+    {
+        Cyclic test1("test1", 2, 12, 4, 0, "/tmp/", &fileUtilsInstance);
+        test1.restoreFromDisk();
 
-    test1.restoreFromDisk();
+        test1.store(0, 30);
+        test1.store(2, 30);
 
-    test1.store(0, 30);
-    test1.store(2, 30);
+        struct stat buffer;   
+        ASSERT_EQ(stat(filenameActive, &buffer), 0);    // file exists.
+        ASSERT_EQ(stat(filenamePrevious, &buffer), -1); // file missing.
 
-    struct stat buffer;   
-    ASSERT_EQ(stat(filenameActive, &buffer), 0);    // file exists.
-    ASSERT_EQ(stat(filenamePrevious, &buffer), -1); // file missing.
+        // TODO parse /tmp/test1_active to make sure it's contents are sane.
 
-    // TODO parse /tmp/test1_active to make sure it's contents are sane.
+        ASSERT_EQ(test1.read(0), 45.0/4);
+        ASSERT_EQ(test1.read(2), 20.0/4);
+        ASSERT_EQ(test1.read(10), 10.0/4);
+    }
 
-    ASSERT_EQ(test1.read(0), 45.0/4);
-    ASSERT_EQ(test1.read(2), 20.0/4);
-    ASSERT_EQ(test1.read(10), 10.0/4);
+    {
+        Cyclic test1("test1", 2, 12, 4, 0, "/tmp/", &fileUtilsInstance);
+        test1.restoreFromDisk();
+
+        ASSERT_EQ(test1.read(0), 45.0/4);
+        ASSERT_EQ(test1.read(2), 20.0/4);
+        ASSERT_EQ(test1.read(10), 10.0/4);
+
+        test1.store(10, 0);
+        test1.store(0, 0);
+
+        // filenameActive will have been moved to filenamePrevious.
+        // No new filenameActive will have been created yet.
+
+        struct stat buffer;
+        ASSERT_EQ(stat(filenameActive, &buffer), -1);    // file missing.
+        ASSERT_EQ(stat(filenamePrevious, &buffer), 0);   // file exists.
+    }
+
+    {
+        Cyclic test1("test1", 2, 12, 4, 0, "/tmp/", &fileUtilsInstance);
+        test1.restoreFromDisk();
+
+        ASSERT_EQ(test1.read(0), 45.0/4);
+        ASSERT_EQ(test1.read(2), 20.0/4);
+        ASSERT_EQ(test1.read(10), 7.5/4);
+    }
 }
+
+

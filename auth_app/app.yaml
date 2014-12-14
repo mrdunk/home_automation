@@ -5,12 +5,12 @@ api_version: 1
 threadsafe: true
 
 handlers:
-- url: /dial
-  static_dir: dial
+- url: /frontend
+  static_dir: frontend
 - url: /fonts
-  static_dir: dial/fonts
+  static_dir: frontend/fonts
 - url: /scripts
-  static_dir: dial/scripts
+  static_dir: frontend/scripts
 - url: /.*
   script: main.application
 

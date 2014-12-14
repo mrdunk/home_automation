@@ -30,7 +30,7 @@ def encrypt(message):
     # Pad message so it is a multiple of 16 bytes long.
     message = message + ' ' * (16 - len(message) % 16)
 
-    obj=AES.new(KEY, AES.MODE_ECB)
+    obj=AES.new(KEY[:16], AES.MODE_ECB)
     ciphertext = obj.encrypt(message)
 
     # Convert binary into something we can pass in a URL.    
@@ -51,9 +51,9 @@ class MainPage(webapp2.RequestHandler):
     def get(self):
         user = users.get_current_user()
 	if user:
-		self.redirect('/dial/index.html#' + encrypt(user.nickname()))
+		self.redirect('/frontend/index.html#' + encrypt(user.nickname()))
 	else:
-		self.redirect('/dial/index.html')
+		self.redirect('/frontend/index.html')
 
 class AuthKey(webapp2.RequestHandler):
     @decorator.oauth_aware
@@ -77,7 +77,7 @@ class LogIn(webapp2.RequestHandler):
     @decorator.oauth_required
     def get(self):
 	# Redirect to webpage now we are definitely logged in.
-	self.redirect('/dial/index.html')
+	self.redirect('/frontend/index.html')
 
 
 @decorator.oauth_required
@@ -132,9 +132,9 @@ class ListUsers(webapp2.RequestHandler):
 	    for userId in userList:
 		response['ListUsers'].append(WhoIs(self, userId.key.id()))
 
-            self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
+            #self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
             #self.response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
-            #self.response.headers['Access-Control-Allow-Origin'] = 'http://http://home-automation-7.appspot.com/'
+            self.response.headers['Access-Control-Allow-Origin'] = 'http://http://home-automation-7.appspot.com/'
 	    self.response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
 	    self.response.headers['Access-Control-Allow-Methods'] = 'GET'
             self.response.headers['Access-Control-Allow-Credentials'] = 'true'
