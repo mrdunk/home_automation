@@ -25,12 +25,86 @@ var changeColourGrey = function(switchInstance){
     switchInstance.target.classList.add("switch-unselected");
 };
 
+function roundSwitchInit(){
+    'use strict';
+
+    var height = "60px";
+    var width = "60px";
+
+    var toggleSwitch = function(switchInstance){
+        console.log(switchInstance);
+        var switchId = switchInstance.target.id.slice(0, switchInstance.target.id.lastIndexOf("-"));
+
+        if(controlSettings[switchId] === 0){
+            if(controlSettings[switchId + "-secondary"] === 0){
+                controlSettings[switchId] = 1;
+            } else {
+                controlSettings[switchId] = -1;
+            }
+        } else {
+            controlSettings[switchId] = 0;
+        }
+        roundSwitchInit();
+        console.log(controlSettings);
+    };
+
+    var drawCircle = function(context, diskColour, outlineColour){
+        context.beginPath();
+        var radius = Math.max(context.canvas.width, context.canvas.height) * 0.5;
+        context.lineWidth = radius * 0.2;
+        context.arc(context.canvas.width * 0.5, context.canvas.height * 0.5, radius * 0.9, 0, 2*Math.PI, false);
+        context.strokeStyle = outlineColour;
+        context.fillStyle = diskColour;
+
+        context.fill();
+        context.stroke();
+        context.closePath();
+    };
+
+    // The HTML that makes up a switch.
+    var switchHtml = "<div class='switch-footprint'><canvas width='" + width + "' height='" + height + "'></canvas></div>";
+
+    var switches = document.getElementsByTagName("roundswitch");
+
+    for(var sw = 0; sw < switches.length; sw++){
+
+        var switchId = switches[sw].id;
+
+        if(controlSettings[switchId] === undefined){
+            controlSettings[switchId] = 0;
+        }
+        if(controlSettings[switchId + "-secondary"] === undefined){
+            controlSettings[switchId + "-secondary"] = 0;
+        }
+
+        switches[sw].innerHTML = switchHtml;
+        switches[sw].getElementsByTagName("div")[0].id = switchId + "-outer";
+        switches[sw].onclick = toggleSwitch;
+
+        var canvas = switches[sw].getElementsByTagName("canvas")[0];
+        canvas.id = switchId + "-canvas";
+        var context = canvas.getContext('2d');
+
+        var diskColour = "grey";
+        var outlineColour = "grey";
+        if(controlSettings[switchId] === 1){
+            diskColour = "red";
+        } else if(controlSettings[switchId] === -1){
+            diskColour = "blue";
+        }
+        if(controlSettings[switchId + "-secondary"] === 1){
+            outlineColour = "red";
+        }
+
+        drawCircle(context, diskColour, outlineColour);
+    }
+}
+
 function verticalSwitchInit(){
     'use strict';
 
     var height = "44px";
     var width = "20px";
-    var names = [];
 
     var toggleSwitch = function(switchInstance){
         console.log(switchInstance);
@@ -145,15 +219,15 @@ function verticalSliderInit(){
         var x,y;
         if(switchInstance.clientX !== undefined && switchInstance.clientY !== undefined){
             console.log("dragSliderStart click");
-            var crt = this.cloneNode(true);
-            crt.style.backgroundColor = "black";
-            crt.innerHTML = "";
-            crt.style.position = "absolute"; crt.style.top = "0px"; crt.style.right = "0px";
-            crt.style.height = "20px";
-            crt.style.width = widthPx;
-            document.body.appendChild(crt);
-            switchInstance.dataTransfer.setDragImage(crt, 0, 0);
-
+            //var crt = this.cloneNode(true);
+            //crt.style.backgroundColor = "black";
+            //crt.innerHTML = "";
+            //crt.style.position = "absolute"; crt.style.top = "0px"; crt.style.right = "0px";
+            //crt.style.height = "20px";
+            //crt.style.width = widthPx;
+            //document.body.appendChild(crt);
+            //switchInstance.dataTransfer.setDragImage(crt, 0, 0);
+            
             x = switchInstance.clientX;
             y = switchInstance.clientY;
         } else {

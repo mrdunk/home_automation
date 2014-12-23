@@ -14,7 +14,7 @@
 #include <websocketpp/common/thread.hpp>
 
 #include "httpServer.h"
-#include "auth.h"
+//#include "auth.h"
 
 using namespace std;
 

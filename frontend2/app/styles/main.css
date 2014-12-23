@@ -523,3 +523,22 @@ p.switch-display
     font-size: 2em;
     padding-top: 0.8em;
 }
+
+.menu
+{
+    border-style:solid;
+    background-color:#00EEEE;
+    float:left;
+    width: 120px;
+    border-width:1px;
+}
+
+.menu-hidden
+{
+    display: none;
+}
+
+.menu-visible
+{
+    display: inline;
+}

@@ -5,8 +5,8 @@ GMOCK_DIR=./gmock-1.7.0/
 
 all: homeautod
 
-homeautod: main.o httpServer.o json.o cyclicStore.o wsServer.o auth.o base64.o
-	$(CC) main.o httpServer.o json.o cyclicStore.o wsServer.o auth.o base64.o -lmicrohttpd -I./ -lboost_system -lboost_thread -lcryptopp -o homeautod
+homeautod: main.o httpServer.o json.o cyclicStore.o fileUtils.o wsServer.o auth.o base64.o
+	$(CC) main.o httpServer.o json.o cyclicStore.o fileUtils.o wsServer.o auth.o base64.o -lmicrohttpd -I./ -lboost_system -lboost_thread -lcryptopp -o homeautod
 
 main.o: main.cpp
 	$(CC) -c $(CFLAGS) -I./ main.cpp
@@ -19,6 +19,9 @@ json.o: json.cpp
 
 cyclicStore.o: cyclicStore.cpp
 	$(CC) -c $(CFLAGS) cyclicStore.cpp
+
+fileUtils.o: fileUtils.cpp
+	$(CC) -c $(CFLAGS) fileUtils.cpp
 
 wsServer.o: wsServer.cpp
 	$(CC) -c $(CFLAGS) -I./ wsServer.cpp

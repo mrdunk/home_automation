@@ -51,19 +51,6 @@
     </nav>
 
     <main>
-     <div style='display: inline-block;'>
-      <div id="people" style="height: 68px;"></div>
-      <div id="dials">
-        <verticalslider id="setTemperatureSlider"></verticalslider>
-        <div style="float: left;"><svg id="dialsSvg"></svg></div>
-      </div>
-      <div id="content">
-          <verticalswitch id="stopDataSwitch"></verticalswitch>
-          <verticalswitch id="stopWsSwitch"></verticalswitch>
-          <verticalswitch id="temperatureColourLogScale"></verticalswitch>
-      </div>
-      <div id="log"></div>
-     </div>
     </main>
 
     <!-- build:js scripts/main.min.js -->
@@ -84,6 +71,10 @@
     
     <!-- build:js scripts/controls.js -->
     <script src="/scripts/controls.js"></script>
+    <!-- endbuild -->
+
+    <!-- build:js scripts/displayConfigure.js -->
+    <script src="/scripts/displayConfigure.js"></script>
     <!-- endbuild -->
 
     <!-- build:js scripts/index.js -->

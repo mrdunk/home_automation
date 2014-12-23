@@ -116,7 +116,7 @@ void ws_server::on_message(connection_hdl hdl, server::message_ptr msg) {
             
             if(validUser == ""){
                 cout << "unathenticatedUser: " << unathenticatedUser << endl;
-                page_content = "{\"error\": \"invalid user\", \"name\": \"" + unathenticatedUser + "\"}";
+                page_content = "[{\"error\": \"invalid user\", \"name\": \"" + unathenticatedUser + "\"}]";
             } else if(method == "/GET" || method == "/get" || method == "GET" || method == "get"){
                 do_get(hdl, msg, &arguments, &path, &page_content);
             } else if(method == "/POST" || method == "/post" || method == "POST" || method == "post"){

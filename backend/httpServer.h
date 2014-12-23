@@ -16,7 +16,8 @@ extern "C" {
 #include <mutex>
 
 #include "rapidjson/document.h"
-
+#include "fileUtils.h"
+#include "auth.h"
 
 #define PAGE "<html><head><title>libmicrohttpd</title>"\
              "</head><body>no callback</body></html>"
@@ -46,6 +47,13 @@ class HttpCallback{
 class http_server{
         /* Contains all http_path objects we expect to match incoming requests. */
         vector<http_path> paths;
+
+        static map<string, string> arguments;
+
+        /* Instance of Auth class for verifying valid keys with incoming data. */
+        static Auth* p_authInstance;
+
+        static string address_incoming;
 
         struct MHD_Daemon *mhd_daemon;
 
@@ -87,7 +95,7 @@ class http_server{
         // Buffer incoming data from POST request.
         static string received_so_far;
     public:
-        http_server(unsigned short);
+        http_server(unsigned short, Auth* _p_authInstance);
         ~http_server(void);
 
         /* Register the Path and Method (GET,POST,etc) we expect and a  

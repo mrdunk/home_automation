@@ -1,0 +1,38 @@
+{{#each userDevices}}
+    <div class="menu menu-visible" style="clear:both;">
+    	{{@key}}
+    </div>
+
+    <div class="menu menu-visible">
+	    {{safeVal net_clients.[0] '&nbsp'}}
+    </div>
+
+    <div class="menu menu-visible {{@key}}-view">
+        {{description.[0]}}
+    </div>
+    <div class="menu menu-hidden {{@key}}-edit">
+        <input id="{{@key}}-description" type="text" name="description" value="{{description.[0]}}">
+    </div>
+
+    <div class="menu menu-visible {{@key}}-view">
+        {{safeVal user.displayName '&nbsp'}}
+    </div>
+    <div class="menu menu-hidden {{@key}}-edit">
+        <select>
+            <option value="">none</option>
+            {{#each ../users}}
+                <option value="{{@key}}" {{ifSelected @key ../userId.[0]}}>{{displayName}}</option>
+            {{/each}}
+        </select>
+    </div>
+
+
+	<div class="menu menu-visible {{@key}}-view">
+        <button type="button" id="{{@key}}-editButton" style="float:left;" onclick="onClickUserDevice('{{@key}}', 'edit')">Edit</button>
+    </div>
+    <div class="menu menu-hidden {{@key}}-edit">
+        <button class="{{@key}}-edit" type="button" id="{{@key}}-saveButton" onclick="onClickUserDevice('{{@key}}', 'save')">Save</button>
+        <button class="{{@key}}-edit" type="button" id="{{@key}}-cancelButton" onclick="onClickUserDevice('{{@key}}', 'cancel')">Cancel</button>
+    </div>
+{{/each}}
+

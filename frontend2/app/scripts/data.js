@@ -1,4 +1,5 @@
-/* No point using the regular framework to get this key because nothing else will work without it.
+/* Get the auth key.
+ * No point using the regular framework to get this key because nothing else will work without it.
  * We do a blocking wget for the key. */
 function GetAuthKey(){
     'use strict';
@@ -46,12 +47,14 @@ function GetAuthKey(){
 
 function DataStore(){
     'use strict';
-    this.serverConnections = new Connections();
+    this.serverConnectionsToPoll = new ConnectionsToPoll();
+    this.serverConnectionsToSend = new ConnectionsToSend();
     this.allDataContainer = {};
     this.userDataContainer = {};
 
     this.setupConnections("users");
     this.setupConnections("temperature");
+    this.setupConnections("send");
 }
 
 DataStore.prototype.parseIncoming = function(incomingData){
@@ -136,8 +139,9 @@ DataStore.prototype.parseIncoming = function(incomingData){
 
 DataStore.prototype.setupConnections = function(role){
     'use strict';
+    // [serverFQDN, webSocket_port, http_port]
     var serverHouse = [[serverFQDN1, "55556", "55555"], [serverFQDN2, "55556", "55555"]];
-    var serverAppEngine = [["home-automation-7.appspot.com", "", "80"]];
+    var serverAppEngine = [[appEngineFQDN, "", "80"]];
 
     var querysHouseUsers = [['/data?type=configuration&data={"label":"userId"}', 30000],
                             ['/data?type=configuration&data={"label":"description"}', 30000],
@@ -159,15 +163,79 @@ DataStore.prototype.setupConnections = function(role){
     var q;
     
     for(q in querysHouse){
-        this.serverConnections.registerRequest(serverHouse, "GET", querysHouse[q][0], querysHouse[q][1], this.parseIncoming.bind(this));
+        this.serverConnectionsToPoll.registerRequest(serverHouse, "GET", querysHouse[q][0], querysHouse[q][1], this.parseIncoming.bind(this));
     }
     for(q in querysAppEngine){
-        this.serverConnections.registerRequest(serverAppEngine, "GET", querysAppEngine[q][0], querysAppEngine[q][1], this.parseIncoming.bind(this));
+        this.serverConnectionsToPoll.registerRequest(serverAppEngine, "GET", querysAppEngine[q][0], querysAppEngine[q][1], this.parseIncoming.bind(this));
+    }
+
+    if(role === "send"){
+        this.serverConnectionsToSend.registerRequest(role, serverHouse, "POST");
+        this.serverConnectionsToSend.send(role, "~~~~~ test Data ~~~~~", function(testvar){console.log(testvar);});
     }
 };
 
 
-function Connections(){
+function ConnectionsToSend(){
+    'use strict';
+    this.htmlTargets = {};
+    this.htmlAttempt = {};
+}
+
+ConnectionsToSend.prototype.registerRequest = function(key, serverList, method){
+    'use strict';
+    console.log("ConnectionsToSend.registerRequest");
+
+    this.htmlTargets[key] = [[serverList, 0], method];
+};
+
+ConnectionsToSend.prototype.send = function(key, sendData, callback){
+    'use strict';
+    console.log("ConnectionsToSend.send");
+
+    if(this.htmlTargets[key] === undefined){
+        console.log("\"" + key + "\" was not a registered target.");
+        return;
+    }
+
+    var serverMethod = this.htmlTargets[key][1];
+    var serverIndex = this.htmlTargets[key][0][1];
+    var serverList = this.htmlTargets[key][0][0][serverIndex];
+
+    var url = serverList[0] + ":" + serverList[2] + "/put";
+    console.log(serverIndex, url);
+    var httpRequest;
+
+    if(!(url in this.htmlAttempt)){
+        console.log("new HTTP()");
+        httpRequest = new HTTP(callback, url, "POST");
+        httpRequest.initialise(sendData);
+        this.htmlAttempt[url] = [httpRequest, Date.now()];
+    } else {
+        httpRequest = this.htmlAttempt[url][0];
+        if(httpRequest.xmlHttp.status !== 200){
+            // This request failed last time so set pointer to other targets in the list and retry.
+            httpRequest.xmlHttp.status = 200;
+            serverIndex += 1;
+            if(serverIndex >= this.htmlTargets[key][0][0].length){
+                serverIndex = 0;
+            }
+            this.htmlTargets[key][0][1] = serverIndex;
+//            this.send(key, sendData, callback);
+            return;
+        }
+        if(!httpRequest.busy && (httpRequest.xmlHttp.status === 200 || Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
+            // Busy flag not set and last try was sucessfull (or was long enough ago to try again).
+            httpRequest.initialise(sendData);
+            this.htmlAttempt[url][1] = Date.now();
+            //console.log("* ", url, path);
+        }
+    }
+
+};
+
+
+function ConnectionsToPoll(){
     'use strict';
     this.wsOpen = {};
     this.htmlAttempt = {};
@@ -183,9 +251,9 @@ function Connections(){
  *   method:     GET/POST/etc
  *   path:       Data to be sent. Sent in Path for HTTP-GET. Sent as payload for WS-GET.
  *   timeBetweenRequests: Number of ms to wait before doing this again. */
-Connections.prototype.registerRequest = function(serverList, method, path, timeBetweenRequests, callback){
+ConnectionsToPoll.prototype.registerRequest = function(serverList, method, path, timeBetweenRequests, callback){
     'use strict';
-    console.log("Connections.registerRequest");
+    console.log("ConnectionsToPoll.registerRequest");
 
     if(path in this.requestQueue){
         clearTimeout(this.requestQueue.path[2]);
@@ -197,9 +265,9 @@ Connections.prototype.registerRequest = function(serverList, method, path, timeB
     this.doRequest(serverList, method, path, callback);
 };
 
-Connections.prototype.doRequest = function(serverList, method, path, callback){
+ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callback){
     'use strict';
-    //console.log("Connections.doRequest(" + serverList + ", " + path + ")");
+    //console.log("ConnectionsToPoll.doRequest(" + serverList + ", " + path + ")");
 
     if("stopDataSwitch" in controlSettings && controlSettings.stopDataSwitch === 1){
         // Don't try to connect.
@@ -267,9 +335,8 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
                             (this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CLOSED &&
                             Date.now() - this.wsOpen[url][1] > this.retryConnectionTimeout)){
                     // Haven't tried this connection before or it's been so long it's worth trying again.
-                    console.log("##### Opening WS to " + url);
+                    console.log("Opening WS to " + url);
                     var websocket = new WS(url, callback);
-                    console.log("*****");
                     this.wsOpen[url] = [websocket, Date.now()];
 
                     retrySoon = 1;
@@ -284,14 +351,14 @@ Connections.prototype.doRequest = function(serverList, method, path, callback){
                 url = address + ":" + httpPort + path + "&key=" + AuthKey;
                 //console.log("Try HTTP.");
                 if(!(url in this.htmlAttempt)){
-                    httpRequest = new HTTP(callback);
-                    httpRequest.initialise(url);
+                    httpRequest = new HTTP(callback, url, "GET");
+                    httpRequest.initialise(null);
                     this.htmlAttempt[url] = [httpRequest, Date.now()];
                 } else {
                     httpRequest = this.htmlAttempt[url][0];
                     if(!httpRequest.busy && (httpRequest.xmlHttp.status === 200 || Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
                         // Busy flag not set and last try was sucessfull (or was long enough ago to try again).
-                        httpRequest.initialise(url);
+                        httpRequest.initialise(null);
                         this.htmlAttempt[url][1] = Date.now();
                         //console.log("* ", url, path);
                     } else {
@@ -380,35 +447,43 @@ WS.prototype.setTimeout = function(){
 
 
 
-function HTTP(callback){
+function HTTP(callback, url, method){
     'use strict';
     this.callback = callback;
+    this.url = url;
+    this.method = method;
     this.busy = 0;
     this.error = 0;
 }
 
-HTTP.prototype.initialise = function(url){
+HTTP.prototype.initialise = function(sendData){
     'use strict';
     //console.log("HTTP.initialise", this.url);
     this.busy = 1;
     this.xmlHttp = new XMLHttpRequest();
-        if ("withCredentials" in this.xmlHttp){
-            // Firefox, Chrome, etc.
-            this.xmlHttp.open( "GET", "http://" + url, true );
-            //console.log('FF, Chrome', 'XDomain');
-        } else if (typeof XDomainRequest != "undefined") {
-            // IE
-            this.xmlHttp = new XDomainRequest();
-            this.xmlHttp.open( "GET", "http://" + url);
-            //console.log('IE', 'XDomain');
-        } else {
-            // Otherwise, CORS is not supported by the browser.
-            this.xmlHttp = null;
-            console.log('Unsuported browser.');
-        }
-        this.xmlHttp.withCredentials = true;
+
+    if ("withCredentials" in this.xmlHttp){
+        // Firefox, Chrome, etc.
+        this.xmlHttp.open(this.method, "http://" + this.url, true );
+        //console.log('FF, Chrome', 'XDomain');
+    } else if (typeof XDomainRequest != "undefined") {
+        // IE
+        this.xmlHttp = new XDomainRequest();
+        this.xmlHttp.open(this.method, "http://" + this.url);
+        //console.log('IE', 'XDomain');
+    } else {
+        // Otherwise, CORS is not supported by the browser.
+        this.xmlHttp = null;
+        console.log('Unsuported browser.');
+    }
+    this.xmlHttp.withCredentials = true;
+
     try {
-        this.xmlHttp.send( null );
+        if(this.method.toUpperCase() === "POST"){
+            //this.xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            this.xmlHttp.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
+        }
+        this.xmlHttp.send(sendData);
 
         this.xmlHttp.onloadstart = function(evt) { this.onloadstart(evt); }.bind(this);
         this.xmlHttp.onprogress = function(evt) { this.onprogress(evt); }.bind(this);
@@ -435,7 +510,7 @@ HTTP.prototype.onprogress = function(evt){
 
 HTTP.prototype.onabort = function(evt){
     'use strict';
-    //console.log("onabort", evt);
+    console.log("onabort", evt);
     this.error = 1;
 };
 
@@ -457,11 +532,11 @@ HTTP.prototype.ontimeout = function(evt){
 
 HTTP.prototype.onloadend = function(evt){
     'use strict';
-    //console.log("onloadend", evt);
+    console.log("onloadend", evt);
     //console.log(this.xmlHttp);
     //console.log(evt.type);
     if(!this.error){
-        console.log("HTTP.onloadend", this.xmlHttp.responseText.length);
+        console.log("HTTP.onloadend", this.xmlHttp.responseText);//.length);
         if(this.callback !== undefined){
             this.callback(this.xmlHttp.responseText);
         }

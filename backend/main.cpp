@@ -44,6 +44,7 @@ int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
     document.Parse(p_buffer->c_str());
     if(JSONtoInternal(&document)){
         (*p_arguments)["error"] = "yes";
+        cout << p_buffer->c_str() << endl;
         return 1;
     }
     return 0;
@@ -259,7 +260,7 @@ int main(int argc, char **argv){
 
     thread houseKeeping_thread(houseKeeping);
 
-    http_server daemon(atoi(argv[1]));//, &authInstance);
+    http_server daemon(atoi(argv[1]), &authInstance);
     daemon.register_path("/save", "GET", &CallbackSave);
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
