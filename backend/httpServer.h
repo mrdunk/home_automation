@@ -81,7 +81,7 @@ class http_server{
         static int on_client_connect(void* cls, const struct sockaddr* addr,
                                      socklen_t address_len);
 
-        static int send_page(struct MHD_Connection* connection, const char* page);
+        static int send_page(struct MHD_Connection* connection, unsigned int status_code, const char* page);
 
         static void post_request_completed (void *cls, struct MHD_Connection *connection, void **con_cls,
                                                                     enum MHD_RequestTerminationCode toe);

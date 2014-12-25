@@ -70,15 +70,14 @@ void http_server::post_request_completed(void *cls, struct MHD_Connection *conne
     *con_cls = NULL;
 }
 
-const char* errorpage="<html><body>This doesn't seem to be right.</body></html>";
 
-int http_server::send_page(struct MHD_Connection* connection, const char* page){
+int http_server::send_page(struct MHD_Connection* connection, unsigned int status_code, const char* page){
     struct MHD_Response* response = MHD_create_response_from_data(strlen(page), (void*)page, MHD_NO, MHD_NO);
     //MHD_add_response_header(response, "Access-Control-Allow-Origin", "http://192.168.192.254:3000");
     MHD_add_response_header(response, "Access-Control-Allow-Origin", "http://home-automation-7.appspot.com");
     MHD_add_response_header(response, "Access-Control-Allow-Credentials", "true");
 
-    int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+    int ret = MHD_queue_response(connection, status_code, response);
     MHD_destroy_response(response);
 
     return ret;
@@ -100,7 +99,7 @@ int http_server::ahc_response_get(void* cls, struct MHD_Connection* connection, 
             ((HttpCallback*)path->callback)->textOutput(&page_content, &arguments);
         }
 
-        int ret = send_page(connection, (const char*)page_content.c_str());
+        int ret = send_page(connection, MHD_HTTP_OK, (const char*)page_content.c_str());
         return ret;
     }
 
@@ -160,26 +159,36 @@ int http_server::ahc_response_post(void* cls, struct MHD_Connection* connection,
                 autherised = 1;
             }
         }
+        unsigned int status_code;
         if(autherised){
             if(path->type == _function){
                 // Callback pointer is a function pointer.
-                ((int (*)(string*, map<string, string>*))(path->callback))(&received_so_far, &arguments);
+                if(((int (*)(string*, map<string, string>*))(path->callback))(&received_so_far, &arguments) == 0){
+                    status_code = MHD_HTTP_OK;
+                } else {
+                    status_code = MHD_HTTP_BAD_REQUEST;
+                }
             } else {
                 // Callback pointer is a class instance pointer.
-                ((HttpCallback*)path->callback)->textOutput(&received_so_far, &arguments);
+                if(((HttpCallback*)path->callback)->textOutput(&received_so_far, &arguments) == 0){
+                    status_code = MHD_HTTP_OK;
+                } else {
+                    status_code = MHD_HTTP_BAD_REQUEST;
+                }
             }
         } else {
+            status_code = MHD_HTTP_FORBIDDEN;
             arguments["error"] = "yes";
             arguments["description"] = "Invalid network " + address_incoming + " or user " + unathenticatedUser + ".";
             cout << arguments["description"] << endl;
         }
 
         if(arguments["error"] == "yes"){
-            return send_page(connection, "error");
+            return send_page(connection, status_code, "error");
         }
-        return send_page(connection, "ok");
+        return send_page(connection, status_code, "ok");
     }
-    return send_page(connection, errorpage); 
+    return send_page(connection, MHD_HTTP_INTERNAL_SERVER_ERROR, "<html><body>This doesn't seem to be right.</body></html>"); 
 }
 
 /* Called when a client first makes a TCP connection to the server. */

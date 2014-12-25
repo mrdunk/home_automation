@@ -106,22 +106,44 @@ int JSONtoInternal(Document* p_JSON_input){
 
         Value::ConstMemberIterator itr_type = (*p_JSON_parent_array)[node_num].FindMember("type");
         if(itr_type != (*p_JSON_parent_array)[node_num].MemberEnd()){
-            type = itr_type->value.GetString();
-        } else {
-            valid = 0;
-        }
-        
-        Value::ConstMemberIterator itr_data = (*p_JSON_parent_array)[node_num].FindMember("data");
-        if(itr_data != (*p_JSON_parent_array)[node_num].MemberEnd()){
-            for (Value::ConstMemberIterator itr_conents = itr_data->value.MemberBegin(); itr_conents != itr_data->value.MemberEnd(); ++itr_conents){
-                data[itr_conents->name.GetString()] = itr_conents->value.GetString();
+            if(itr_type->value.IsString()){
+                type = itr_type->value.GetString();
+            } else if(itr_type->value.IsNumber()){
+                type = to_string(itr_type->value.GetDouble());
+            } else {
+                valid = 0;
             }
         } else {
             valid = 0;
         }
 
+        Value::ConstMemberIterator itr_data = (*p_JSON_parent_array)[node_num].FindMember("data");
+        if(itr_data != (*p_JSON_parent_array)[node_num].MemberEnd()){
+            for (Value::ConstMemberIterator itr_conents = itr_data->value.MemberBegin(); itr_conents != itr_data->value.MemberEnd(); ++itr_conents){
+                if(itr_conents->value.IsString()){
+                    data[itr_conents->name.GetString()] = itr_conents->value.GetString();
+                } else if(itr_conents->value.IsNumber()){
+                    data[itr_conents->name.GetString()] = to_string(itr_conents->value.GetDouble());
+                }
+                //cout << itr_conents->name.GetString() << "\t" << data[itr_conents->name.GetString()] << endl;
+            }
+        } else {
+            valid = 0;
+        }
+        
         // Must have "type" and "data" values.
+        // "data" must contain "key", "label" and "val".
         if(valid){
+            if(data.count("label") == 0){
+                data["label"] = "";
+            }
+            if(data.count("key") == 0){
+                data["key"] = "";
+            }
+            if(data.count("val") == 0){
+                data["val"] = "";
+            }
+
             struct data_node new_node;
             new_node.type = type;
             new_node.data = data;

@@ -18,9 +18,9 @@ var dataStore = new DataStore();
 var thermometerSvg;
 d3.xml("thermometer.svg", "image/svg+xml", function(xml) {
     thermometerSvg = document.importNode(xml.documentElement, true);
-    console.log(thermometerSvg.getElementById("tempValue"));
-    console.log(thermometerSvg.getElementById("tempValue").innerHTML);
-    console.log(thermometerSvg.getElementById("tempValue").getElementsByTagName("tspan")[0].innerHTML = "10°C");
+    //console.log(thermometerSvg.getElementById("tempValue"));
+    //console.log(thermometerSvg.getElementById("tempValue").innerHTML);
+    //console.log(thermometerSvg.getElementById("tempValue").getElementsByTagName("tspan")[0].innerHTML = "10°C");
 });
 
 d3.ns.prefix.inkscape = "http://www.inkscape.org/namespaces/inkscape";

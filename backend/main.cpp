@@ -40,6 +40,7 @@ int run = 1;
 
 /* Gets called whenever POST data arrives over http. */
 int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
+    //cout << "CallbackPost " << p_buffer->c_str() << endl;
     Document document;
     document.Parse(p_buffer->c_str());
     if(JSONtoInternal(&document)){
@@ -144,11 +145,14 @@ void houseKeeping(void){
     int mins;
 
     while(run){
+        //cout << "-" << endl;
         counter = 0;
         // Sleep for 30 seconds.
         while(run && ++counter < 6){
             sleep(5);
         }
+        //cout << "+" << endl;
+
         // Save any user input from the last 5 minutes.
         arguments.clear();
         arguments["type"] = "userInput";
@@ -160,6 +164,7 @@ void houseKeeping(void){
         int most_recent = 300;  // Matches 5 minutes for "age" above.
         // Loop through all nodes received.
         for(SizeType i = 0; i < array.Size(); i++){
+            int error = 0;
             // We are only interested if this is a more recent node.
             Value::ConstMemberIterator itr_age = array[i].FindMember("age");
             if(itr_age != array[i].MemberEnd()){
@@ -170,8 +175,18 @@ void houseKeeping(void){
                     if(itr_data != array[i].MemberEnd()){
                         Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
                         if(itr_val != itr_data->value.MemberEnd()){
-                            val = stof(itr_val->value.GetString());
-                            Cyclic::lookup("temp_setting_1_week")->store(mins, val);
+                            if(itr_val->value.IsString()){
+                                try{
+                                    val = stof(itr_val->value.GetString());
+                                } catch (...) {
+                                    error = 1;
+                                }
+                            } else if(itr_val->value.IsNumber()){
+                                val = itr_val->value.GetDouble();
+                            }
+                            if(error == 0){
+                                Cyclic::lookup("temp_setting_1_week")->store(mins, val);
+                            }
                             //cout << "Stored userInput. age: " << itr_age->value.GetInt() << " val: " << val << endl;
                         }
                     }

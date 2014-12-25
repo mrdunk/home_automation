@@ -46,6 +46,12 @@ function roundSwitchInit(){
         }
         roundSwitchInit();
         console.log(controlSettings);
+        var dataToSend = [{'type': 'userInput',
+                           'data': {'key': switchId,
+                                    'val': controlSettings[switchId]
+                                   }
+                         }];
+        dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){console.log(testvar);}, 6);
     };
 
     var drawCircle = function(context, diskColour, outlineColour){

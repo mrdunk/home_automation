@@ -171,7 +171,7 @@ DataStore.prototype.setupConnections = function(role){
 
     if(role === "send"){
         this.serverConnectionsToSend.registerRequest(role, serverHouse, "POST");
-        this.serverConnectionsToSend.send(role, "~~~~~ test Data ~~~~~", function(testvar){console.log(testvar);});
+        //this.serverConnectionsToSend.send(role, "~~~~~ test Data ~~~~~", function(testvar){console.log(testvar);});
     }
 };
 
@@ -180,6 +180,7 @@ function ConnectionsToSend(){
     'use strict';
     this.htmlTargets = {};
     this.htmlAttempt = {};
+    this.sendTimeout = 500;  // ms.
 }
 
 ConnectionsToSend.prototype.registerRequest = function(key, serverList, method){
@@ -189,9 +190,23 @@ ConnectionsToSend.prototype.registerRequest = function(key, serverList, method){
     this.htmlTargets[key] = [[serverList, 0], method];
 };
 
-ConnectionsToSend.prototype.send = function(key, sendData, callback){
+ConnectionsToSend.prototype.send = function(key, sendData, callback, retries){
     'use strict';
     console.log("ConnectionsToSend.send");
+
+    if(retries !== undefined && retries !== 0){
+        // call this function again later unless callbackWrapper() is called.
+        retries -= 1;
+        this.retry = setTimeout(function(){this.send(key, sendData, callback, retries);}.bind(this), this.sendTimeout);
+    }
+
+    var callbackWrapper = function(data){
+        console.log('callbackWrapper(' + data + ')', retries);
+        if(this.retry !== undefined){
+            clearTimeout(this.retry);    // No need to retry this function if callback was sucessfully reached.
+        }
+        callback(data);
+    }.bind(this);
 
     if(this.htmlTargets[key] === undefined){
         console.log("\"" + key + "\" was not a registered target.");
@@ -208,30 +223,30 @@ ConnectionsToSend.prototype.send = function(key, sendData, callback){
 
     if(!(url in this.htmlAttempt)){
         console.log("new HTTP()");
-        httpRequest = new HTTP(callback, url, "POST");
+        httpRequest = new HTTP(callbackWrapper, url, "POST");
         httpRequest.initialise(sendData);
         this.htmlAttempt[url] = [httpRequest, Date.now()];
     } else {
         httpRequest = this.htmlAttempt[url][0];
-        if(httpRequest.xmlHttp.status !== 200){
+        if(httpRequest.xmlHttp.status === undefined || httpRequest.xmlHttp.status === 0){
             // This request failed last time so set pointer to other targets in the list and retry.
-            httpRequest.xmlHttp.status = 200;
+            console.log("retrying... ", serverIndex);
+            delete this.htmlAttempt[url];
             serverIndex += 1;
             if(serverIndex >= this.htmlTargets[key][0][0].length){
                 serverIndex = 0;
             }
             this.htmlTargets[key][0][1] = serverIndex;
-//            this.send(key, sendData, callback);
+            this.send(key, sendData, callback, retries);
             return;
         }
-        if(!httpRequest.busy && (httpRequest.xmlHttp.status === 200 || Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
-            // Busy flag not set and last try was sucessfull (or was long enough ago to try again).
+        if(!httpRequest.busy && (httpRequest.xmlHttp.status > 0 || Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
+            // Busy flag not set and last try got through to server (or was long enough ago to try again).
             httpRequest.initialise(sendData);
             this.htmlAttempt[url][1] = Date.now();
             //console.log("* ", url, path);
         }
     }
-
 };
 
 
@@ -240,7 +255,7 @@ function ConnectionsToPoll(){
     this.wsOpen = {};
     this.htmlAttempt = {};
     this.requestQueue = {};
-    this.wsTimeout = 200;                // ms
+    this.wsTimeout = 500;                // ms
     this.retryConnectionTimeout = 20000; // ms
 }
 
@@ -292,7 +307,8 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
 
         if(wsPort){
             url = address + ":" + wsPort;
-            if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null && this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.OPEN){
+            if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null &&
+                    this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.OPEN){
                 var openFor = Date.now() - this.wsOpen[url][1];
                 console.log("WS already open to " + url + " for " + openFor + " ms.");
                 ws_sucess = url;
@@ -330,12 +346,12 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
                 } else if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null && 
                         this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CONNECTING){
                     // Must have timed out while connecting. Treat as failure.
-                    console.log("*** FAIL ***", Date.now() - this.wsOpen[url][1], this.wsTimeout);
+                    console.log("*** FAIL ***", url, Date.now() - this.wsOpen[url][1], this.wsTimeout);
                 } else if((!(url in this.wsOpen)) || this.wsOpen[url][0].websocket === null || 
                             (this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CLOSED &&
                             Date.now() - this.wsOpen[url][1] > this.retryConnectionTimeout)){
                     // Haven't tried this connection before or it's been so long it's worth trying again.
-                    console.log("Opening WS to " + url);
+                    console.log("Opening WS to " + url, callback);
                     var websocket = new WS(url, callback);
                     this.wsOpen[url] = [websocket, Date.now()];
 
@@ -371,7 +387,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
     }
     if(retrySoon == 1){
         // Come back soon to see if we ahve managed to connect.
-        window.setTimeout(function(){this.doRequest(serverList, method, path);}.bind(this), this.wsTimeout / 10);
+        window.setTimeout(function(){this.doRequest(serverList, method, path, callback);}.bind(this), this.wsTimeout / 10);
     }
 };
 
@@ -425,7 +441,7 @@ WS.prototype.onClose = function(evt){
 
 WS.prototype.onMessage = function(evt){
     'use strict';
-    console.log("WS.onMessage", evt.data.length);
+    console.log("WS.onMessage", evt.data.length, this.callback);
     this.callback(evt.data);
     //console.log("WS.onMessage", evt.data);
     this.setTimeout();
@@ -483,8 +499,6 @@ HTTP.prototype.initialise = function(sendData){
             //this.xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
             this.xmlHttp.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
         }
-        this.xmlHttp.send(sendData);
-
         this.xmlHttp.onloadstart = function(evt) { this.onloadstart(evt); }.bind(this);
         this.xmlHttp.onprogress = function(evt) { this.onprogress(evt); }.bind(this);
         this.xmlHttp.onabort = function(evt) { this.onabort(evt); }.bind(this);
@@ -493,7 +507,9 @@ HTTP.prototype.initialise = function(sendData){
         this.xmlHttp.ontimeout = function(evt) { this.ontimeout(evt); }.bind(this);
         this.xmlHttp.onloadend = function(evt) { this.onloadend(evt); }.bind(this);
         this.xmlHttp.onreadystatechange = function(evt) { this.onreadystatechange(evt); }.bind(this);
-    }catch(e){
+
+        this.xmlHttp.send(sendData);
+    } catch(e){
         console.log(e);
     }
 };
@@ -535,8 +551,8 @@ HTTP.prototype.onloadend = function(evt){
     console.log("onloadend", evt);
     //console.log(this.xmlHttp);
     //console.log(evt.type);
-    if(!this.error){
-        console.log("HTTP.onloadend", this.xmlHttp.responseText);//.length);
+    if(!this.error && this.xmlHttp.status === 200){
+        console.log("HTTP.onloadend", this.xmlHttp.status, this.xmlHttp.statusText);//.length);
         if(this.callback !== undefined){
             this.callback(this.xmlHttp.responseText);
         }
