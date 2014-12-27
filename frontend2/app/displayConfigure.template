@@ -1,38 +1,39 @@
 {{#each userDevices}}
-    <div class="menu menu-visible" style="clear:both;">
+    <div class="menu {{@key}}-all" id="{{@key}}-device" style="display: inline; clear: both;">
     	{{@key}}
     </div>
 
-    <div class="menu menu-visible">
+    <div class="menu {{@key}}-all">
 	    {{safeVal net_clients.[0] '&nbsp'}}
     </div>
 
-    <div class="menu menu-visible {{@key}}-view">
+    <div class="menu {{@key}}-view">
         {{description.[0]}}
     </div>
-    <div class="menu menu-hidden {{@key}}-edit">
-        <input id="{{@key}}-description" type="text" name="description" value="{{description.[0]}}">
+    <div class="menu {{@key}}-edit">
+        <input id="{{@key}}-description" type="text" name="description" value="{{description_modified.[0]}}" onchange="displaySettingsInstance.onChange('{{@key}}', 'description')">
     </div>
 
-    <div class="menu menu-visible {{@key}}-view">
-        {{safeVal user.displayName '&nbsp'}}
+    <div class="menu {{@key}}-view">
+        {{safeVal displayName.[0] '&nbsp'}}
     </div>
-    <div class="menu menu-hidden {{@key}}-edit">
-        <select>
+
+    <div class="menu {{@key}}-edit">
+        <select id="{{@key}}-userId" onchange="displaySettingsInstance.onChange('{{@key}}', 'userId')">
             <option value="">none</option>
             {{#each ../users}}
-                <option value="{{@key}}" {{ifSelected @key ../userId.[0]}}>{{displayName}}</option>
+                <option value="{{@key}}" {{ifSelected @key ../userId_modified.[0]}}>{{displayName}}</option>
             {{/each}}
         </select>
     </div>
 
 
-	<div class="menu menu-visible {{@key}}-view">
-        <button type="button" id="{{@key}}-editButton" style="float:left;" onclick="onClickUserDevice('{{@key}}', 'edit')">Edit</button>
+	<div class="menu {{@key}}-view">
+        <button type="button" id="{{@key}}-editButton" style="float:left;" onclick="displaySettingsInstance.onClick('{{@key}}', 'edit')">Edit</button>
     </div>
-    <div class="menu menu-hidden {{@key}}-edit">
-        <button class="{{@key}}-edit" type="button" id="{{@key}}-saveButton" onclick="onClickUserDevice('{{@key}}', 'save')">Save</button>
-        <button class="{{@key}}-edit" type="button" id="{{@key}}-cancelButton" onclick="onClickUserDevice('{{@key}}', 'cancel')">Cancel</button>
+    <div class="menu {{@key}}-edit">
+        <button class="{{@key}}-edit" type="button" id="{{@key}}-saveButton" onclick="displaySettingsInstance.onClick('{{@key}}', 'save')">Save</button>
+        <button class="{{@key}}-edit" type="button" id="{{@key}}-cancelButton" onclick="displaySettingsInstance.onClick('{{@key}}', 'cancel')">Cancel</button>
     </div>
 {{/each}}
 

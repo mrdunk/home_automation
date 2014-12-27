@@ -51,6 +51,7 @@ function DataStore(){
     this.serverConnectionsToSend = new ConnectionsToSend();
     this.allDataContainer = {};
     this.userDataContainer = {};
+    this.callbackFunctions = [];
 
     this.setupConnections("users");
     this.setupConnections("temperature");
@@ -63,7 +64,7 @@ DataStore.prototype.parseIncoming = function(incomingData){
     try{
         newObj = JSON.parse(incomingData);
         //console.log(newObj);
-    }catch(e){
+    } catch(e) {
         console.log(e);
         console.log(incomingData);
     }
@@ -74,6 +75,9 @@ DataStore.prototype.parseIncoming = function(incomingData){
         // Unwrap AppEngine format a little bit.
         // TODO ratify the 2 formats.
         newObj = newObj.ListUsers;
+
+        // Empty this.userDataContainer so we can re-build from scratch.
+        this.userDataContainer = {};
     }
     for(i in newObj){
         if(newObj[i] === 'invalid user'){
@@ -92,6 +96,15 @@ DataStore.prototype.parseIncoming = function(incomingData){
         } else {
             // Presume data from AppEngine.
             // TODO ratify the 2 formats.
+            
+            // Populate the userDataContainer DB with all available data.
+            this.userDataContainer[newObj[i].id] = {};
+            this.userDataContainer[newObj[i].id].image = newObj[i].image.url;
+            this.userDataContainer[newObj[i].id].displayName = newObj[i].displayName;
+            console.log(newObj[i].id, newObj[i].displayName);
+
+
+            // Loop through network devices and cross reference about associated users.
             for(j in this.allDataContainer){
                 if('userId' in this.allDataContainer[j] && this.allDataContainer[j].userId[0] === newObj[i].id){
                     // Save to the regular DB.
@@ -99,42 +112,58 @@ DataStore.prototype.parseIncoming = function(incomingData){
                     this.allDataContainer[j].displayName = [newObj[i].displayName, Date.now()];
 
                     // Also populate the userDataContainer DB with all available data.
-                    if(!(newObj[i].id in this.userDataContainer)){
-                        this.userDataContainer[newObj[i].id] = {};
+                    if(!("description" in this.allDataContainer[j])){
+                        this.allDataContainer[j].description = ["",0];
                     }
-                    this.userDataContainer[newObj[i].id].image = this.allDataContainer[j].image[0].url;
-                    this.userDataContainer[newObj[i].id].displayName = this.allDataContainer[j].displayName[0];
-                    if("description" in this.allDataContainer[j]){
-                        if(!("description" in this.userDataContainer[newObj[i].id])){
-                            this.userDataContainer[newObj[i].id].description = [this.allDataContainer[j].description[0]];
-                        } else if(this.userDataContainer[newObj[i].id].description.indexOf(this.allDataContainer[j].description[0]) < 0){
-                            this.userDataContainer[newObj[i].id].description.push(this.allDataContainer[j].description[0]);
-                        }
+                    if(!("net_clients" in this.allDataContainer[j])){
+                        this.allDataContainer[j].net_clients = ["",0];
                     }
-                    if("net_clients" in this.allDataContainer[j]){
-                        if(!("net_clients" in this.userDataContainer[newObj[i].id])){
-                            this.userDataContainer[newObj[i].id].net_clients = [this.allDataContainer[j].net_clients[0]];
-                        } else if(this.userDataContainer[newObj[i].id].net_clients.indexOf(this.allDataContainer[j].net_clients[0]) < 0){
-                            this.userDataContainer[newObj[i].id].net_clients.push(this.allDataContainer[j].net_clients[0]);
-                        }
+                    if(!("description" in this.userDataContainer[newObj[i].id])){
+                        this.userDataContainer[newObj[i].id].description = [this.allDataContainer[j].description[0]];
+                    } else if(this.userDataContainer[newObj[i].id].description.indexOf(this.allDataContainer[j].description[0]) < 0){
+                        this.userDataContainer[newObj[i].id].description.push(this.allDataContainer[j].description[0]);
                     }
+                    //if(!("net_clients" in this.userDataContainer[newObj[i].id])){
+                    //    this.userDataContainer[newObj[i].id].net_clients = [this.allDataContainer[j].net_clients[0]];
+                    //} else if(this.userDataContainer[newObj[i].id].net_clients.indexOf(this.allDataContainer[j].net_clients[0]) < 0){
+                    //    this.userDataContainer[newObj[i].id].net_clients.push(this.allDataContainer[j].net_clients[0]);
+                    //}
                     if(!("macAddr" in this.userDataContainer[newObj[i].id])){
                         this.userDataContainer[newObj[i].id].macAddr = [j];
+                        this.userDataContainer[newObj[i].id].net_clients = [this.allDataContainer[j].net_clients[0]];
                     } else if(this.userDataContainer[newObj[i].id].macAddr.indexOf(j) < 0){
                         this.userDataContainer[newObj[i].id].macAddr.push(j);
+                        this.userDataContainer[newObj[i].id].net_clients.push(this.allDataContainer[j].net_clients[0]);
                     }
+                } else if('userId' in this.allDataContainer[j] && this.allDataContainer[j].userId[0] ===""){
+                    this.allDataContainer[j].image = [[], Date.now()];
+                    this.allDataContainer[j].displayName = ["", Date.now()];
                 }
-                
             }
         }
-
     }
     
     console.log(this.allDataContainer);
     console.log(this.userDataContainer);
 
-    displayTemperature();
-    whoshome();
+    this.doCallbacks();
+};
+
+/* Perform any callback fuctions that have been registered. */
+DataStore.prototype.doCallbacks = function(){
+    for(var callback in this.callbackFunctions){
+        this.callbackFunctions[callback]();
+    }
+};
+
+/* Register callback functions to perform when data changes. */
+DataStore.prototype.registerCallbacks = function(callbacks){
+    if(callbacks){
+        this.callbackFunctions = callbacks;
+    } else {
+        this.callbackFunctions = [];
+    }
+    this.doCallbacks();
 };
 
 DataStore.prototype.setupConnections = function(role){
@@ -145,7 +174,7 @@ DataStore.prototype.setupConnections = function(role){
 
     var querysHouseUsers = [['/data?type=configuration&data={"label":"userId"}', 30000],
                             ['/data?type=configuration&data={"label":"description"}', 30000],
-                            ['/data?type=sensors&data={"label":"net_clients"}', 30000]];
+                            ['/data?type=sensors&data={"label":"net_clients"}&age=300', 30000]];
     var querysAppEngineUsers = [['/listUsers/?', 30000]];
     var querysHouseSensors = [['/data?type=sensors&data={"label":"1wire"}', 30000]];
     var querysAppEngineSensors = [];
@@ -430,18 +459,18 @@ WS.prototype.initialise = function(){
 
 WS.prototype.onOpen = function(evt){
     'use strict';
-    console.log("WS.onOpen", evt);
+    //console.log("WS.onOpen", evt);
     this.setTimeout();
 };
 
 WS.prototype.onClose = function(evt){
     'use strict';
-    console.log("WS.onClose", evt);
+    //console.log("WS.onClose", evt);
 };
 
 WS.prototype.onMessage = function(evt){
     'use strict';
-    console.log("WS.onMessage", evt.data.length, this.callback);
+    //console.log("WS.onMessage", evt.data.length, this.callback);
     this.callback(evt.data);
     //console.log("WS.onMessage", evt.data);
     this.setTimeout();
@@ -548,11 +577,11 @@ HTTP.prototype.ontimeout = function(evt){
 
 HTTP.prototype.onloadend = function(evt){
     'use strict';
-    console.log("onloadend", evt);
+    //console.log("onloadend", evt);
     //console.log(this.xmlHttp);
     //console.log(evt.type);
     if(!this.error && this.xmlHttp.status === 200){
-        console.log("HTTP.onloadend", this.xmlHttp.status, this.xmlHttp.statusText);//.length);
+        //console.log("HTTP.onloadend", this.xmlHttp.status, this.xmlHttp.statusText);//.length);
         if(this.callback !== undefined){
             this.callback(this.xmlHttp.responseText);
         }

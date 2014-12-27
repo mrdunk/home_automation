@@ -420,6 +420,8 @@ dl.displayUserTitle
 {
     margin: 0;
     padding: 0;
+    min-width: 10px;
+    min-height: 1.5em;
 }
 
 * { -moz-box-sizing: border-box; box-sizing: border-box; }
@@ -533,12 +535,12 @@ p.switch-display
     border-width:1px;
 }
 
-.menu-hidden
+.menu-edit
 {
     display: none;
 }
 
-.menu-visible
+.menu-view
 {
     display: inline;
 }

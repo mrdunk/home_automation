@@ -47,6 +47,7 @@ window.onload = function () {
 window.onhashchange = function () {
     'use strict';
     console.log(location.hash);
+    document.getElementsByTagName("main")[0].innerHTML = "";
 
     var main = d3.select("main");
     main.style("background-color", "white");
@@ -72,36 +73,15 @@ var displayControl = function () {
     verticalSliderInit();
     roundSwitchInit();
 
-    displayTemperature();
-    whoshome(false);
+    dataStore.registerCallbacks([displayTemperature, whoshome]);
 };
 
 var displayConfigure = function () {
-    var main = document.getElementsByTagName("main")[0];
-
-    var userDevices = {};
-    var thermomiters = {};
-    for(var device in dataStore.allDataContainer){
-        if(dataStore.allDataContainer[device]['1wire'] === undefined){
-            userDevices[device] = dataStore.allDataContainer[device];
-            console.log(userDevices[device]);
-            if(userDevices[device].userId !== undefined && userDevices[device].userId[0] in dataStore.userDataContainer){
-                userDevices[device].user = dataStore.userDataContainer[userDevices[device].userId[0]];
-            }
-        } else {
-            thermomiters[device] = dataStore.allDataContainer[device];
-        }
-    }
-
-    var populate = {'userDevices':userDevices,
-                    'thermomiters':thermomiters,
-                    'users':dataStore.userDataContainer};
-    main.innerHTML = displayConfigureTemplate(populate);
-    console.log(populate);
-    console.log(dataStore.userDataContainer);
+    dataStore.registerCallbacks([DisplaySettingsUpdate]);
 };
 
 var displayEmpty = function () {
     var main = document.getElementsByTagName("main")[0];
     main.innerHTML = 'content missing';
+    dataStore.registerCallbacks([]);
 };

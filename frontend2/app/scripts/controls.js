@@ -300,13 +300,18 @@ function whoshome(clear){
     var workspace = d3.select("main").select("#people").selectAll("div")
         .data(d3.entries(dataStore.userDataContainer));
 
-    workspace.html(userBriefTemplate)
+    // Modify existing.
+    workspace
+        .filter(function(d){return "macAddr" in d.value;})
+        .html(userBriefTemplate)
         .attr("class", "whosHome")
         .on("click", onClick)
         .style("-webkit-transform", "scale(1)");
 
+    // Append new.
     workspace.enter()
         .append("div")
+        .filter(function(d){return "macAddr" in d.value;})
         .html(userBriefTemplate)
         .attr("class", "whosHome")
         .on("click", onClick)
@@ -314,7 +319,7 @@ function whoshome(clear){
         .transition()
         .duration(FADETIME)
         .style("-webkit-transform", "scale(1)");
-
+ 
     workspace.exit()
         .remove();
     

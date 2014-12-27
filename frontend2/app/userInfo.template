@@ -14,22 +14,18 @@
 <dl class="displayUser">
     <dt>Device</dt>
     {{#each value.description}}
-        <dd>{{this}}</dd>
+        <dd>{{safeVal this '.&nbsp;'}}</dd>
     {{/each}}
 </dl>
 <dl class="displayUser">
     <dt>IP-Address</dt>
     {{#each value.net_clients}}
-        <dd>{{this}}</dd>
-    {{else}}
-        <dd>Unknown</dd>
+        <dd>{{safeVal this '.&nbsp;'}}</dd>
     {{/each}}
 </dl>
 <dl class="displayUser">
     <dt>MAC-Address</dt>
     {{#each value.macAddr}}
-        <dd>{{this}}</dd>
-    {{else}}
-        <dd>Unknown</dd>
+        <dd>{{safeVal this '.&nbsp;'}}</dd>
     {{/each}}
 </dl>
