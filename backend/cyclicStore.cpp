@@ -188,13 +188,26 @@ void Cyclic::to_JSON(Document* p_JSON_output, int step_size){
     if(step_size <= 0){
         step_size = mins_per_division;
     }
-    p_JSON_output->SetObject();
+
+    Value content(kObjectType);
     for(int time = 0; time < mins_in_period; time += step_size){
         Value key, val;
         key.SetString(to_string(time).c_str(), p_JSON_output->GetAllocator());
         val.SetString(to_string(read(time)).c_str(), p_JSON_output->GetAllocator());
-        p_JSON_output->AddMember(key, val, p_JSON_output->GetAllocator());
+        content.AddMember(key, val, p_JSON_output->GetAllocator());
     }
+
+    Value data(kObjectType);
+    Value key;
+    key.SetString(unique_id.c_str(), p_JSON_output->GetAllocator());
+    data.AddMember("key", key, p_JSON_output->GetAllocator());
+    data.AddMember("val", content, p_JSON_output->GetAllocator());
+
+    p_JSON_output->SetArray();
+    Value node(kObjectType);
+    node.AddMember("type", "cyclicBuffer", p_JSON_output->GetAllocator());
+    node.AddMember("data", data, p_JSON_output->GetAllocator());
+    p_JSON_output->PushBack(node, p_JSON_output->GetAllocator());
 }
 
 int Cyclic::to_JSON_string(std::string* p_buffer, map<string, string>* p_arguments){

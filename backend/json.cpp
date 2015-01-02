@@ -183,3 +183,208 @@ void InternalToJSON(Document* p_JSON_output, map<string, string>* p_arguments){
     }
 }
 
+void GetValInt(string type, int age, string key, string label, map<string,int>* p_retVals){
+    map<string, string> arguments;
+    Document array;
+    
+    arguments["type"] = type;
+    arguments["age"] = to_string(age);
+    arguments["data"] = "";
+    if(key != ""){
+        arguments["data"] += "\"key\":\"" + key + "\"";
+    }
+    if(label != ""){
+        if(arguments["data"] != ""){
+            arguments["data"] += ",";
+        }
+        arguments["data"] += "\"label\":\"" + label + "\"";
+    }
+    if(arguments["data"] != ""){
+        arguments["data"]  = "{" + arguments["data"] + "}";
+    }
+        
+    InternalToJSON(&array, &arguments);
+
+#if DEBUG
+    StringBuffer buffer;
+    PrettyWriter<StringBuffer> writer(buffer);
+    array.Accept(writer);
+    cout << buffer.GetString() << endl;
+#endif  // DEBUG
+
+    p_retVals->clear();
+    int val;
+    
+    for(SizeType i = 0; i < array.Size(); i++){
+        int error = 0;
+        // We are only interested if this is a more recent node.
+        Value::ConstMemberIterator itr_age = array[i].FindMember("age");
+        if(itr_age != array[i].MemberEnd()){
+            if(itr_age->value.GetInt() <= age || age == 0){
+                age = itr_age->value.GetInt();
+
+                Value::ConstMemberIterator itr_data = array[i].FindMember("data");
+                if(itr_data != array[i].MemberEnd()){
+                    Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
+                    Value::ConstMemberIterator itr_label = itr_data->value.FindMember("label");
+                    Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
+                    if((key == "" || itr_key != itr_data->value.MemberEnd()) &&
+                            (label == "" || itr_label != itr_data->value.MemberEnd()) &&
+                            itr_val != itr_data->value.MemberEnd()){
+                        if(itr_val->value.IsString()){
+                            try{
+                                val = stoi(itr_val->value.GetString());
+                            } catch(...) {
+                                error = 1;
+                            }
+                        } else if(itr_val->value.IsNumber()){
+                            val = itr_val->value.GetInt();
+                        }
+                        if(error == 0){
+#if DEBUG
+                            cout << itr_key->value.GetString() << " : " << val << endl;
+#endif  // DEBUG
+                            (*p_retVals)[itr_key->value.GetString()] = val;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void GetValDouble(string type, int age, string key, string label, map<string,double>* p_retVals){
+    map<string, string> arguments;
+    Document array;
+
+    arguments["type"] = type;
+    arguments["age"] = to_string(age);
+    arguments["data"] = "";
+    if(key != ""){
+        arguments["data"] += "\"key\":\"" + key + "\"";
+    }
+    if(label != ""){
+        if(arguments["data"] != ""){
+            arguments["data"] += ",";
+        }
+        arguments["data"] += "\"label\":\"" + label + "\"";
+    }
+    if(arguments["data"] != ""){
+        arguments["data"]  = "{" + arguments["data"] + "}";
+    }
+
+    InternalToJSON(&array, &arguments);
+
+#if DEBUG
+    StringBuffer buffer;
+    PrettyWriter<StringBuffer> writer(buffer);
+    array.Accept(writer);
+    cout << buffer.GetString() << endl;
+#endif  // DEBUG
+
+    p_retVals->clear();
+    double val;
+
+    for(SizeType i = 0; i < array.Size(); i++){
+        int error = 0;
+        // We are only interested if this is a more recent node.
+        Value::ConstMemberIterator itr_age = array[i].FindMember("age");
+        if(itr_age != array[i].MemberEnd()){
+            if(itr_age->value.GetInt() <= age || age == 0){
+                age = itr_age->value.GetInt();
+
+                Value::ConstMemberIterator itr_data = array[i].FindMember("data");
+                if(itr_data != array[i].MemberEnd()){
+                    Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
+                    Value::ConstMemberIterator itr_label = itr_data->value.FindMember("label");
+                    Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
+                    if((key == "" || itr_key != itr_data->value.MemberEnd()) &&
+                            (label == "" || itr_label != itr_data->value.MemberEnd()) &&
+                            itr_val != itr_data->value.MemberEnd()){
+                        if(itr_val->value.IsString()){
+                            try{
+                                val = stod(itr_val->value.GetString());
+                            } catch(...) {
+                                error = 1;
+                            }
+                        } else if(itr_val->value.IsNumber()){
+                            val = itr_val->value.GetDouble();
+                        }
+                        if(error == 0){
+#if DEBUG
+                            cout << itr_key->value.GetString() << " : " << val << endl;
+#endif  // DEBUG
+                            (*p_retVals)[itr_key->value.GetString()] = val;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void GetValString(string type, int age, string key, string label, map<string,string>* p_retVals){
+    map<string, string> arguments;
+    Document array;
+
+    arguments["type"] = type;
+    arguments["age"] = to_string(age);
+    arguments["data"] = "";
+    if(key != ""){
+        arguments["data"] += "\"key\":\"" + key + "\"";
+    }
+    if(label != ""){
+        if(arguments["data"] != ""){
+            arguments["data"] += ",";
+        }
+        arguments["data"] += "\"label\":\"" + label + "\"";
+    }
+    if(arguments["data"] != ""){
+        arguments["data"]  = "{" + arguments["data"] + "}";
+    }
+
+    InternalToJSON(&array, &arguments);
+
+#if DEBUG
+    StringBuffer buffer;
+    PrettyWriter<StringBuffer> writer(buffer);
+    array.Accept(writer);
+    cout << buffer.GetString() << endl;
+#endif  // DEBUG
+
+    p_retVals->clear();
+    string val;
+
+    for(SizeType i = 0; i < array.Size(); i++){
+        int error = 0;
+        // We are only interested if this is a more recent node.
+        Value::ConstMemberIterator itr_age = array[i].FindMember("age");
+        if(itr_age != array[i].MemberEnd()){
+            if(itr_age->value.GetInt() <= age || age == 0){
+                age = itr_age->value.GetInt();
+
+                Value::ConstMemberIterator itr_data = array[i].FindMember("data");
+                if(itr_data != array[i].MemberEnd()){
+                    Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
+                    Value::ConstMemberIterator itr_label = itr_data->value.FindMember("label");
+                    Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
+                    if((key == "" || itr_key != itr_data->value.MemberEnd()) &&
+                            (label == "" || itr_label != itr_data->value.MemberEnd()) &&
+                            itr_val != itr_data->value.MemberEnd()){
+                        if(itr_val->value.IsString()){
+                            val = itr_val->value.GetString();
+                        } else {
+                            error = 1;
+                        }
+                        if(error == 0){
+#if DEBUG
+                            cout << itr_key->value.GetString() << " : " << val << endl;
+#endif  // DEBUG
+                            (*p_retVals)[itr_key->value.GetString()] = val;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

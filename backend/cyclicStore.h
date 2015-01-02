@@ -32,7 +32,10 @@ class Cyclic : public HttpCallback {
         long long int average_total;
         unsigned int mins_per_division;
         unsigned int update_weight;
+        
+        /* Pointer to underlyng container. */
         float* p_container;
+
         int update_inertia;
         int previous_time;
         int previous_value;

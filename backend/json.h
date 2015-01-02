@@ -4,6 +4,7 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "rapidjson/prettywriter.h"
 
 #include <iostream>   // std::cout
 #include <map>
@@ -64,5 +65,18 @@ int JSONtoInternal(Document* p_JSON_input);
  * The map<string, string> can be either created manually or sent by an http POST> */
 void InternalToJSON(Document* p_JSON_output, map<string, string>* p_arguments);
 
+/* Lookup matching entry from internal db and return val. 
+ * Args: 
+ *      type: "type" field from the JSON object. Will return only matching entries.
+ *      age:  "age" field from the JSON object. Will return only entries <= to theis value.
+ *            If age == 0 it is ignored.
+ *      key:  data.key field from the JSON object. Will return only matching entries if specified.
+ *      label: data.label field from the JSON object. Will return only matching entries if specified.
+ *      p_retVals: Pointer to map object to contain results in key:val format where "key" and "val" are 
+ *            from "data" in the JSON object.
+ */
+void GetValInt(string type, int age, string key, string label, map<string,int>* p_retVals);
+void GetValDouble(string type, int age, string key, string label, map<string,double>* p_retVals);
+void GetValString(string type, int age, string key, string label, map<string,string>* p_retVals);
 
 #endif  // JSON_H

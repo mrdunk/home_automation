@@ -44,14 +44,25 @@ function roundSwitchInit(){
         } else {
             controlSettings[switchId] = 0;
         }
-        roundSwitchInit();
-        console.log(controlSettings);
+
+        // Update the local cache.
+        if(dataStore.allDataContainer.heatOnOff === undefined){
+            dataStore.allDataContainer.heatOnOff = {};
+        }
+        dataStore.allDataContainer.heatOnOff.controler = [controlSettings[switchId], 0];
+
+        // Update remote DB.
         var dataToSend = [{'type': 'userInput',
                            'data': {'key': switchId,
+                                    'label': 'controler',
                                     'val': controlSettings[switchId]
                                    }
                          }];
+        console.log("** sending: ", controlSettings[switchId]);
         dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){console.log(testvar);}, 6);
+
+        // Redraw switch.        
+        roundSwitchInit();
     };
 
     var drawCircle = function(context, diskColour, outlineColour){
@@ -82,6 +93,12 @@ function roundSwitchInit(){
         if(controlSettings[switchId + "-secondary"] === undefined){
             controlSettings[switchId + "-secondary"] = 0;
         }
+        if(dataStore.allDataContainer.heatOnOff !== undefined && dataStore.allDataContainer.heatOnOff.controler !== undefined){
+            controlSettings[switchId] = parseInt(dataStore.allDataContainer.heatOnOff.controler[0]);
+        }
+        if(dataStore.allDataContainer.heatOnOff !== undefined && dataStore.allDataContainer.heatOnOff.output !== undefined){
+            controlSettings[switchId + "-secondary"] = parseInt(dataStore.allDataContainer.heatOnOff.output[0]);
+        }
 
         switches[sw].innerHTML = switchHtml;
         switches[sw].getElementsByTagName("div")[0].id = switchId + "-outer";
@@ -100,6 +117,8 @@ function roundSwitchInit(){
         }
         if(controlSettings[switchId + "-secondary"] === 1){
             outlineColour = "red";
+        } else if(controlSettings[switchId + "-secondary"] === 0){
+            outlineColour = "blue";
         }
 
         drawCircle(context, diskColour, outlineColour);
@@ -363,9 +382,6 @@ function displayUser(userData){
 
 function displayTemperature(){
     'use strict';
-    //var workspace = document.getElementById("dials");
-    //var html = teperaturesTemplate(dataStore.allDataContainer);
-    //workspace.innerHTML = html;
 
     var svg = d3.select("main").select("#dials").select("svg");
     svg.attr("height", DIALHEIGHT)

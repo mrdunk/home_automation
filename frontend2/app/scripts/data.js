@@ -45,6 +45,7 @@ function GetAuthKey(){
     window.location = returnedData.url;
 }
 
+
 function DataStore(){
     'use strict';
     this.serverConnectionsToPoll = new ConnectionsToPoll();
@@ -84,7 +85,7 @@ DataStore.prototype.parseIncoming = function(incomingData){
             console.log('Not logged in with registered Google account.');
             // TODO redirect to login page?
         } else if(typeof newObj[i] === 'string') {
-        } else if("data" in newObj[i] && "key" in newObj[i].data && "label" in newObj[i].data && "val" in newObj[i].data){
+        } else if("data" in newObj[i] && "key" in newObj[i].data && "val" in newObj[i].data){
             // Data in format from Home server
             key = newObj[i].data.key;
             label = newObj[i].data.label;
@@ -96,13 +97,11 @@ DataStore.prototype.parseIncoming = function(incomingData){
         } else {
             // Presume data from AppEngine.
             // TODO ratify the 2 formats.
-            
+
             // Populate the userDataContainer DB with all available data.
             this.userDataContainer[newObj[i].id] = {};
             this.userDataContainer[newObj[i].id].image = newObj[i].image.url;
             this.userDataContainer[newObj[i].id].displayName = newObj[i].displayName;
-            console.log(newObj[i].id, newObj[i].displayName);
-
 
             // Loop through network devices and cross reference about associated users.
             for(j in this.allDataContainer){
@@ -169,41 +168,57 @@ DataStore.prototype.registerCallbacks = function(callbacks){
 DataStore.prototype.setupConnections = function(role){
     'use strict';
     // [serverFQDN, webSocket_port, http_port]
-    var serverHouse = [[serverFQDN1, "55556", "55555"], [serverFQDN2, "55556", "55555"]];
-    var serverAppEngine = [[appEngineFQDN, "", "80"]];
+    this.serverHouse = [[serverFQDN1, "55556", "55555"], [serverFQDN2, "55556", "55555"]];
+    this.serverAppEngine = [[appEngineFQDN, "", "80"]];
 
-    var querysHouseUsers = [['/data?type=configuration&data={"label":"userId"}', 30000],
-                            ['/data?type=configuration&data={"label":"description"}', 30000],
-                            ['/data?type=sensors&data={"label":"net_clients"}&age=300', 30000]];
-    var querysAppEngineUsers = [['/listUsers/?', 30000]];
-    var querysHouseSensors = [['/data?type=sensors&data={"label":"1wire"}', 30000]];
-    var querysAppEngineSensors = [];
+    this.querysHouseUsers = [['/data?type=configuration&data={"label":"userId"}', 30000],
+                             ['/data?type=configuration&data={"label":"description"}', 30000],
+                             ['/data?type=sensors&data={"label":"net_clients"}&age=300', 30000],
+                             ['/data?type=userInput', 30000],
+                             ['/data?type=output', 30000]];
+
+    this.querysAppEngineUsers = [['/listUsers/?', 30000]];
+    this.querysHouseSensors = [['/data?type=sensors&data={"label":"1wire"}', 30000]];
+    this.querysAppEngineSensors = [];
 
     var querysHouse, querysAppEngine;
 
     if(role === "users"){
-        querysHouse = querysHouseUsers;
-        querysAppEngine = querysAppEngineUsers;
+        querysHouse = this.querysHouseUsers;
+        querysAppEngine = this.querysAppEngineUsers;
     } else if(role === "temperature"){
-        querysHouse = querysHouseSensors;
-        querysAppEngine = querysAppEngineSensors;
+        querysHouse = this.querysHouseSensors;
+        querysAppEngine = this.querysAppEngineSensors;
     }
 
     var q;
     
     for(q in querysHouse){
-        this.serverConnectionsToPoll.registerRequest(serverHouse, "GET", querysHouse[q][0], querysHouse[q][1], this.parseIncoming.bind(this));
+        this.serverConnectionsToPoll.registerRequest(this.serverHouse, "GET", querysHouse[q][0], querysHouse[q][1], this.parseIncoming.bind(this));
     }
     for(q in querysAppEngine){
-        this.serverConnectionsToPoll.registerRequest(serverAppEngine, "GET", querysAppEngine[q][0], querysAppEngine[q][1], this.parseIncoming.bind(this));
+        this.serverConnectionsToPoll.registerRequest(this.serverAppEngine, "GET", querysAppEngine[q][0], querysAppEngine[q][1], this.parseIncoming.bind(this));
     }
 
     if(role === "send"){
-        this.serverConnectionsToSend.registerRequest(role, serverHouse, "POST");
-        //this.serverConnectionsToSend.send(role, "~~~~~ test Data ~~~~~", function(testvar){console.log(testvar);});
+        this.serverConnectionsToSend.registerRequest(role, this.serverHouse, "POST");
     }
 };
 
+/* Args:
+ *  destination: "house" or "appengine".
+ *  path: Path and arguments of URL.
+ *  callback: Function to call when complete.
+ */
+DataStore.prototype.sendQueryNow = function(destination, path, callback){
+    'use strict';
+    
+    if(destination === "house"){
+        this.serverConnectionsToPoll.doRequest(this.serverHouse, "GET", path, callback);
+    } else if(destination === "appengine"){
+        this.serverConnectionsToPoll.doRequest(this.serverAppEngine, "GET", path, callback);
+    }
+};
 
 function ConnectionsToSend(){
     'use strict';
@@ -303,10 +318,18 @@ ConnectionsToPoll.prototype.registerRequest = function(serverList, method, path,
         clearTimeout(this.requestQueue.path[2]);
     }
     var timer = window.setInterval(function(){this.doRequest(serverList, method, path, callback);}.bind(this), timeBetweenRequests);
-    this.requestQueue[path] = [serverList, timeBetweenRequests, timer];
+    this.requestQueue[path] = [serverList, timeBetweenRequests, timer, callback];
 
     // As well as queueing it up for later, also do it now.
     this.doRequest(serverList, method, path, callback);
+};
+
+/* Do all requests now rather than wait for the scheduled event. */
+ConnectionsToPoll.prototype.doRequestsNow = function(){
+    'use strict';
+    for(var path in this.requestQueue){
+        this.doRequest(this.requestQueue[path][0], 'get', path, this.requestQueue[path][3]);
+    }
 };
 
 ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callback){
@@ -415,7 +438,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
         }
     }
     if(retrySoon == 1){
-        // Come back soon to see if we ahve managed to connect.
+        // Come back soon to see if we have managed to connect.
         window.setTimeout(function(){this.doRequest(serverList, method, path, callback);}.bind(this), this.wsTimeout / 10);
     }
 };

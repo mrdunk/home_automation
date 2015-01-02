@@ -73,7 +73,7 @@ var displayControl = function () {
     verticalSliderInit();
     roundSwitchInit();
 
-    dataStore.registerCallbacks([displayTemperature, whoshome]);
+    dataStore.registerCallbacks([displayTemperature, whoshome, roundSwitchInit]);
 };
 
 var displayConfigure = function () {

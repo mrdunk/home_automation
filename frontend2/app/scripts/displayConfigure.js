@@ -53,11 +53,19 @@ DisplaySettings.prototype.onClick = function(devId, action){
                           });
         }
         console.log(configData);
-        dataStore.serverConnectionsToSend.send("send", JSON.stringify(configData), function(testvar){console.log(testvar);}, 6);
+        dataStore.serverConnectionsToSend.send("send", JSON.stringify(configData), function(testvar){this.saved(testvar);}.bind(this), 6);
         this.userDevices[devId].configStatus = 'view';
     }
 
     this.updateView();
+};
+
+DisplaySettings.prototype.saved = function(data){
+    'use strict';
+    console.log(data);
+    if(data === "ok"){
+        dataStore.serverConnectionsToPoll.doRequestsNow();
+    }
 };
 
 DisplaySettings.prototype.onChange = function(devId, field){
@@ -116,69 +124,68 @@ DisplaySettings.prototype.deleteFromView = function(devIds){
 
 DisplaySettings.prototype.update = function(){
     'use strict';
+    var main = document.getElementsByTagName("main")[0];
 
-    console.log(this.userDevices);
+    // Create list of devices not yet displayed on page.
+    var userDevicesNew = {};
+    for(var device in dataStore.allDataContainer){
+        if(dataStore.allDataContainer[device]['1wire'] === undefined && dataStore.allDataContainer[device].description !== undefined){
+            // This dataStore.allDataContainer[device] is a Network device.
 
-        var main = document.getElementsByTagName("main")[0];
-
-        var userDevicesNew = {};
-
-        for(var device in dataStore.allDataContainer){
-            if(dataStore.allDataContainer[device]['1wire'] === undefined){
-                // This dataStore.allDataContainer[device] is a Network device.
-
-                if(this.userDevices[device] === undefined){
-                    // New device.
-                    this.userDevices[device] = {"configStatus": "view"};
-                }
-                if(document.getElementById(device + "-device") === null){
-                    // Device not displayed on screen but data is populated.
-                    userDevicesNew[device] = this.userDevices[device];
-                }
-                if(this.userDevices[device].configStatus !== 'edit'){
-                    // Don't do anything if we are currently editing this device.
-                    for(var item in dataStore.allDataContainer[device]){
-                        // Compare fields between incoming data and that currently displayed.
-                        if(this.userDevices[device][item] === undefined ||
-                                dataStore.allDataContainer[device][item][0] !== this.userDevices[device][item][0]){
-                            this.userDevices[device][item] = dataStore.allDataContainer[device][item];
-                            if(userDevicesNew[device] === undefined){
-                                userDevicesNew[device] = this.userDevices[device];
-                            }
-                        }
-                    }
-                }
-                if(this.userDevices[device].description_modified === undefined){
-                    this.userDevices[device].description_modified = [this.userDevices[device].description[0], this.userDevices[device].description[1]];
-                }
-                if(this.userDevices[device].userId_modified === undefined){
-                    this.userDevices[device].userId_modified = [this.userDevices[device].userId[0], this.userDevices[device].userId[1]];
-                }
-
-            } else {
-                this.thermometers[device] = dataStore.allDataContainer[device];
+            if(this.userDevices[device] === undefined){
+                // New device.
+                this.userDevices[device] = {"configStatus": "view"};
             }
+            if(document.getElementById(device + "-device") === null){
+                // Device not displayed on screen but data is populated.
+                userDevicesNew[device] = this.userDevices[device];
+            }
+            if(this.userDevices[device].configStatus !== 'edit'){
+                // Don't do anything if we are currently editing this device.
+                for(var item in dataStore.allDataContainer[device]){
+                    // Compare fields between incoming data and that currently displayed.
+                    if(this.userDevices[device][item] === undefined ||
+                            dataStore.allDataContainer[device][item][0] !== this.userDevices[device][item][0]){
+                                this.userDevices[device][item] = dataStore.allDataContainer[device][item];
+                                if(userDevicesNew[device] === undefined){
+                                    userDevicesNew[device] = this.userDevices[device];
+                                }
+                            }
+                }
+            }
+            if(this.userDevices[device].description_modified === undefined){
+                this.userDevices[device].description_modified = [this.userDevices[device].description[0], this.userDevices[device].description[1]];
+            }
+            if(this.userDevices[device].userId_modified === undefined){
+                this.userDevices[device].userId_modified = [this.userDevices[device].userId[0], this.userDevices[device].userId[1]];
+            }
+
+        } else {
+            this.thermometers[device] = dataStore.allDataContainer[device];
         }
+    }
 
+    var populateForm = {};
+    populateForm.userDevices = userDevicesNew;
+    populateForm.users = dataStore.userDataContainer;
 
-        var populateForm = {};
-        populateForm.userDevices = userDevicesNew;
-        populateForm.users = dataStore.userDataContainer;
+    this.deleteFromView(userDevicesNew);
 
-        console.log(userDevicesNew);
+    // Append new divs to main without intefering with existing ones.
+    var newcontent = document.createElement('div');
+    newcontent.innerHTML = displayConfigureTemplate(populateForm);
+    while (newcontent.firstChild) {
+        main.appendChild(newcontent.firstChild);
+    }
 
-        this.deleteFromView(userDevicesNew);
+    this.updateView();
 
-        var newcontent = document.createElement('div');
-        newcontent.innerHTML = displayConfigureTemplate(populateForm);
-        while (newcontent.firstChild) {
-            main.appendChild(newcontent.firstChild);
-        }
-        //main.innerHTML = displayConfigureTemplate(populateForm);
-
-        this.updateView();
-
-        console.log(this.userDevices);
+    if(dataStore.allDataContainer.temp_setting_1_week === undefined ||
+            Date.now() - dataStore.allDataContainer.temp_setting_1_week[undefined][1] > 10000){
+        dataStore.sendQueryNow("house", "/tempSettings?", function(data){console.log("####", data);});
+    } else {
+        console.log("####", Date.now() - dataStore.allDataContainer.temp_setting_1_week[undefined][1]);
+    }
 };
 
 /* Wrapper arround an instance of the DisplaySettings calss so we can use it as a callback easily. */

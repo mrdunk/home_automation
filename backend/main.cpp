@@ -9,8 +9,11 @@
 #include <mutex>
 #include <fstream>
 #include <sys/stat.h>
-#include <thread>         // std::thread
+#include <thread>           // std::thread
 #include <algorithm>        // std::count
+
+#define MIN_TEMP -55    // degrees centegrade
+#define MAX_TEMP 125    // degrees centegrade
 
 using namespace std;
 
@@ -136,12 +139,44 @@ int minutesIntoWeek(void){
     return ret_val;
 }
 
+int SwitchHeating(int state){
+    string jsonText = "[{\"type\":\"output\",\"data\":{\"key\":\"heatOnOff\",\"label\":\"output\",\"val\":\"" + to_string(state) + "\"}}]";
+    Document document;
+    document.Parse(jsonText.c_str());
+    return JSONtoInternal(&document);
+}
+
+int ClearUserInput(void){
+    string jsonText = "[{\"type\":\"userInput\",\"data\":{\"key\":\"heatOnOff\",\"label\":\"controler\",\"val\":\"0\"}}]";
+    Document document;
+    document.Parse(jsonText.c_str());
+    return JSONtoInternal(&document);
+}
 
 void houseKeeping(void){
+    // Counter for main event loop.
     int counter;
+
     map<string, string> arguments;
     Document array;
 
+    // Average value of all temperature sensors.
+    float averageTemperature;
+    int activeTemperatureSensors;
+
+    // The saved temperature for this time.
+    float configuredTemperature;
+
+    // User input button value.
+    int userInput;
+
+    // Tempary holder for user desision when it disagrees with configured value.
+    int userOveride;
+
+    // Whether heating is switched on or off.
+    int heatingState = 0;
+
+    // Current time (in minutes after start of week).
     int mins;
 
     while(run){
@@ -153,97 +188,102 @@ void houseKeeping(void){
         }
         //cout << "+" << endl;
 
-        // Save any user input from the last 5 minutes.
-        arguments.clear();
-        arguments["type"] = "userInput";
-        arguments["age"] = "300";  // 5 minutes.
-        InternalToJSON(&array, &arguments);
-        //cout << array.write_formatted() << endl;
         mins = minutesIntoWeek();
-        double val;
-        int most_recent = 300;  // Matches 5 minutes for "age" above.
-        // Loop through all nodes received.
-        for(SizeType i = 0; i < array.Size(); i++){
-            int error = 0;
-            // We are only interested if this is a more recent node.
-            Value::ConstMemberIterator itr_age = array[i].FindMember("age");
-            if(itr_age != array[i].MemberEnd()){
-                if(itr_age->value.GetInt() < most_recent){
-                    most_recent = itr_age->value.GetInt();
 
-                    Value::ConstMemberIterator itr_data = array[i].FindMember("data");
-                    if(itr_data != array[i].MemberEnd()){
-                        Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
-                        if(itr_val != itr_data->value.MemberEnd()){
-                            if(itr_val->value.IsString()){
-                                try{
-                                    val = stof(itr_val->value.GetString());
-                                } catch (...) {
-                                    error = 1;
-                                }
-                            } else if(itr_val->value.IsNumber()){
-                                val = itr_val->value.GetDouble();
-                            }
-                            if(error == 0){
-                                Cyclic::lookup("temp_setting_1_week")->store(mins, val);
-                            }
-                            //cout << "Stored userInput. age: " << itr_age->value.GetInt() << " val: " << val << endl;
-                        }
-                    }
-                }
-            }
+        // Calculate average temperature of all temperature sensrs.
+        map<string,double> temperatureValues;
+        GetValDouble("sensors", 300, "", "1wire", &temperatureValues);
+        activeTemperatureSensors = averageTemperature = 0;
+        for(auto it_temperature = temperatureValues.begin(); it_temperature!=temperatureValues.end(); ++it_temperature){
+            ++activeTemperatureSensors;
+            averageTemperature += it_temperature->second;
         }
+        averageTemperature /= activeTemperatureSensors;
+
+
+        // Save any user input from the last 5 minutes.
+        map<string,int> userInputValues;
+        GetValInt("userInput", 300, "", "", &userInputValues);
+        userInput = 0;
+        if(userInputValues.size()){
+            userInput = userInputValues.begin()->second;
+        } else {
+            // Storing a null userInput value means there is less work to do on the client, checking time stamps, etc.
+            ClearUserInput();
+        }
+
 
         // Get all active devices on network in the last 5 minutes.
         // We only need save the key as it is the MAC address.
-        arguments.clear();
-        arguments["type"] = "sensors";
-        arguments["age"] = "900";  // 15 minutes.
-        arguments["data"] = "{\"label\":\"net_clients\"}";
-        InternalToJSON(&array, &arguments);
-
-        vector<string> active_hosts;
-        for(SizeType i = 0; i < array.Size(); i++){
-            Value::ConstMemberIterator itr_data = array[i].FindMember("data");
-            if(itr_data != array[i].MemberEnd()){
-                Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
-                if(itr_key != itr_data->value.MemberEnd()){
-                    string key = itr_key->value.GetString();
-                    active_hosts.push_back(key);
-                }
-            }
-        }
+        map<string,string> networkClients;
+        GetValString("sensors", 900, "", "net_clients", &networkClients);
 
         // Now cross refernce those with devices that have people assigned to them.
         // TODO make a setting that allows us to opt a paticular device in/out of this count.
-        arguments.clear();
-        arguments["type"] = "configuration";
-        arguments["data"] = "{\"label\":\"userId\"}";
-        InternalToJSON(&array, &arguments);
-
+        map<string,string> userDevices;
+        GetValString("configuration", 0, "", "userId", &userDevices);
         vector<string> unique_users;
-        for(SizeType i = 0; i < array.Size(); i++){
-            Value::ConstMemberIterator itr_data = array[i].FindMember("data");
-            if(itr_data != array[i].MemberEnd()){
-                Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
-                Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
-                if(itr_key != itr_data->value.MemberEnd() && itr_val != itr_data->value.MemberEnd()){
-                    string key = itr_key->value.GetString();
-                    string userId = itr_val->value.GetString();
-                    //cout << "MAC: " << key << "\tuserId: " << userId << endl;
-
-                    // Check the key is in both tables and userId has only been couted once.
-                    if(userId != "none" && count(active_hosts.begin(), active_hosts.end(), key) && 
-                            count(unique_users.begin(), unique_users.end(), userId) == 0){
-                        unique_users.push_back(userId);
-                    }
-                }
+        for(auto it_userDevs = userDevices.begin(); it_userDevs != userDevices.end(); ++it_userDevs){
+            string macAddr = it_userDevs->first;
+            string userId = it_userDevs->second;
+            if(userId != "none" && networkClients.count(macAddr) > 0 && count(unique_users.begin(), unique_users.end(), macAddr) == 0){
+                unique_users.push_back(macAddr);
             }
         }
-        cout << "Number of active hosts: " << active_hosts.size();
-        cout << "\tNumber of unique users: " << unique_users.size() << endl;
 
         Cyclic::lookup("whos_home_1_week")->store(mins, unique_users.size());
+
+        configuredTemperature = Cyclic::lookup("temp_setting_1_week")->read(mins);
+        
+        cout << "averageTemperature: " << averageTemperature << "\t" << activeTemperatureSensors << endl;
+        cout << "userInput: " << userInput << endl;
+        cout << "configuredTemperature: " << configuredTemperature << endl;
+        cout << "Number of active hosts: " << networkClients.size();
+        cout << "\tNumber of unique users: " << unique_users.size() << endl;
+
+        heatingState = 0;
+        if((unique_users.size() > 0 && averageTemperature < configuredTemperature) || averageTemperature < configuredTemperature -2){
+            // If there are people home, switch on heating if below configured temperature.
+            // If no-one is home, allow it to get 2 degrees colder.
+            heatingState = 1;
+        }
+
+        if(heatingState == 1 && userInput > 0){
+            // We seem to have clicked the userInput button after the heating came on anyway.
+            ClearUserInput();
+            cout << "Strange user input. heatingState: 1  userInput: 1" << endl;
+        } else if(heatingState == 0 && userInput < 0){
+            // We seem to have clicked the userInput button after the heating switched off anyway.
+            ClearUserInput();
+            cout << "Strange user input. heatingState: 0  userInput: -1" << endl;
+        }
+
+        if(heatingState == 0 && userInput > 0){
+            // Heating configured to be off but user has switched on.
+            userOveride = 1;
+        } else if(heatingState == 1 && userInput < 0){
+            // Heating configured to be on but user has switched off.
+            userOveride = 0;
+        } else {
+            userOveride = heatingState;
+        }
+
+        if(heatingState != userOveride){
+            if(userOveride == 0){
+                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature -1);
+            } else {
+                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature +1);
+            }
+            heatingState = userOveride;
+        } else {
+            Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature);
+        }
+
+        SwitchHeating(heatingState);
+
+        cout << "heatingState: " << heatingState << endl;
+        cout << endl;
+
     }
 
     cout << "Closing houseKeeping_thread." << endl;
@@ -281,10 +321,12 @@ int main(int argc, char **argv){
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/put", "POST", &CallbackPost);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
+    daemon.register_path("/tempSettings", "GET", &store_temp_setting_1_week);
 
     ws_server ws_daemon(atoi(argv[1]) +1, &authInstance);
     ws_daemon.register_path("/data", "GET", &CallbackGetData);
     ws_daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
+    ws_daemon.register_path("/tempSettings", "GET", &store_temp_setting_1_week);
 
     authInstance.populateUsers("./", "autherisedusers");
 
