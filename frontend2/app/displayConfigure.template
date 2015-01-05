@@ -1,24 +1,24 @@
 {{#each userDevices}}
-    <div class="menu {{@key}}-all" id="{{@key}}-device" style="display: inline; clear: both;">
+    <div class="menu {{@key}}-all unselectable" id="{{@key}}-device" style="display: inline; clear: both;">
     	{{@key}}
     </div>
 
-    <div class="menu {{@key}}-all">
+    <div class="menu {{@key}}-all unselectable">
 	    {{safeVal net_clients.[0] '&nbsp'}}
     </div>
 
-    <div class="menu {{@key}}-view">
+    <div class="menu {{@key}}-view unselectable">
         {{description.[0]}}
     </div>
-    <div class="menu {{@key}}-edit">
+    <div class="menu {{@key}}-edit unselectable">
         <input id="{{@key}}-description" type="text" name="description" value="{{description_modified.[0]}}" onchange="displaySettingsInstance.onChange('{{@key}}', 'description')">
     </div>
 
-    <div class="menu {{@key}}-view">
+    <div class="menu {{@key}}-view unselectable">
         {{safeVal displayName.[0] '&nbsp'}}
     </div>
 
-    <div class="menu {{@key}}-edit">
+    <div class="menu {{@key}}-edit unselectable">
         <select id="{{@key}}-userId" onchange="displaySettingsInstance.onChange('{{@key}}', 'userId')">
             <option value="">none</option>
             {{#each ../users}}
@@ -28,10 +28,10 @@
     </div>
 
 
-	<div class="menu {{@key}}-view">
+	<div class="menu {{@key}}-view unselectable">
         <button type="button" id="{{@key}}-editButton" style="float:left;" onclick="displaySettingsInstance.onClick('{{@key}}', 'edit')">Edit</button>
     </div>
-    <div class="menu {{@key}}-edit">
+    <div class="menu {{@key}}-edit unselectable">
         <button class="{{@key}}-edit" type="button" id="{{@key}}-saveButton" onclick="displaySettingsInstance.onClick('{{@key}}', 'save')">Save</button>
         <button class="{{@key}}-edit" type="button" id="{{@key}}-cancelButton" onclick="displaySettingsInstance.onClick('{{@key}}', 'cancel')">Cancel</button>
     </div>

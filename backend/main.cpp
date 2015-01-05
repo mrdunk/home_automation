@@ -201,9 +201,9 @@ void houseKeeping(void){
         averageTemperature /= activeTemperatureSensors;
 
 
-        // Save any user input from the last 5 minutes.
+        // Save any user input from the last 15 minutes.
         map<string,int> userInputValues;
-        GetValInt("userInput", 300, "", "", &userInputValues);
+        GetValInt("userInput", 15*60, "", "", &userInputValues);
         userInput = 0;
         if(userInputValues.size()){
             userInput = userInputValues.begin()->second;
@@ -302,7 +302,7 @@ int main(int argc, char **argv){
 
 
     Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path, &fileUtilsInstance);
-    Cyclic store_temp_setting_1_week("temp_setting_1_week", 2, MINS_IN_WEEK, 10, 20, str_data_path, &fileUtilsInstance);
+    Cyclic store_temp_setting_1_week("temp_setting_1_week", 15, MINS_IN_WEEK, 1, 20, str_data_path, &fileUtilsInstance);
 
     Cyclic::lookup("whos_home_1_week")->restoreFromDisk();
 

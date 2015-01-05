@@ -199,9 +199,12 @@ void Cyclic::to_JSON(Document* p_JSON_output, int step_size){
 
     Value data(kObjectType);
     Value key;
+    Value label;
     key.SetString(unique_id.c_str(), p_JSON_output->GetAllocator());
+    label.SetString(unique_id.c_str(), p_JSON_output->GetAllocator());
     data.AddMember("key", key, p_JSON_output->GetAllocator());
     data.AddMember("val", content, p_JSON_output->GetAllocator());
+    data.AddMember("label", label, p_JSON_output->GetAllocator());
 
     p_JSON_output->SetArray();
     Value node(kObjectType);

@@ -12,6 +12,7 @@ var teperaturesTemplate = Handlebars.compile(loadTemplate("teperatures.template"
 var userBriefTemplate = Handlebars.compile(loadTemplate("userBrief.template"));
 var displayControlTemplate = Handlebars.compile(loadTemplate("displayControl.template"));
 var displayConfigureTemplate = Handlebars.compile(loadTemplate("displayConfigure.template"));
+var temperatureSetPointsTemplate = Handlebars.compile(loadTemplate("temperatureSetPoints.template"));
 
 var dataStore = new DataStore();
 

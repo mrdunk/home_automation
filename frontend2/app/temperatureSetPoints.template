@@ -1,0 +1,34 @@
+<div class="cyclicLabel unselectable" id="all-temperatureSetPoints" style="height: 28px; display: inline; clear: both;">
+    .
+</div>
+{{#each temperatureSetKey}}
+    <div class="cyclicHeader unselectable" id="{{this}}-temperatureSetPoints" style="display: inline;">
+        {{this}}
+    </div>
+{{/each}}
+
+{{#each temperatureSetPoints}}
+    {{#dayStart @key }}
+        <div class="cyclicLabel unselectable" id="{{#day @key }}{{/day}}-temperatureSetPoints" style="display: inline; clear: both;">
+            {{#day @key }}{{/day}}
+        </div>
+    {{/dayStart}}
+
+    <div id="{{@key}}-temperatureSetPoints" class="cyclicBarWrapper unselectable" title="{{this.[1]}}°C" onclick="displaySettingsInstance.onClick('{{@key}}', 'select')"
+            onmousedown="displaySettingsInstance.onMouseDown('{{@key}}')" onmouseup="displaySettingsInstance.onMouseUp('{{@key}}')"
+            onmouseover="displaySettingsInstance.onMouseOver('{{@key}}')">
+        <div style="height: {{this.[0]}}mm;" class="cyclicBar unselectable">
+        </div>
+    </div>
+
+{{/each}}
+
+<div class="cyclicLabel unselectable" id="all-temperatureSetPoints" style="height: 28px; display: inline; clear: both;">
+    .
+</div>
+{{#each temperatureSetKey}}
+    <div class="cyclicHeader unselectable" id="{{this}}-temperatureSetPoints" style="display: inline;">
+        {{this}}
+    </div>
+{{/each}}
+

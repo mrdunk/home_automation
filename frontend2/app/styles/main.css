@@ -544,3 +544,61 @@ p.switch-display
 {
     display: inline;
 }
+
+.cyclicLabel
+{
+    background-color:#00EEEE;
+    width: 50px;
+    height: 20mm;
+    border-style:solid;
+    border-width:1px;
+    float:left;
+}
+
+.cyclicHeader
+{
+    width: 28px;
+    background-color:#00EEEE;
+    border-style:solid;
+    border-width:1px;
+    float:left;
+}
+
+.cyclicBarWrapper
+{
+  width:7px;
+  height:20mm;
+  background-color:#CCCCCC;
+  position:relative;
+  border-color:black;
+  border-style:solid;
+  border-width:1px;
+  float:left;
+}
+
+.cyclicBar
+{
+  width:5px;
+  background-color:#999999;
+  position:absolute;
+  bottom:0;
+}
+
+.cyclicBarWrapper:hover
+{
+  border-color:white;
+  background-color:red;
+}
+
+.unselectable {
+   -moz-user-select: -moz-none;
+   -khtml-user-select: none;
+   -webkit-user-select: none;
+
+   /*
+     Introduced in IE 10.
+     See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+   */
+   -ms-user-select: none;
+   user-select: none;
+}
