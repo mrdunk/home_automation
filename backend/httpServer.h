@@ -22,12 +22,24 @@ extern "C" {
 #define PAGE "<html><head><title>libmicrohttpd</title>"\
              "</head><body>no callback</body></html>"
 
+#define GET             0
+#define POST            1
+#define POSTBUFFERSIZE  1024
+
 using namespace std;
 using namespace rapidjson;
 
 enum http_callback_type{
     _function,
     _class
+};
+
+struct connection_info_struct
+{
+  int connectiontype;
+  char *answerstring;
+  struct MHD_PostProcessor *postprocessor;
+  bool authorised;
 };
 
 struct http_path{
@@ -45,15 +57,23 @@ class HttpCallback{
 };
 
 class http_server{
+        static int post_iterator(void *cls,
+            enum MHD_ValueKind kind,
+            const char *key,              
+            const char *filename,                        
+            const char *content_type,                                   
+            const char *transfer_encoding,                                             
+            const char *data, uint64_t off, size_t size);
+
+        static string connection_to_IP(struct MHD_Connection * connection);
+
         /* Contains all http_path objects we expect to match incoming requests. */
-        vector<http_path> paths;
+        static vector<http_path> paths;
 
         static map<string, string> arguments;
 
         /* Instance of Auth class for verifying valid keys with incoming data. */
         static Auth* p_authInstance;
-
-        static string address_incoming;
 
         struct MHD_Daemon *mhd_daemon;
 
@@ -68,20 +88,11 @@ class http_server{
                                 const char* upload_data, size_t* upload_data_size,
                                 void** ptr);
 
-        /* Called whenever a valid GET is received. */
-        static int ahc_response_get(void*, struct MHD_Connection*, struct http_path* path);
-                //int(*callback)(std::string*, map<string, string>*));
-
-        /* Called whenever a valid POST is received. */
-        static int ahc_response_post(void*, struct MHD_Connection*, struct http_path* path,
-                //int(*callback)(std::string*, map<string, string>*), 
-                const char*, size_t*, void**);
-
         /* Called when a client first makes a TCP connection to the server. */
         static int on_client_connect(void* cls, const struct sockaddr* addr,
                                      socklen_t address_len);
 
-        static int send_page(struct MHD_Connection* connection, unsigned int status_code, const char* page);
+        static int send_page(struct MHD_Connection *connection, const char *page, unsigned int status_code);
 
         static void post_request_completed (void *cls, struct MHD_Connection *connection, void **con_cls,
                                                                     enum MHD_RequestTerminationCode toe);

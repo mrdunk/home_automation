@@ -146,11 +146,11 @@ bool IsAddressOnLocal(string address, string* p_localAddress, string* p_localMas
 
         s1 = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
         if(s1 == 0){
-            printf("\t\taddress: <%s>\n", host);
+            cout << "address: " << host << endl;
         }
         s2 = getnameinfo(ifa->ifa_netmask, sizeof(struct sockaddr_in), mask, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
         if(s2 == 0){ 
-            printf("\t\tmask: <%s>\n", mask); 
+            cout << "mask:    " << mask << endl; 
         }
         if(IPShareNetwork(address, host, mask) and s1 == 0 and s2 == 0){
             localAddress = host;

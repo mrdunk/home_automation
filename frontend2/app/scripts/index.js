@@ -13,7 +13,7 @@ var userBriefTemplate = Handlebars.compile(loadTemplate("userBrief.template"));
 var displayControlTemplate = Handlebars.compile(loadTemplate("displayControl.template"));
 var displayConfigureTemplate = Handlebars.compile(loadTemplate("displayConfigure.template"));
 var temperatureSetPointsTemplate = Handlebars.compile(loadTemplate("temperatureSetPoints.template"));
-
+var temperatureSetPointsControlsTemplate = Handlebars.compile(loadTemplate("temperatureSetPointsControls.template"));
 var dataStore = new DataStore();
 
 var thermometerSvg;

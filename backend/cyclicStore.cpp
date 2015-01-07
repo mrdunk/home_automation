@@ -53,6 +53,24 @@ Cyclic* Cyclic::lookup(string unique_id){
     return NULL;
 }
 
+void Cyclic::overwriteValue(int _time, int value){
+    // Convert time to number of devisions.
+    int time = _time / mins_per_division;
+    while(time < 0){
+        time += divisions;
+    }
+    while(time >= divisions){
+        time -= divisions;
+    }
+
+    p_container[time] = value;
+
+    // write p_container[time] to file.
+    string output_line = to_string(time) + " " +
+        to_string(p_container[time]);
+    p_fileUtilsInstance->write(working_dir, filename_active, output_line);
+}
+
 void Cyclic::store(int _time, int value){
     // Convert time to number of devisions.
     int time = _time / mins_per_division;

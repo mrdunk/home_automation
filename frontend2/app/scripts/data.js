@@ -59,8 +59,14 @@ function DataStore(){
     this.setupConnections("send");
 }
 
-DataStore.prototype.parseIncoming = function(incomingData){
+DataStore.prototype.parseIncoming = function(incomingData, code){
     'use strict';
+    //console.log("DataStore.parseIncoming", incomingData, code);
+    if(code !== undefined && code !== 200){
+        console.log("DataStore.parseIncoming ", incomingData, code);
+        return;
+    }
+
     var newObj = [];
     try{
         newObj = JSON.parse(incomingData);
@@ -100,8 +106,13 @@ DataStore.prototype.parseIncoming = function(incomingData){
 
             // Populate the userDataContainer DB with all available data.
             this.userDataContainer[newObj[i].id] = {};
-            this.userDataContainer[newObj[i].id].image = newObj[i].image.url;
+            if(newObj[i].image !== undefined){
+                this.userDataContainer[newObj[i].id].image = newObj[i].image.url;
+            }
             this.userDataContainer[newObj[i].id].displayName = newObj[i].displayName;
+            if(this.userDataContainer[newObj[i].id].home === undefined){
+                this.userDataContainer[newObj[i].id].home = false;
+            }
 
             // Loop through network devices and cross reference about associated users.
             for(j in this.allDataContainer){
@@ -122,17 +133,18 @@ DataStore.prototype.parseIncoming = function(incomingData){
                     } else if(this.userDataContainer[newObj[i].id].description.indexOf(this.allDataContainer[j].description[0]) < 0){
                         this.userDataContainer[newObj[i].id].description.push(this.allDataContainer[j].description[0]);
                     }
-                    //if(!("net_clients" in this.userDataContainer[newObj[i].id])){
-                    //    this.userDataContainer[newObj[i].id].net_clients = [this.allDataContainer[j].net_clients[0]];
-                    //} else if(this.userDataContainer[newObj[i].id].net_clients.indexOf(this.allDataContainer[j].net_clients[0]) < 0){
-                    //    this.userDataContainer[newObj[i].id].net_clients.push(this.allDataContainer[j].net_clients[0]);
-                    //}
                     if(!("macAddr" in this.userDataContainer[newObj[i].id])){
                         this.userDataContainer[newObj[i].id].macAddr = [j];
                         this.userDataContainer[newObj[i].id].net_clients = [this.allDataContainer[j].net_clients[0]];
+                        if(this.allDataContainer[j].net_clients[0] !== ""){
+                            this.userDataContainer[newObj[i].id].home = true;
+                        }
                     } else if(this.userDataContainer[newObj[i].id].macAddr.indexOf(j) < 0){
                         this.userDataContainer[newObj[i].id].macAddr.push(j);
                         this.userDataContainer[newObj[i].id].net_clients.push(this.allDataContainer[j].net_clients[0]);
+                        if(this.allDataContainer[j].net_clients[0] !== ""){
+                            this.userDataContainer[newObj[i].id].home = true;
+                        }
                     }
                 } else if('userId' in this.allDataContainer[j] && this.allDataContainer[j].userId[0] ===""){
                     this.allDataContainer[j].image = [[], Date.now()];
@@ -236,20 +248,24 @@ ConnectionsToSend.prototype.registerRequest = function(key, serverList, method){
 
 ConnectionsToSend.prototype.send = function(key, sendData, callback, retries){
     'use strict';
-    console.log("ConnectionsToSend.send");
+    console.log("ConnectionsToSend.send", key, sendData);
 
     if(retries !== undefined && retries !== 0){
         // call this function again later unless callbackWrapper() is called.
         retries -= 1;
-        this.retry = setTimeout(function(){this.send(key, sendData, callback, retries);}.bind(this), this.sendTimeout);
+        this.retry = setTimeout(function(){this.send(key, sendData, callback, retries
+                                                    );}.bind(this), this.sendTimeout);
     }
 
-    var callbackWrapper = function(data){
-        console.log('callbackWrapper(' + data + ')', retries);
+    var callbackWrapper = function(data, code){
+        console.log('callbackWrapper(' + data + ', ' + code + ')', retries);
         if(this.retry !== undefined){
-            clearTimeout(this.retry);    // No need to retry this function if callback was sucessfully reached.
+            // No need to retry this function if callback was sucessfully reached.
+            clearTimeout(this.retry);
         }
-        callback(data);
+        if(code === 200){
+            callback(data);
+        }
     }.bind(this);
 
     if(this.htmlTargets[key] === undefined){
@@ -261,8 +277,8 @@ ConnectionsToSend.prototype.send = function(key, sendData, callback, retries){
     var serverIndex = this.htmlTargets[key][0][1];
     var serverList = this.htmlTargets[key][0][0][serverIndex];
 
-    var url = serverList[0] + ":" + serverList[2] + "/put";
-    console.log(serverIndex, url);
+    var url = serverList[0] + ":" + serverList[2] + "/clientput?key=" + AuthKey;
+    console.log(serverIndex, url, sendData);
     var httpRequest;
 
     if(!(url in this.htmlAttempt)){
@@ -284,8 +300,10 @@ ConnectionsToSend.prototype.send = function(key, sendData, callback, retries){
             this.send(key, sendData, callback, retries);
             return;
         }
-        if(!httpRequest.busy && (httpRequest.xmlHttp.status > 0 || Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
-            // Busy flag not set and last try got through to server (or was long enough ago to try again).
+        if(!httpRequest.busy && (httpRequest.xmlHttp.status > 0 || 
+                    Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
+            // Busy flag not set and last try got through to server
+            // (or was long enough ago to try again).
             httpRequest.initialise(sendData);
             this.htmlAttempt[url][1] = Date.now();
             //console.log("* ", url, path);
@@ -306,7 +324,8 @@ function ConnectionsToPoll(){
 /* Register a query to be sent to server(s) at specified intervals.
  *
  * Args:
- *   serverList: [[server_FQDN, WebSoccket_port, HTTP_port], [server_FQDN_2, WebSoccket_port_2, HTTP_port_2], [etc]]
+ *   serverList: [[server_FQDN, WebSoccket_port, HTTP_port],
+ *                [server_FQDN_2, WebSoccket_port_2, HTTP_port_2], [etc]]
  *   method:     GET/POST/etc
  *   path:       Data to be sent. Sent in Path for HTTP-GET. Sent as payload for WS-GET.
  *   timeBetweenRequests: Number of ms to wait before doing this again. */
@@ -317,7 +336,8 @@ ConnectionsToPoll.prototype.registerRequest = function(serverList, method, path,
     if(path in this.requestQueue){
         clearTimeout(this.requestQueue.path[2]);
     }
-    var timer = window.setInterval(function(){this.doRequest(serverList, method, path, callback);}.bind(this), timeBetweenRequests);
+    var timer = window.setInterval(function(){this.doRequest(serverList, method, path, callback
+                                                            );}.bind(this), timeBetweenRequests);
     this.requestQueue[path] = [serverList, timeBetweenRequests, timer, callback];
 
     // As well as queueing it up for later, also do it now.
@@ -424,7 +444,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
                     this.htmlAttempt[url] = [httpRequest, Date.now()];
                 } else {
                     httpRequest = this.htmlAttempt[url][0];
-                    if(!httpRequest.busy && (httpRequest.xmlHttp.status === 200 || Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
+                    if(!httpRequest.busy && ([200, 403].indexOf(httpRequest.xmlHttp.status) >= 0 || Date.now() - this.htmlAttempt[url][1] > this.retryConnectionTimeout)){
                         // Busy flag not set and last try was sucessfull (or was long enough ago to try again).
                         httpRequest.initialise(null);
                         this.htmlAttempt[url][1] = Date.now();
@@ -530,7 +550,7 @@ HTTP.prototype.initialise = function(sendData){
     this.busy = 1;
     this.xmlHttp = new XMLHttpRequest();
 
-    if ("withCredentials" in this.xmlHttp){
+    if("withCredentials" in this.xmlHttp){
         // Firefox, Chrome, etc.
         this.xmlHttp.open(this.method, "http://" + this.url, true );
         //console.log('FF, Chrome', 'XDomain');
@@ -548,8 +568,8 @@ HTTP.prototype.initialise = function(sendData){
 
     try {
         if(this.method.toUpperCase() === "POST"){
-            //this.xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-            this.xmlHttp.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
+            this.xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            //this.xmlHttp.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
         }
         this.xmlHttp.onloadstart = function(evt) { this.onloadstart(evt); }.bind(this);
         this.xmlHttp.onprogress = function(evt) { this.onprogress(evt); }.bind(this);
@@ -600,13 +620,13 @@ HTTP.prototype.ontimeout = function(evt){
 
 HTTP.prototype.onloadend = function(evt){
     'use strict';
-    //console.log("onloadend", evt);
+    //console.log("onloadend", evt, this.xmlHttp.status);
     //console.log(this.xmlHttp);
     //console.log(evt.type);
-    if(!this.error && this.xmlHttp.status === 200){
+    if(!this.error && [200, 403].indexOf(this.xmlHttp.status) >= 0){
         //console.log("HTTP.onloadend", this.xmlHttp.status, this.xmlHttp.statusText);//.length);
         if(this.callback !== undefined){
-            this.callback(this.xmlHttp.responseText);
+            this.callback(this.xmlHttp.responseText, this.xmlHttp.status);
         }
     }
     this.busy = 0;

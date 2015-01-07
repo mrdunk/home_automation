@@ -321,7 +321,7 @@ function whoshome(clear){
 
     // Modify existing.
     workspace
-        .filter(function(d){return "macAddr" in d.value;})
+        .filter(function(d){return d.value.home;})
         .html(userBriefTemplate)
         .attr("class", "whosHome")
         .on("click", onClick)
@@ -330,7 +330,7 @@ function whoshome(clear){
     // Append new.
     workspace.enter()
         .append("div")
-        .filter(function(d){return "macAddr" in d.value;})
+        .filter(function(d){return d.value.home;})
         .html(userBriefTemplate)
         .attr("class", "whosHome")
         .on("click", onClick)

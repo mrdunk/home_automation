@@ -68,6 +68,10 @@ class Cyclic : public HttpCallback {
         /* Queue data to be committed at end of time segment. */
         void store(int time, int value);
 
+        /* Overwrite the value at _time.
+         * This does not do any averaging of values or try to ignore jitter. */
+        void overwriteValue(int _time, int value);
+
         /* Return value associated with a time segment. */
         float read(int time);
 

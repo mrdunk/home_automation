@@ -320,6 +320,7 @@ int main(int argc, char **argv){
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
     daemon.register_path("/put", "POST", &CallbackPost);
+    daemon.register_path("/clientput", "POST", &CallbackPost);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
     daemon.register_path("/tempSettings", "GET", &store_temp_setting_1_week);
 

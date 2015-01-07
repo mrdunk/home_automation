@@ -6,13 +6,11 @@ var mouseState = "up";
 
 function mouseDown(ev) {
     mouseState = "down";
-    console.log('Down State you can now start dragging');
     //do not write any code here in this function
 }
 
 function mouseUp(ev) {
     mouseState = "up";
-    console.log('up state you cannot drag now because you are not holding your mouse')
     //do not write any code here in this function
 }
 
@@ -111,14 +109,100 @@ DisplaySettings.prototype.onClick = function(devId, action){
 
         this.clearSelected();
         this.selectedTemperatureSetPoints = [devId];
+    } else if(action === 'smooth'){
+        this.smooth();
+    } else if(action === 'set'){
+        this.set();
+    } else if(action === 'cancelTemperature'){
+        this.cancelTemperature();
+    } else if(action === 'saveTemperature'){
+        this.saveTemperature();
     }
-
 
     var activeDevices = document.getElementById("activeDevices");
     this.updateView(activeDevices);
 };
 
+DisplaySettings.prototype.calculateAverageTemp = function(index){
+    'use strict';
+    var temperatureTotal = 0;
+    var temperatureCount = 0;
+    var time;
+    for(var i in this.selectedTemperatureSetPoints){
+        time = this.selectedTemperatureSetPoints[i];
+        if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
+            temperatureTotal += parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time]);
+            temperatureCount += 1;
+        }
+    }
+
+    this.averageTemperature = (temperatureTotal / temperatureCount).toFixed(1);
+
+    document.getElementById("input-temperatureSetPoints").value = this.averageTemperature;
+};
+
+DisplaySettings.prototype.smooth = function(index){
+    'use strict';
+    this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
+    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
+    this.selectedTemperatureSetPointsUnsaved = true;  // We have data to save.
+    this.calculateAverageTemp();
+
+    var time;
+    for(var i in this.selectedTemperatureSetPoints){
+        time = this.selectedTemperatureSetPoints[i];
+                if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
+                    dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] = this.averageTemperature.toString();
+                }
+    }
+};
+
+DisplaySettings.prototype.set = function(index){
+    'use strict';
+    this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
+    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
+    this.selectedTemperatureSetPointsUnsaved = true;  // We have data to save.
+
+    this.averageTemperature = document.getElementById("input-temperatureSetPoints").value;
+    console.log("this.averageTemperature: ", this.averageTemperature);
+    for(var i in this.selectedTemperatureSetPoints){
+        var time = this.selectedTemperatureSetPoints[i];
+                if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
+                    dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] = this.averageTemperature.toString();
+                }
+    }
+};
+
+DisplaySettings.prototype.cancelTemperature = function(index){
+    'use strict';
+    console.log('DisplaySettings.cancelTemperature');
+    this.serverLastQueriedAt = Date.now() - 1000000;  // Make data reload next time the section is drawn.
+    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
+    this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
+};
+
+DisplaySettings.prototype.saveTemperature = function(index){
+    'use strict';
+    console.log('DisplaySettings.saveTemperature');
+    if(this.selectedTemperatureSetPointsUnsaved !== true){
+        return;
+    }
+
+    var dataToSend = [{'type': 'cyclicBufferInput',
+                           'data': {'key': 'temp_setting_1_week',
+                                    'label': 'temp_setting_1_week',
+                                    'val': dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0]
+                                   }
+                         }];
+
+    console.log(dataToSend);
+    dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){console.log(testvar);}, 6);
+
+    this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
+};
+
 DisplaySettings.prototype.onMouseDown = function(index){
+    'use strict';
     var day = Math.floor(index / (60*24));
     var time = index % (60*24);
     console.log(index, day, time);
@@ -127,15 +211,16 @@ DisplaySettings.prototype.onMouseDown = function(index){
 };
 
 DisplaySettings.prototype.onMouseOver = function(index){
+    'use strict';
     if(mouseState === "down"){
         this.onMouseUp(index);
     }
-}
+};
 
 DisplaySettings.prototype.onMouseUp = function(index){
+    'use strict';
     var day = Math.floor(index / (60*24));
     var time = index % (60*24);
-    console.log(index, day, time);
 
     var dayL, dayH, timeL, timeH;
     if(day <= this.dragStartDay){
@@ -155,14 +240,13 @@ DisplaySettings.prototype.onMouseUp = function(index){
 
     this.clearSelected();
 
-    console.log(dayL, dayH, timeL, timeH);
-
     for(var dayItt = dayL; dayItt <= dayH; ++dayItt){
-        for(var timeItt = timeL; timeItt <= timeH; timeItt += 5){
+        for(var timeItt = timeL; timeItt <= timeH; timeItt += 15){
             this.selectedTemperatureSetPoints.push(dayItt * 60 * 24 + timeItt);
         }
     }
 
+    this.calculateAverageTemp();
     this.updateView();
     
 };
@@ -176,6 +260,7 @@ DisplaySettings.prototype.saved = function(data){
 };
 
 DisplaySettings.prototype.clearSelected = function(){
+    'use strict';
     var selectedNode;
     for(var i in this.selectedTemperatureSetPoints){
         selectedNode = document.getElementById(this.selectedTemperatureSetPoints[i] + "-temperatureSetPoints");
@@ -218,6 +303,13 @@ DisplaySettings.prototype.updateView = function(parentNode){
         }
     }
 
+    if(this.selectedTemperatureSetPointsDirty){
+        // Completely redraw temperatureSetPoints section.
+        this.selectedTemperatureSetPointsDirty = false;
+        this.updateTemperatureSetPoints();
+    }
+
+    // highlight selectedTemperatureSetPoints when selected.
     var selectedNode;
     for(var i in this.selectedTemperatureSetPoints){
         selectedNode = document.getElementById(this.selectedTemperatureSetPoints[i] + "-temperatureSetPoints");
@@ -257,13 +349,6 @@ DisplaySettings.prototype.update = function(){
         activeDevices = document.createElement('div');
         activeDevices.id = "activeDevices";
         main.appendChild(activeDevices);
-    }
-    var temperatureSetPoints = document.getElementById("temperatureSetPoints");
-    if(temperatureSetPoints === null){
-        temperatureSetPoints = document.createElement('div');
-        temperatureSetPoints.id = "temperatureSetPoints";
-        temperatureSetPoints.style["vertical-align"] = "bottom";
-        main.appendChild(temperatureSetPoints);
     }
 
     // Create list of devices not yet displayed on page.
@@ -319,15 +404,46 @@ DisplaySettings.prototype.update = function(){
     }
 
 
+    this.updateTemperatureSetPoints();
+
+    this.updateView(activeDevices);
+};
+
+DisplaySettings.prototype.updateTemperatureSetPoints = function(){
+    'use strict';
+    var main = document.getElementsByTagName("main")[0];
+
+    // The week view showing temperature set points.
+    var temperatureSetPoints = document.getElementById("temperatureSetPoints");
+    if(temperatureSetPoints === null){
+        temperatureSetPoints = document.createElement('div');
+        temperatureSetPoints.id = "temperatureSetPoints";
+        temperatureSetPoints.style["vertical-align"] = "bottom";
+        main.appendChild(temperatureSetPoints);
+    }
+
+    // The buttons that we don't want to re-draw.
+    var temperatureSetPointsControls = document.getElementById("temperatureSetPointsControls");
+    if(temperatureSetPointsControls === null){
+        temperatureSetPointsControls = document.createElement('div');
+        temperatureSetPointsControls.id = "temperatureSetPointsControls";
+        temperatureSetPointsControls.style["vertical-align"] = "bottom";
+        main.appendChild(temperatureSetPointsControls);
+        temperatureSetPointsControls.innerHTML = temperatureSetPointsControlsTemplate({});
+    }
+
+
     // Get data from server.
-    if(dataStore.allDataContainer.temp_setting_1_week === undefined ||
-            Date.now() - dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[1] > 10000){
+    if(this.serverLastQueriedAt === undefined || Date.now() - this.serverLastQueriedAt > 600000){
+        this.serverLastQueriedAt = Date.now();
         dataStore.sendQueryNow("house", "/tempSettings?", function(data){console.log("####", data);});
+
+        console.log(this.serverLastQueriedAt);
     }
 
     var time;
     if(dataStore.allDataContainer.temp_setting_1_week !== undefined){
-        populateForm = {};
+        var populateForm = {};
         populateForm.temperatureSetKey = {};
         populateForm.temperatureSetPoints = {};
 
@@ -338,14 +454,15 @@ DisplaySettings.prototype.update = function(){
         }
 
         for(time=0; time < 60*24*7; time += 15){
-            populateForm.temperatureSetPoints[time] = [dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] -10, 
+            populateForm.temperatureSetPoints[time] = [dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] -10,
                 Math.round(10 * dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time]) / 10];
         }
+        console.log("*****");
         temperatureSetPoints.innerHTML = temperatureSetPointsTemplate(populateForm);
-    }
 
-    
-    this.updateView(activeDevices);
+        this.calculateAverageTemp();
+        document.getElementById("input-temperatureSetPoints").value = this.averageTemperature;
+    }
 };
 
 /* Wrapper arround an instance of the DisplaySettings calss so we can use it as a callback easily. */

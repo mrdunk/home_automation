@@ -13,6 +13,8 @@
 #include <vector>
 #include <algorithm>    // std::remove_if
 
+#include "cyclicStore.h"
+
 using namespace std;
 using namespace rapidjson;
 

@@ -104,22 +104,23 @@ int JSONtoInternal(Document* p_JSON_input){
         string type;
         map<string, string> data;
 
-        Value::ConstMemberIterator itr_type = (*p_JSON_parent_array)[node_num].FindMember("type");
-        if(itr_type != (*p_JSON_parent_array)[node_num].MemberEnd()){
-            if(itr_type->value.IsString()){
-                type = itr_type->value.GetString();
-            } else if(itr_type->value.IsNumber()){
-                type = to_string(itr_type->value.GetDouble());
+        //Value::ConstMemberIterator itr_type = (*p_JSON_parent_array)[node_num].FindMember("type");
+        //if(itr_type != (*p_JSON_parent_array)[node_num].MemberEnd()){
+        if((*p_JSON_parent_array)[node_num].HasMember("type")){
+            if((*p_JSON_parent_array)[node_num]["type"].IsString()){
+                type = (*p_JSON_parent_array)[node_num]["type"].GetString();
+            } else if((*p_JSON_parent_array)[node_num]["type"].IsNumber()){
+                type = to_string((*p_JSON_parent_array)[node_num]["type"].GetDouble());
             } else {
                 valid = 0;
             }
         } else {
             valid = 0;
         }
-
-        Value::ConstMemberIterator itr_data = (*p_JSON_parent_array)[node_num].FindMember("data");
-        if(itr_data != (*p_JSON_parent_array)[node_num].MemberEnd()){
-            for (Value::ConstMemberIterator itr_conents = itr_data->value.MemberBegin(); itr_conents != itr_data->value.MemberEnd(); ++itr_conents){
+        
+        if((*p_JSON_parent_array)[node_num].HasMember("data")){
+            for(Value::ConstMemberIterator itr_conents = (*p_JSON_parent_array)[node_num]["data"].MemberBegin(); 
+                    itr_conents != (*p_JSON_parent_array)[node_num]["data"].MemberEnd(); ++itr_conents){
                 if(itr_conents->value.IsString()){
                     data[itr_conents->name.GetString()] = itr_conents->value.GetString();
                 } else if(itr_conents->value.IsNumber()){
@@ -131,25 +132,44 @@ int JSONtoInternal(Document* p_JSON_input){
             valid = 0;
         }
         
-        // Must have "type" and "data" values.
-        // "data" must contain "key", "label" and "val".
         if(valid){
-            if(data.count("label") == 0){
-                data["label"] = "";
-            }
-            if(data.count("key") == 0){
-                data["key"] = "";
-            }
-            if(data.count("val") == 0){
-                data["val"] = "";
-            }
+            if(type == "cyclicBufferInput"){
+                // This is data dump to a cyclicBuffer.
+                cout << (*p_JSON_parent_array)[node_num]["data"]["val"]["0"].GetString() << endl;
+                
+                if((*p_JSON_parent_array)[node_num]["data"].HasMember("val") && (*p_JSON_parent_array)[node_num]["data"].HasMember("label")){
+                    int time, value;
+                    string label = (*p_JSON_parent_array)[node_num]["data"]["label"].GetString();
 
-            struct data_node new_node;
-            new_node.type = type;
-            new_node.data = data;
-            time(&(new_node.time));
+                    for(Value::ConstMemberIterator itr_val = (*p_JSON_parent_array)[node_num]["data"]["val"].MemberBegin(); 
+                            itr_val != (*p_JSON_parent_array)[node_num]["data"]["val"].MemberEnd(); ++itr_val){
+                        //cout << itr_val->name.GetString() << "\t" << itr_val->value.GetString() << endl;
+                        time = atoi(itr_val->name.GetString());
+                        value = atoi(itr_val->value.GetString());
+                        Cyclic::lookup(label)->overwriteValue(time, value);
+                    }
+                } else {
+                    cout << "Malformed JSON." << endl;
+                }
+            } else {
+                // This is a regular update. Save in the DB.
+                if(data.count("label") == 0){
+                    data["label"] = "";
+                }
+                if(data.count("key") == 0){
+                    data["key"] = "";
+                }
+                if(data.count("val") == 0){
+                    data["val"] = "";
+                }
 
-            data_nodes.push(&new_node);
+                struct data_node new_node;
+                new_node.type = type;
+                new_node.data = data;
+                time(&(new_node.time));
+
+                data_nodes.push(&new_node);
+            }
         }
     }
     return 0;
