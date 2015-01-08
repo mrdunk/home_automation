@@ -1,6 +1,7 @@
 <!-- Import X-Tag -->
 
 <script>
+    'use strict';
     (function(xtag, datastore) {
         xtag.register('x-cyclicBuffer', {
             lifecycle: {
@@ -11,41 +12,60 @@
                 }
             },
             events: {
-                'click': function(devId){
-                    console.log('click', devId.srcElement.id);
+                click: function(devId){
+                    //console.log('click', devId.srcElement.id);
+                    if(devId.srcElement.id.split("-").length !== 2 && 
+                            (devId.srcElement.id.split("-")[1] !== 'temperatureSavePoints' || devId.srcElement.id.split("-")[1] !== 'temperatureSetPoints')){
+                        return;
+                    }
                     var action = devId.srcElement.id.split("-")[0];
 
                     if(action === 'smooth'){
                         this.smooth();
                     } else if(action === 'set'){
-                        this.set();
-                    } else if(action === 'cancelTemperature'){
-                        this.cancelTemperature();
-                    } else if(action === 'saveTemperature'){
-                        this.saveTemperature();
+                        this.setTemperature();
+                    } else if(action === 'cancel'){
+                        this.cancel();
+                    } else if(action === 'save'){
+                        this.save();
+                    } else if(devId.srcElement.id.split("-")[1] === 'temperatureSetPoints'){
+                        this.clicked = true;
+                        xtag.fireEvent(devId.srcElement, 'move');
+                    }
+                },
+                onchange: function(devId){
+                    console.log('onchange', devId.srcElement.id);
+                    var action = devId.srcElement.id.split("-")[0];
+
+                    if(action === 'set'){
+                        this.setTemperature();
                     }
                 },
                 'move': function(devId){
-                    //console.log('move', devId.srcElement.id);
+                    console.log('move', devId.srcElement.id);
                     
-                    if(!devId.srcElement.id){
+                    if(!devId.srcElement.id || devId.srcElement.id.split("-").length !== 2 || devId.srcElement.id.split("-")[1] !== 'temperatureSetPoints'){
                         return;
                     }
+
                     var index = devId.srcElement.id.split("-")[0];
-                    if(mouseState === "down"){
+                    console.log('move', index);
+                    if(mouseState === "down" || this.clicked){
+                        delete this.clicked;
                         var day = Math.floor(index / (60*24));
                         var time = index % (60*24);
                         console.log('dragging', devId.srcElement.id, index, day, time);
 
-                        if(this.dragging === undefined){
+                        if(!this.dragging){
                             // Just started dragging.
                             this.dragging = true;
                             this.dragStartDay = day;
                             this.dragStartTime = time;
+                            this.clearSelected();
                         }
                         this.displayDrag(index);
                     } else {
-                        if(this.dragging !== undefined){
+                        if(this.dragging){
                             // Just finished dragging.
                             delete this.dragging;
                             this.displayDrag(index);
@@ -106,8 +126,6 @@
                         timeH = time;
                     }
 
-                    this.clearSelected();
-
                     for(var dayItt = dayL; dayItt <= dayH; ++dayItt){
                         for(var timeItt = timeL; timeItt <= timeH; timeItt += 15){
                             this.selectedTemperatureSetPoints.push(dayItt * 60 * 24 + timeItt);
@@ -115,7 +133,6 @@
                     }
 
                     this.calculateAverageTemp();
-                    console.log(this.averageTemp, this.selectedTemperatureSetPoints);
                     this.updateView();
                 },
                 updateData: function() {
@@ -127,16 +144,15 @@
                 },
                 draw: function() {
                         console.log("draw");
+
                         var child;
                         var temperatureSetPoints = null;
                         var temperatureSetPointsControls = null;
                         for(child in this.children){
                             if(this.children[child].id ==="temperatureSetPoints"){
-                                console.log(1);
                                 temperatureSetPoints = this.children[child];
                             }
                             if(this.children[child].id === "temperatureSetPointsControls"){
-                                console.log(2);
                                 temperatureSetPointsControls = this.children[child];
                             }
                         }
@@ -164,7 +180,7 @@
                         for(var k in dataStore.allDataContainer){
                             console.log(k);
                         }
-//debugger;
+
                         var time;
                         if(dataStore.allDataContainer.temp_setting_1_week !== undefined){
                             var populateForm = {};
@@ -185,8 +201,9 @@
                             temperatureSetPoints.innerHTML = temperatureSetPointsTemplate(populateForm);
 
                             this.calculateAverageTemp();
-                            document.getElementById("input-temperatureSetPoints").value = this.averageTemperature;
-                        }                        
+                            document.getElementById("set-temperatureSetPoints").value = this.averageTemperature;
+                        }
+                        this.displayDrag();
                 },
                 calculateAverageTemp: function() {
                     var temperatureTotal = 0;
@@ -202,10 +219,9 @@
 
                     this.averageTemperature = (temperatureTotal / temperatureCount).toFixed(1);
 
-                    document.getElementById("input-temperatureSetPoints").value = this.averageTemperature;
+                    document.getElementById("set-temperatureSetPoints").value = this.averageTemperature;
                 },
                 smooth: function(index){
-                    'use strict';
                     console.log('smooth');
                     this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
                     this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
@@ -220,6 +236,55 @@
                         }
                     }
                     this.draw();
+                },
+                setTemperature: function(){
+                    console.log('setTemperature');
+                    this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
+                    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
+                    this.selectedTemperatureSetPointsUnsaved = true;  // We have data to save.
+
+                    this.averageTemperature = document.getElementById("set-temperatureSetPoints").value;
+                    console.log("this.averageTemperature: ", this.averageTemperature);
+                    for(var i in this.selectedTemperatureSetPoints){
+                        var time = this.selectedTemperatureSetPoints[i];
+                        if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
+                            dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] = this.averageTemperature.toString();
+                        }
+                    }
+                    this.draw();
+                },
+                cancel: function(){
+                    console.log('cancel');
+                    this.serverLastQueriedAt = Date.now() - 1000000;  // Make data reload next time the section is drawn.
+                    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
+                    this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
+                    this.updateData();                              // Do a DB lookup.
+                },
+                save: function(){
+                    console.log('save');
+                    if(this.selectedTemperatureSetPointsUnsaved !== true){
+                        return;
+                    }
+
+                    var dataToSend = [{'type': 'cyclicBufferInput',
+                        'data': {'key': 'temp_setting_1_week',
+                            'label': 'temp_setting_1_week',
+                            'val': dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0]
+                        }
+                    }];
+
+                    console.log(dataToSend);
+
+                    function readTemperatureDatacallback(){
+                        dataStore.sendQueryNow("house", "/tempSettings?", function(data){
+                                console.log("Force lookup.", data);
+                                this.updateView();
+                                }.bind(this));
+                    }
+
+                    dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){readTemperatureDatacallback();}, 6);
+
+                    this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
                 }
             }
         });

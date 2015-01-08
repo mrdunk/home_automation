@@ -213,7 +213,7 @@ int http_server::ahc_response(void * cls,
                 //    " or user " + unathenticatedUser + ".";
             }
 
-            return send_page(connection, "test", status_code);
+            return send_page(connection, "ok", status_code);
         }
     }
 

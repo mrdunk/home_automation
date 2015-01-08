@@ -2,14 +2,11 @@
     <button type="button" id="smooth-temperatureSetPoints" style="width:80px;">Smooth</button>
 </div>
 <div class="cyclicHeader unselectable" style="width:80px;">
-    <input class="unselectable" id="input-temperatureSetPoints" type="number" value="{{setValue}}" max="30" min="10" step="0.5" style="width:80px;"
-        onchange="displaySettingsInstance.onClick('temperatureSetPoints', 'set')">
+    <input class="unselectable" id="set-temperatureSetPoints" type="number" value="{{setValue}}" max="30" min="10" step="0.5" style="width:80px;">
 </div>
 <div class="cyclicHeader unselectable" style="width:80px;">
-    <button type="button" id="save-temperatureSavePoints" style="width:80px;" 
-        onclick="displaySettingsInstance.onClick('temperatureSavePoints', 'saveTemperature')">Save</button>
+    <button type="button" id="save-temperatureSavePoints" style="width:80px;">Save</button>
 </div>
 <div class="cyclicHeader unselectable" style="width:80px;">
-    <button type="button" id="cancel-temperatureSavePoints" style="width:80px;"
-        onclick="displaySettingsInstance.onClick('temperatureSavePoints', 'cancelTemperature')">Cancel</button> 
+    <button type="button" id="cancel-temperatureSavePoints" style="width:80px;">Cancel</button> 
 </div>

@@ -2,7 +2,7 @@
     .
 </div>
 {{#each temperatureSetKey}}
-    <div class="cyclicHeader unselectable" id="{{this}}-temperatureSetPoints" style="display: inline;">
+    <div class="cyclicHeader unselectable" style="display: inline;">
         {{this}}
     </div>
 {{/each}}
@@ -14,7 +14,7 @@
         </div>
     {{/dayStart}}
 
-    <div id="{{@key}}-temperatureSetPoints" class="cyclicBarWrapper unselectable" title="{{this.[1]}}°C {{@key}}" onclick="displaySettingsInstance.onClick('{{@key}}', 'select')">
+    <div id="{{@key}}-temperatureSetPoints" class="cyclicBarWrapper unselectable" title="{{this.[1]}}°C {{@key}}">
         <div style="height: {{this.[0]}}mm;" class="cyclicBar unselectable">
         </div>
     </div>
