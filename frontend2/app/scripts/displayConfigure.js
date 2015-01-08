@@ -123,6 +123,7 @@ DisplaySettings.prototype.onClick = function(devId, action){
     this.updateView(activeDevices);
 };
 
+/*
 DisplaySettings.prototype.calculateAverageTemp = function(index){
     'use strict';
     var temperatureTotal = 0;
@@ -155,7 +156,7 @@ DisplaySettings.prototype.smooth = function(index){
                     dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] = this.averageTemperature.toString();
                 }
     }
-};
+};*/
 
 DisplaySettings.prototype.set = function(index){
     'use strict';
@@ -200,7 +201,7 @@ DisplaySettings.prototype.saveTemperature = function(index){
 
     this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
 };
-
+/*
 DisplaySettings.prototype.onMouseDown = function(index){
     'use strict';
     var day = Math.floor(index / (60*24));
@@ -246,11 +247,11 @@ DisplaySettings.prototype.onMouseUp = function(index){
         }
     }
 
-    this.calculateAverageTemp();
+    //this.calculateAverageTemp();
     this.updateView();
     
 };
-
+*/
 DisplaySettings.prototype.saved = function(data){
     'use strict';
     console.log(data);
@@ -258,7 +259,7 @@ DisplaySettings.prototype.saved = function(data){
         dataStore.serverConnectionsToPoll.doRequestsNow();
     }
 };
-
+/*
 DisplaySettings.prototype.clearSelected = function(){
     'use strict';
     var selectedNode;
@@ -269,7 +270,7 @@ DisplaySettings.prototype.clearSelected = function(){
         }
     }
     this.selectedTemperatureSetPoints = [];
-};
+};*/
 
 DisplaySettings.prototype.onChange = function(devId, field){
     'use strict';
@@ -302,7 +303,7 @@ DisplaySettings.prototype.updateView = function(parentNode){
             }
         }
     }
-
+/*
     if(this.selectedTemperatureSetPointsDirty){
         // Completely redraw temperatureSetPoints section.
         this.selectedTemperatureSetPointsDirty = false;
@@ -316,7 +317,7 @@ DisplaySettings.prototype.updateView = function(parentNode){
         if(selectedNode){
             selectedNode.style.borderColor = "red";
         }
-    }
+    }*/
 };
 
 DisplaySettings.prototype.deleteFromView = function(devIds, parentNode){
@@ -413,6 +414,14 @@ DisplaySettings.prototype.updateTemperatureSetPoints = function(){
     'use strict';
     var main = document.getElementsByTagName("main")[0];
 
+    var temperatureSetPoints = document.getElementById('temperatureSetPoints');
+    if(temperatureSetPoints === null){
+        var temperatureSetPoints = document.createElement('x-cyclicBuffer');
+        temperatureSetPoints.id = "temperatureSetPoints";
+        main.appendChild(temperatureSetPoints);
+    }
+
+    /*
     // The week view showing temperature set points.
     var temperatureSetPoints = document.getElementById("temperatureSetPoints");
     if(temperatureSetPoints === null){
@@ -462,7 +471,7 @@ DisplaySettings.prototype.updateTemperatureSetPoints = function(){
 
         this.calculateAverageTemp();
         document.getElementById("input-temperatureSetPoints").value = this.averageTemperature;
-    }
+    }*/
 };
 
 /* Wrapper arround an instance of the DisplaySettings calss so we can use it as a callback easily. */

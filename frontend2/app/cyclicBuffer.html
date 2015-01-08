@@ -1,0 +1,227 @@
+<!-- Import X-Tag -->
+
+<script>
+    (function(xtag, datastore) {
+        xtag.register('x-cyclicBuffer', {
+            lifecycle: {
+                created: function() {
+                    this.innerHTML = this.identifier;
+                    this.updateData();
+                    console.log(dataStore.allDataContainer.temp_setting_1_week);
+                }
+            },
+            events: {
+                'click': function(devId){
+                    console.log('click', devId.srcElement.id);
+                    var action = devId.srcElement.id.split("-")[0];
+
+                    if(action === 'smooth'){
+                        this.smooth();
+                    } else if(action === 'set'){
+                        this.set();
+                    } else if(action === 'cancelTemperature'){
+                        this.cancelTemperature();
+                    } else if(action === 'saveTemperature'){
+                        this.saveTemperature();
+                    }
+                },
+                'move': function(devId){
+                    //console.log('move', devId.srcElement.id);
+                    
+                    if(!devId.srcElement.id){
+                        return;
+                    }
+                    var index = devId.srcElement.id.split("-")[0];
+                    if(mouseState === "down"){
+                        var day = Math.floor(index / (60*24));
+                        var time = index % (60*24);
+                        console.log('dragging', devId.srcElement.id, index, day, time);
+
+                        if(this.dragging === undefined){
+                            // Just started dragging.
+                            this.dragging = true;
+                            this.dragStartDay = day;
+                            this.dragStartTime = time;
+                        }
+                        this.displayDrag(index);
+                    } else {
+                        if(this.dragging !== undefined){
+                            // Just finished dragging.
+                            delete this.dragging;
+                            this.displayDrag(index);
+                        }
+                    }
+                },
+            },
+            accessors: {
+                identifier: {
+                    attribute: {},
+                    get: function(){
+                        return this.getAttribute('identifier') || "none"
+                    },
+                    set: function(value){
+                        this.xtag.data.identifier = value;
+                    }
+                }
+            },
+            methods: {
+                clearSelected: function(){
+                    var selectedNode;
+                    for(var i in this.selectedTemperatureSetPoints){
+                        selectedNode = document.getElementById(this.selectedTemperatureSetPoints[i] + "-temperatureSetPoints");
+                        if(selectedNode){
+                            selectedNode.style.borderColor = "black";
+                        }
+                    }
+                    this.selectedTemperatureSetPoints = [];
+                },
+                updateView: function(){
+                    // highlight selectedTemperatureSetPoints when selected.
+                    var selectedNode;
+                    for(var i in this.selectedTemperatureSetPoints){
+                        selectedNode = document.getElementById(this.selectedTemperatureSetPoints[i] + "-temperatureSetPoints");
+                        if(selectedNode){
+                            selectedNode.style.borderColor = "red";
+                        }
+                    }
+                },
+                displayDrag: function(index){
+                    console.log('displayDrag', index);
+                    var day = Math.floor(index / (60*24));
+                    var time = index % (60*24);
+
+                    var dayL, dayH, timeL, timeH;
+                    if(day <= this.dragStartDay){
+                        dayL = day;
+                        dayH = this.dragStartDay;
+                    } else {
+                        dayL = this.dragStartDay;
+                        dayH = day;
+                    }
+                    if(time <= this.dragStartTime){
+                        timeL = time;
+                        timeH = this.dragStartTime;
+                    } else {
+                        timeL = this.dragStartTime;
+                        timeH = time;
+                    }
+
+                    this.clearSelected();
+
+                    for(var dayItt = dayL; dayItt <= dayH; ++dayItt){
+                        for(var timeItt = timeL; timeItt <= timeH; timeItt += 15){
+                            this.selectedTemperatureSetPoints.push(dayItt * 60 * 24 + timeItt);
+                        }
+                    }
+
+                    this.calculateAverageTemp();
+                    console.log(this.averageTemp, this.selectedTemperatureSetPoints);
+                    this.updateView();
+                },
+                updateData: function() {
+                    // Get data from server.
+                    if(this.serverLastQueriedAt === undefined || Date.now() - this.serverLastQueriedAt > 600000){
+                        this.serverLastQueriedAt = Date.now();
+                        dataStore.sendQueryNow("house", "/tempSettings?", function sendQueryNowCallback(data, code){this.draw();}.bind(this));
+                    }
+                },
+                draw: function() {
+                        console.log("draw");
+                        var child;
+                        var temperatureSetPoints = null;
+                        var temperatureSetPointsControls = null;
+                        for(child in this.children){
+                            if(this.children[child].id ==="temperatureSetPoints"){
+                                console.log(1);
+                                temperatureSetPoints = this.children[child];
+                            }
+                            if(this.children[child].id === "temperatureSetPointsControls"){
+                                console.log(2);
+                                temperatureSetPointsControls = this.children[child];
+                            }
+                        }
+
+                        // The week view showing temperature set points.
+                        if(temperatureSetPoints === null){
+                            temperatureSetPoints = document.createElement('div');
+                            temperatureSetPoints.id = "temperatureSetPoints";
+                            temperatureSetPoints.style["vertical-align"] = "bottom";
+                            this.appendChild(temperatureSetPoints);
+                        }
+
+                        // The buttons that we don't want to re-draw.
+                        if(temperatureSetPointsControls === null){
+                            temperatureSetPointsControls = document.createElement('div');
+                            temperatureSetPointsControls.id = "temperatureSetPointsControls";
+                            temperatureSetPointsControls.style["vertical-align"] = "bottom";
+                            this.appendChild(temperatureSetPointsControls);
+                            temperatureSetPointsControls.innerHTML = temperatureSetPointsControlsTemplate({});
+                        }
+
+                        console.log(dataStore.allDataContainer);
+                        console.log(dataStore.allDataContainer['temp_setting_1_week']);
+
+                        for(var k in dataStore.allDataContainer){
+                            console.log(k);
+                        }
+//debugger;
+                        var time;
+                        if(dataStore.allDataContainer.temp_setting_1_week !== undefined){
+                            var populateForm = {};
+                            populateForm.temperatureSetKey = {};
+                            populateForm.temperatureSetPoints = {};
+
+                            // Populate key data.
+                            dataStore.allDataContainer.temp_setting_1_week.temperatureSetKey = {};
+                            for(time=0; time < 60*24; time += 60){
+                                populateForm.temperatureSetKey[time] = Math.round(time / 60);
+                            }
+
+                            for(time=0; time < 60*24*7; time += 15){
+                                populateForm.temperatureSetPoints[time] = [dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] -10,
+                                    Math.round(10 * dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time]) / 10];
+                            }
+                            console.log("*****");
+                            temperatureSetPoints.innerHTML = temperatureSetPointsTemplate(populateForm);
+
+                            this.calculateAverageTemp();
+                            document.getElementById("input-temperatureSetPoints").value = this.averageTemperature;
+                        }                        
+                },
+                calculateAverageTemp: function() {
+                    var temperatureTotal = 0;
+                    var temperatureCount = 0;
+                    var time;
+                    for(var i in this.selectedTemperatureSetPoints){
+                        time = this.selectedTemperatureSetPoints[i];
+                        if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
+                            temperatureTotal += parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time]);
+                            temperatureCount += 1;
+                        }
+                    }
+
+                    this.averageTemperature = (temperatureTotal / temperatureCount).toFixed(1);
+
+                    document.getElementById("input-temperatureSetPoints").value = this.averageTemperature;
+                },
+                smooth: function(index){
+                    'use strict';
+                    console.log('smooth');
+                    this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
+                    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
+                    this.selectedTemperatureSetPointsUnsaved = true;  // We have data to save.
+                    this.calculateAverageTemp();
+
+                    var time;
+                    for(var i in this.selectedTemperatureSetPoints){
+                        time = this.selectedTemperatureSetPoints[i];
+                        if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
+                            dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] = this.averageTemperature.toString();
+                        }
+                    }
+                    this.draw();
+                }
+            }
+        });
+    })(xtag);
+</script>

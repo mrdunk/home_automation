@@ -479,3 +479,4 @@ function setThermometerTemp(d, i){
 
     return thermometerSvg.innerHTML;
 }
+

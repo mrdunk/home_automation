@@ -74,6 +74,7 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
     } catch(e) {
         console.log(e);
         console.log(incomingData);
+        return;
     }
 
     var i, j, key, label, val;
@@ -158,6 +159,13 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
     console.log(this.userDataContainer);
 
     this.doCallbacks();
+
+    // We can also specify an aditional callback to perform when we have explicetly requested data
+    // (rather than receiving it as a scheduled event).
+    if(this.additionalCallback){
+        this.additionalCallback();
+        delete this.additionalCallback;
+    }
 };
 
 /* Perform any callback fuctions that have been registered. */
@@ -224,7 +232,8 @@ DataStore.prototype.setupConnections = function(role){
  */
 DataStore.prototype.sendQueryNow = function(destination, path, callback){
     'use strict';
-    
+    console.log("DataStore.sendQueryNow");
+    this.additionalCallback = callback;
     if(destination === "house"){
         this.serverConnectionsToPoll.doRequest(this.serverHouse, "GET", path, callback);
     } else if(destination === "appengine"){
