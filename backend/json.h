@@ -22,7 +22,7 @@ using namespace rapidjson;
  *     'data': {'host': STRING,
  *              'label': STRING,
  *              'key': STRING,
- *              'value': STRING
+ *              'val': STRING
  *             }
  *   },
  *   { etc..}
@@ -56,7 +56,9 @@ struct s_data_nodes{
     mutex lock_container;
 
     void push(struct data_node* node);
+
     vector<struct data_node> lookup(map<string,string>* p_arguments);
+    void lookup(map<string,string>* p_arguments, vector<struct data_node>* p_return_values);
 };
 
 
@@ -76,9 +78,12 @@ void InternalToJSON(Document* p_JSON_output, map<string, string>* p_arguments);
  *      label: data.label field from the JSON object. Will return only matching entries if specified.
  *      p_retVals: Pointer to map object to contain results in key:val format where "key" and "val" are 
  *            from "data" in the JSON object.
+ *            the map can have string, int or double as it's return type, depending on what is expected
+ *            in the "val" attribute of the data struct.
  */
-void GetValInt(string type, int age, string key, string label, map<string,int>* p_retVals);
-void GetValDouble(string type, int age, string key, string label, map<string,double>* p_retVals);
-void GetValString(string type, int age, string key, string label, map<string,string>* p_retVals);
+void GetData(string type, int age, string key, string label, vector<struct data_node>* p_retVals);
+void GetData(string type, int age, string key, string label, map<string,string>* p_retVals);
+void GetData(string type, int age, string key, string label, map<string,int>* p_retVals);
+void GetData(string type, int age, string key, string label, map<string,double>* p_retVals);
 
 #endif  // JSON_H

@@ -1,0 +1,32 @@
+<p>title: {{bufferMetadata.unique_id}} {{bufferMetadata.displaymin}}</p>
+<div class="cyclicLabel unselectable" style="height: 28px; display: inline; clear: both;">
+    .
+</div>
+{{#each humanKey}}
+    <div class="cyclicHeader unselectable" style="display: inline; width: {{../bufferMetadata.headerWidth}}px">
+        {{this}}
+    </div>
+{{/each}}
+
+{{#each data}}
+    {{#dayStart @key }}
+        <div class="cyclicLabel unselectable" style="display: inline; clear: both;">
+            {{#day @key }}{{/day}}
+        </div>
+    {{/dayStart}}
+
+    <div id="{{@key}}-{{../bufferMetadata.unique_id}}-setPoints" class="cyclicBarWrapper unselectable" style="width: {{../bufferMetadata.cellWidth}}px;" title="{{this.[1]}}°C {{@key}}">
+        <div style="height: {{this.[0]}}mm; width: {{math ../bufferMetadata.cellWidth '-' 2}}px" class="cyclicBar unselectable"></div>
+    </div>
+
+{{/each}}
+
+<div class="cyclicLabel unselectable" style="height: 28px; display: inline; clear: both;">
+    .
+</div>
+{{#each humanKey}}
+    <div class="cyclicHeader unselectable" style="display: inline; width: {{../bufferMetadata.headerWidth}}px">
+        {{this}}
+    </div>
+{{/each}}
+

@@ -15,6 +15,8 @@
 #define MIN_TEMP -55    // degrees centegrade
 #define MAX_TEMP 125    // degrees centegrade
 
+#define READAHEAD 30    // control temperature acording to how it is set this far in the future.
+
 using namespace std;
 
 /* [ { 'type': STRING, 
@@ -167,6 +169,9 @@ void houseKeeping(void){
     // The saved temperature for this time.
     float configuredTemperature;
 
+    // Chance of users being home.
+    float usersAtHome;
+
     // User input button value.
     int userInput;
 
@@ -192,7 +197,7 @@ void houseKeeping(void){
 
         // Calculate average temperature of all temperature sensrs.
         map<string,double> temperatureValues;
-        GetValDouble("sensors", 300, "", "1wire", &temperatureValues);
+        GetData("sensors", 300, "", "1wire", &temperatureValues);
         activeTemperatureSensors = averageTemperature = 0;
         for(auto it_temperature = temperatureValues.begin(); it_temperature!=temperatureValues.end(); ++it_temperature){
             ++activeTemperatureSensors;
@@ -201,9 +206,9 @@ void houseKeeping(void){
         averageTemperature /= activeTemperatureSensors;
 
 
-        // Save any user input from the last 15 minutes.
+        // Save any user input from the last 60 minutes.
         map<string,int> userInputValues;
-        GetValInt("userInput", 15*60, "", "", &userInputValues);
+        GetData("userInput", 60*60, "", "", &userInputValues);
         userInput = 0;
         if(userInputValues.size()){
             userInput = userInputValues.begin()->second;
@@ -216,12 +221,12 @@ void houseKeeping(void){
         // Get all active devices on network in the last 5 minutes.
         // We only need save the key as it is the MAC address.
         map<string,string> networkClients;
-        GetValString("sensors", 900, "", "net_clients", &networkClients);
+        GetData("sensors", 900, "", "net_clients", &networkClients);
 
         // Now cross refernce those with devices that have people assigned to them.
         // TODO make a setting that allows us to opt a paticular device in/out of this count.
         map<string,string> userDevices;
-        GetValString("configuration", 0, "", "userId", &userDevices);
+        GetData("configuration", 0, "", "userId", &userDevices);
         vector<string> unique_users;
         for(auto it_userDevs = userDevices.begin(); it_userDevs != userDevices.end(); ++it_userDevs){
             string macAddr = it_userDevs->first;
@@ -234,17 +239,24 @@ void houseKeeping(void){
         Cyclic::lookup("whos_home_1_week")->store(mins, unique_users.size());
 
         configuredTemperature = Cyclic::lookup("temp_setting_1_week")->read(mins);
+        if(unique_users.size() > 0){
+            usersAtHome = 1;
+        } else {
+            usersAtHome = Cyclic::lookup("whos_home_1_week")->read(mins + READAHEAD);
+        }
         
         cout << "averageTemperature: " << averageTemperature << "\t" << activeTemperatureSensors << endl;
         cout << "userInput: " << userInput << endl;
         cout << "configuredTemperature: " << configuredTemperature << endl;
         cout << "Number of active hosts: " << networkClients.size();
         cout << "\tNumber of unique users: " << unique_users.size() << endl;
+        cout << "Chance of users being home: " << usersAtHome << endl;
 
         heatingState = 0;
-        if((unique_users.size() > 0 && averageTemperature < configuredTemperature) || averageTemperature < configuredTemperature -2){
-            // If there are people home, switch on heating if below configured temperature.
-            // If no-one is home, allow it to get 2 degrees colder.
+        if((usersAtHome > 0.5 && averageTemperature < configuredTemperature) || averageTemperature < configuredTemperature -5){
+            // If there are people home or we expect them to be home,
+            // switch on heating if below configured temperature.
+            // If no-one is home, allow it to get 5 degrees colder.
             heatingState = 1;
         }
 
@@ -301,10 +313,11 @@ int main(int argc, char **argv){
     string str_data_path = data_path;
 
 
-    Cyclic store_whos_home_1_week("whos_home_1_week", 10, MINS_IN_WEEK, 100, 0, str_data_path, &fileUtilsInstance);
+    Cyclic store_whos_home_1_week("whos_home_1_week", 30, MINS_IN_WEEK, 10, 0, str_data_path, &fileUtilsInstance);
     Cyclic store_temp_setting_1_week("temp_setting_1_week", 15, MINS_IN_WEEK, 1, 20, str_data_path, &fileUtilsInstance);
 
     Cyclic::lookup("whos_home_1_week")->restoreFromDisk();
+    Cyclic::lookup("temp_setting_1_week")->restoreFromDisk();
 
     cout << "allCyclic.size: " << Cyclic::allCyclic.size() << endl;
 
@@ -322,12 +335,14 @@ int main(int argc, char **argv){
     daemon.register_path("/put", "POST", &CallbackPost);
     daemon.register_path("/clientput", "POST", &CallbackPost);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
-    daemon.register_path("/tempSettings", "GET", &store_temp_setting_1_week);
+    daemon.register_path("/cyclicDB_temp_setting_1_week", "GET", &store_temp_setting_1_week);
+    daemon.register_path("/cyclicDB_whos_home_1_week", "GET", &store_whos_home_1_week);
 
     ws_server ws_daemon(atoi(argv[1]) +1, &authInstance);
     ws_daemon.register_path("/data", "GET", &CallbackGetData);
     ws_daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
-    ws_daemon.register_path("/tempSettings", "GET", &store_temp_setting_1_week);
+    ws_daemon.register_path("/cyclicDB_temp_setting_1_week", "GET", &store_temp_setting_1_week);
+    ws_daemon.register_path("/cyclicDB_whos_home_1_week", "GET", &store_whos_home_1_week);
 
     authInstance.populateUsers("./", "autherisedusers");
 

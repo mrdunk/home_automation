@@ -36,9 +36,9 @@ gtest-all.o:
 	$(CC) -isystem ${GTEST_DIR}/include -I${GTEST_DIR} -pthread -c ${GTEST_DIR}/src/gtest-all.cc
 	ar -rv libgtest.a gtest-all.o
 
-test: gtest-all.o gmock-all.o
+test: gtest-all.o gmock-all.o fileUtils.o
 	$(CC) $(CFLAGS) -Og -isystem ${GTEST_DIR}/include -isystem ${GMOCK_DIR}/include -pthread tests/cyclicStore_test.cpp cyclicStore.cpp \
-		${GTEST_DIR}/src/gtest_main.cc libgtest.a libgmock.a -o tests/cyclicStore_test
+		${GTEST_DIR}/src/gtest_main.cc libgtest.a libgmock.a fileUtils.o -o tests/cyclicStore_test 
 
 gmock-all.o:
 	$(CC) $(CFLAGS) -isystem ${GTEST_DIR}/include -I${GTEST_DIR} -isystem ${GMOCK_DIR}/include -I${GMOCK_DIR} -pthread -c ${GTEST_DIR}/src/gtest-all.cc

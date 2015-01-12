@@ -17,7 +17,11 @@ void s_data_nodes::push(struct data_node* node){
 
 vector<struct data_node> s_data_nodes::lookup(map<string,string>* p_arguments){
     vector<struct data_node> return_list;
+    lookup(p_arguments, &return_list);
+    return return_list;
+}
 
+void s_data_nodes::lookup(map<string,string>* p_arguments, vector<struct data_node>* p_return_values){
     time_t time_now;
     time(&time_now);
 
@@ -69,14 +73,12 @@ vector<struct data_node> s_data_nodes::lookup(map<string,string>* p_arguments){
                 // Match found.
                 potential_node.type = it->type;
                 potential_node.time = it->time;
-                return_list.push_back(potential_node);
+                p_return_values->push_back(potential_node);
             }
 
         }
     }
     lock_container.unlock();
-
-    return return_list;
 }
 
 struct s_data_nodes data_nodes;
@@ -203,10 +205,10 @@ void InternalToJSON(Document* p_JSON_output, map<string, string>* p_arguments){
     }
 }
 
-void GetValInt(string type, int age, string key, string label, map<string,int>* p_retVals){
+void GetData(string type, int age, string key, string label, vector<struct data_node>* p_retVals){
     map<string, string> arguments;
     Document array;
-    
+
     arguments["type"] = type;
     arguments["age"] = to_string(age);
     arguments["data"] = "";
@@ -222,189 +224,46 @@ void GetValInt(string type, int age, string key, string label, map<string,int>* 
     if(arguments["data"] != ""){
         arguments["data"]  = "{" + arguments["data"] + "}";
     }
-        
-    InternalToJSON(&array, &arguments);
 
-#if DEBUG
-    StringBuffer buffer;
-    PrettyWriter<StringBuffer> writer(buffer);
-    array.Accept(writer);
-    cout << buffer.GetString() << endl;
-#endif  // DEBUG
+    data_nodes.lookup(&arguments, p_retVals);
+}
+
+void GetData(string type, int age, string key, string label, map<string,string>* p_retVals){
+    vector<struct data_node> data_node_list;
+    GetData(type, age, key, label, &data_node_list);
 
     p_retVals->clear();
-    int val;
-    
-    for(SizeType i = 0; i < array.Size(); i++){
-        int error = 0;
-        // We are only interested if this is a more recent node.
-        Value::ConstMemberIterator itr_age = array[i].FindMember("age");
-        if(itr_age != array[i].MemberEnd()){
-            if(itr_age->value.GetInt() <= age || age == 0){
-                age = itr_age->value.GetInt();
-
-                Value::ConstMemberIterator itr_data = array[i].FindMember("data");
-                if(itr_data != array[i].MemberEnd()){
-                    Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
-                    Value::ConstMemberIterator itr_label = itr_data->value.FindMember("label");
-                    Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
-                    if((key == "" || itr_key != itr_data->value.MemberEnd()) &&
-                            (label == "" || itr_label != itr_data->value.MemberEnd()) &&
-                            itr_val != itr_data->value.MemberEnd()){
-                        if(itr_val->value.IsString()){
-                            try{
-                                val = stoi(itr_val->value.GetString());
-                            } catch(...) {
-                                error = 1;
-                            }
-                        } else if(itr_val->value.IsNumber()){
-                            val = itr_val->value.GetInt();
-                        }
-                        if(error == 0){
-#if DEBUG
-                            cout << itr_key->value.GetString() << " : " << val << endl;
-#endif  // DEBUG
-                            (*p_retVals)[itr_key->value.GetString()] = val;
-                        }
-                    }
-                }
-            }
-        }
+    for(auto it = data_node_list.begin(); it != data_node_list.end(); ++it){
+        (*p_retVals)[it->data["key"]] = it->data["val"];
     }
 }
 
-void GetValDouble(string type, int age, string key, string label, map<string,double>* p_retVals){
-    map<string, string> arguments;
-    Document array;
-
-    arguments["type"] = type;
-    arguments["age"] = to_string(age);
-    arguments["data"] = "";
-    if(key != ""){
-        arguments["data"] += "\"key\":\"" + key + "\"";
-    }
-    if(label != ""){
-        if(arguments["data"] != ""){
-            arguments["data"] += ",";
-        }
-        arguments["data"] += "\"label\":\"" + label + "\"";
-    }
-    if(arguments["data"] != ""){
-        arguments["data"]  = "{" + arguments["data"] + "}";
-    }
-
-    InternalToJSON(&array, &arguments);
-
-#if DEBUG
-    StringBuffer buffer;
-    PrettyWriter<StringBuffer> writer(buffer);
-    array.Accept(writer);
-    cout << buffer.GetString() << endl;
-#endif  // DEBUG
+void GetData(string type, int age, string key, string label, map<string,int>* p_retVals){
+    vector<struct data_node> data_node_list;
+    GetData(type, age, key, label, &data_node_list);
 
     p_retVals->clear();
-    double val;
-
-    for(SizeType i = 0; i < array.Size(); i++){
-        int error = 0;
-        // We are only interested if this is a more recent node.
-        Value::ConstMemberIterator itr_age = array[i].FindMember("age");
-        if(itr_age != array[i].MemberEnd()){
-            if(itr_age->value.GetInt() <= age || age == 0){
-                age = itr_age->value.GetInt();
-
-                Value::ConstMemberIterator itr_data = array[i].FindMember("data");
-                if(itr_data != array[i].MemberEnd()){
-                    Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
-                    Value::ConstMemberIterator itr_label = itr_data->value.FindMember("label");
-                    Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
-                    if((key == "" || itr_key != itr_data->value.MemberEnd()) &&
-                            (label == "" || itr_label != itr_data->value.MemberEnd()) &&
-                            itr_val != itr_data->value.MemberEnd()){
-                        if(itr_val->value.IsString()){
-                            try{
-                                val = stod(itr_val->value.GetString());
-                            } catch(...) {
-                                error = 1;
-                            }
-                        } else if(itr_val->value.IsNumber()){
-                            val = itr_val->value.GetDouble();
-                        }
-                        if(error == 0){
-#if DEBUG
-                            cout << itr_key->value.GetString() << " : " << val << endl;
-#endif  // DEBUG
-                            (*p_retVals)[itr_key->value.GetString()] = val;
-                        }
-                    }
-                }
-            }
+    for(auto it = data_node_list.begin(); it != data_node_list.end(); ++it){
+        try{
+            (*p_retVals)[it->data["key"]] = stoi(it->data["val"]);
+        } catch(const std::invalid_argument& e){
+            cout << "GetData() stoi error key: " << it->data["key"] << "\t error: " << e.what() << endl;
+            (*p_retVals)[it->data["key"]] = 0;
         }
-    }
+    }   
 }
 
-void GetValString(string type, int age, string key, string label, map<string,string>* p_retVals){
-    map<string, string> arguments;
-    Document array;
-
-    arguments["type"] = type;
-    arguments["age"] = to_string(age);
-    arguments["data"] = "";
-    if(key != ""){
-        arguments["data"] += "\"key\":\"" + key + "\"";
-    }
-    if(label != ""){
-        if(arguments["data"] != ""){
-            arguments["data"] += ",";
-        }
-        arguments["data"] += "\"label\":\"" + label + "\"";
-    }
-    if(arguments["data"] != ""){
-        arguments["data"]  = "{" + arguments["data"] + "}";
-    }
-
-    InternalToJSON(&array, &arguments);
-
-#if DEBUG
-    StringBuffer buffer;
-    PrettyWriter<StringBuffer> writer(buffer);
-    array.Accept(writer);
-    cout << buffer.GetString() << endl;
-#endif  // DEBUG
+void GetData(string type, int age, string key, string label, map<string,double>* p_retVals){
+    vector<struct data_node> data_node_list;
+    GetData(type, age, key, label, &data_node_list);
 
     p_retVals->clear();
-    string val;
-
-    for(SizeType i = 0; i < array.Size(); i++){
-        int error = 0;
-        // We are only interested if this is a more recent node.
-        Value::ConstMemberIterator itr_age = array[i].FindMember("age");
-        if(itr_age != array[i].MemberEnd()){
-            if(itr_age->value.GetInt() <= age || age == 0){
-                age = itr_age->value.GetInt();
-
-                Value::ConstMemberIterator itr_data = array[i].FindMember("data");
-                if(itr_data != array[i].MemberEnd()){
-                    Value::ConstMemberIterator itr_key = itr_data->value.FindMember("key");
-                    Value::ConstMemberIterator itr_label = itr_data->value.FindMember("label");
-                    Value::ConstMemberIterator itr_val = itr_data->value.FindMember("val");
-                    if((key == "" || itr_key != itr_data->value.MemberEnd()) &&
-                            (label == "" || itr_label != itr_data->value.MemberEnd()) &&
-                            itr_val != itr_data->value.MemberEnd()){
-                        if(itr_val->value.IsString()){
-                            val = itr_val->value.GetString();
-                        } else {
-                            error = 1;
-                        }
-                        if(error == 0){
-#if DEBUG
-                            cout << itr_key->value.GetString() << " : " << val << endl;
-#endif  // DEBUG
-                            (*p_retVals)[itr_key->value.GetString()] = val;
-                        }
-                    }
-                }
-            }
+    for(auto it = data_node_list.begin(); it != data_node_list.end(); ++it){
+        try{
+            (*p_retVals)[it->data["key"]] = stod(it->data["val"]);
+        } catch(const std::invalid_argument& e){
+            cout << "GetData() stoi error key: " << it->data["key"] << "\t error: " << e.what() << endl;
+            (*p_retVals)[it->data["key"]] = 0;
         }
-    }
+    }   
 }

@@ -1,0 +1,12 @@
+<div class="cyclicHeader unselectable" style="inline; clear: both; width:80px;">
+    <button type="button" id="smooth-{{unique_id}}-modifyBufferButton" style="width:80px;">Smooth</button>
+</div>
+<div class="cyclicHeader unselectable" style="width:80px;">
+    <input class="unselectable" id="set-{{unique_id}}-modifyBufferButton" type="number" value="{{setValue}}" max="{{displaymax}}" min="{{displaymin}}" step="{{displaystep}}" style="width:80px;">
+</div>
+<div class="cyclicHeader unselectable" style="width:80px;">
+    <button type="button" id="save-{{unique_id}}-modifyBufferButton" style="width:80px;">Save</button>
+</div>
+<div class="cyclicHeader unselectable" style="width:80px;">
+    <button type="button" id="cancel-{{unique_id}}-modifyBufferButton" style="width:80px;">Cancel</button> 
+</div>

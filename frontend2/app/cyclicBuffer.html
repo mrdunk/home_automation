@@ -1,112 +1,195 @@
-<!-- Import X-Tag -->
-
 <script>
     'use strict';
     (function(xtag, datastore) {
         xtag.register('x-cyclicBuffer', {
             lifecycle: {
                 created: function() {
-                    this.innerHTML = this.identifier;
-                    this.updateData();
-                    console.log(dataStore.allDataContainer.temp_setting_1_week);
+                    this.touchState = 'up';
+
+                    // Make sure this gets updated whenever new data arrives.
+                    dataStore.addCallback(function sendQueryNowCallback(data, code){this.draw();}.bind(this));
+
+                    if(this.label){
+                        updateData();
+                    } else {
+                        console.log("label property not set for x-cyclicBuffer yet.");
+                        // Note that we will load data using updateData() when this.label is set.
+                    }
                 }
             },
             events: {
+                touchend: function(devId){
+                    this.touchState = 'up';
+
+                    // Since this callback returns the element where the swipe first started,
+                    // we bluff the ID we send and use the last one we received from the touchmove
+                    // callback.
+                    this.movmentWrapper(this.lastValidIndex + '-' + this.label + '-setPoints', false);
+                },
+                touchstart: function(devId){
+                    console.log('touchstart', devId, devId.srcElement.id);
+                    delete this.dragging;
+                    this.touchState = 'down';
+                },
                 click: function(devId){
-                    //console.log('click', devId.srcElement.id);
-                    if(devId.srcElement.id.split("-").length !== 2 && 
-                            (devId.srcElement.id.split("-")[1] !== 'temperatureSavePoints' || devId.srcElement.id.split("-")[1] !== 'temperatureSetPoints')){
+                    console.log('click', devId.srcElement.id, devId.srcElement.parentNode.id);
+                    var devIdId = devId.srcElement.id;
+                    if(devIdId === ""){
+                        devIdId = devId.srcElement.parentNode.id;
+                    }
+
+                    if(devIdId.split("-").length !== 3 ||
+                            devIdId.split("-")[1] !== this.label ||
+                            (devIdId.split("-")[2] !== 'modifyBufferButton' &&
+                            devIdId.split("-")[2] !== 'setPoints')){
                         return;
                     }
-                    var action = devId.srcElement.id.split("-")[0];
+                    var action = devIdId.split("-")[0];
 
                     if(action === 'smooth'){
                         this.smooth();
                     } else if(action === 'set'){
-                        this.setTemperature();
+                        this.setValue();
                     } else if(action === 'cancel'){
                         this.cancel();
                     } else if(action === 'save'){
                         this.save();
-                    } else if(devId.srcElement.id.split("-")[1] === 'temperatureSetPoints'){
-                        this.clicked = true;
-                        xtag.fireEvent(devId.srcElement, 'move');
+                    } else if(devIdId.split("-")[2] === 'setPoints' && this.touchState === "up"){
+                        this.movmentWrapper(devIdId, true);
                     }
                 },
                 onchange: function(devId){
-                    console.log('onchange', devId.srcElement.id);
+                    //console.log('onchange', devId.srcElement.id);
                     var action = devId.srcElement.id.split("-")[0];
 
                     if(action === 'set'){
-                        this.setTemperature();
+                        this.setValue();
                     }
                 },
-                'move': function(devId){
-                    console.log('move', devId.srcElement.id);
-                    
-                    if(!devId.srcElement.id || devId.srcElement.id.split("-").length !== 2 || devId.srcElement.id.split("-")[1] !== 'temperatureSetPoints'){
-                        return;
+                touchmove: function(devId){
+                    // This callback returns the devId where the swipe first started so we need to use the 
+                    // coordinates to find the element.
+                    var target = document.elementFromPoint(devId.touches[0].pageX, devId.touches[0].pageY);
+                    var devIdId = target.id;
+                    if(devIdId === ""){
+                        devIdId = devId.srcElement.parentNode.id;
                     }
-
-                    var index = devId.srcElement.id.split("-")[0];
-                    console.log('move', index);
-                    if(mouseState === "down" || this.clicked){
-                        delete this.clicked;
-                        var day = Math.floor(index / (60*24));
-                        var time = index % (60*24);
-                        console.log('dragging', devId.srcElement.id, index, day, time);
-
-                        if(!this.dragging){
-                            // Just started dragging.
-                            this.dragging = true;
-                            this.dragStartDay = day;
-                            this.dragStartTime = time;
-                            this.clearSelected();
+                    if(devIdId === ""){
+                        devIdId = target.parentNode.id;
+                    }
+                    this.movmentWrapper(target.id, this.touchState === "down");
+                },
+                move: function(devId){
+                    //console.log('move', devId.srcElement.id);
+                    if(this.touchState === "up"){
+                        var devIdId = devId.srcElement.id;
+                        if(devIdId === ""){
+                            devIdId = devId.srcElement.parentNode.id;
                         }
-                        this.displayDrag(index);
-                    } else {
-                        if(this.dragging){
-                            // Just finished dragging.
-                            delete this.dragging;
-                            this.displayDrag(index);
-                        }
+                        this.movmentWrapper(devIdId, mouseState === "down");
                     }
                 },
             },
             accessors: {
-                identifier: {
-                    attribute: {},
+                label: {
+                    // The label property contains the name of the cyclicBuffer in the DB.
                     get: function(){
-                        return this.getAttribute('identifier') || "none"
+                        return this.getAttribute('label');
                     },
                     set: function(value){
-                        this.xtag.data.identifier = value;
+                        console.log("accessors:label:set: ", value);
+                        this.xtag.data.label = value;
+                        this.setAttribute('label', value);
+                        console.log(this.label);
+
+                        // Get the data from server.
+                        this.updateData();
                     }
-                }
+                },
+                stepsize: {
+                    get: function(){
+                        return this.getAttribute('stepsize');
+                    },
+                    set: function(value){
+                        this.xtag.data.stepsize = value;
+                        this.setAttribute('stepsize', value);
+                        
+                        // Get the data from server.
+                        this.updateData();
+                    }
+                },
+                displaymax: {
+                    get: function(){
+                        return this.getAttribute('displaymax');
+                    },
+                    set: function(value){
+                        this.xtag.data.displaymax = value;
+                        this.setAttribute('displaymax', value);
+                        
+                        // Get the data from server.
+                        this.updateData();
+                    }
+                },
+                displaymin: {
+                    get: function(){
+                        return this.getAttribute('displaymin');
+                    },
+                    set: function(value){
+                        this.xtag.data.displaymin = value;
+                        this.setAttribute('displaymin', value);
+                        
+                        // Get the data from server.
+                        this.updateData();
+                    }
+                },
+                displayscale: {
+                    get: function(){
+                        return this.getAttribute('displayscale');
+                    },
+                    set: function(value){
+                        this.xtag.data.displayscale = value;
+                        this.setAttribute('displayscale', value);
+                        
+                        // Get the data from server.
+                        this.updateData();
+                    }
+                },
+                displaystep: {
+                    get: function(){
+                        return this.getAttribute('displaystep');
+                    },
+                    set: function(value){
+                        this.xtag.data.displaystep = value;
+                        this.setAttribute('displaystep', value);
+                        
+                        // Get the data from server.
+                        this.updateData();
+                    }
+                }                              
             },
             methods: {
                 clearSelected: function(){
                     var selectedNode;
-                    for(var i in this.selectedTemperatureSetPoints){
-                        selectedNode = document.getElementById(this.selectedTemperatureSetPoints[i] + "-temperatureSetPoints");
+                    for(var i in this.selectedSetPoints){
+                        selectedNode = document.getElementById(this.selectedSetPoints[i] + "-" + this.label + "-setPoints");
                         if(selectedNode){
                             selectedNode.style.borderColor = "black";
                         }
                     }
-                    this.selectedTemperatureSetPoints = [];
+                    this.selectedSetPoints = [];
                 },
-                updateView: function(){
-                    // highlight selectedTemperatureSetPoints when selected.
+                updateView: function(colour){
+                    // highlight selectedSetPoints when selected.
                     var selectedNode;
-                    for(var i in this.selectedTemperatureSetPoints){
-                        selectedNode = document.getElementById(this.selectedTemperatureSetPoints[i] + "-temperatureSetPoints");
+                    for(var i in this.selectedSetPoints){
+                        selectedNode = document.getElementById(this.selectedSetPoints[i] + "-" + this.label + "-setPoints");
                         if(selectedNode){
-                            selectedNode.style.borderColor = "red";
+                            selectedNode.style.borderColor = colour;
                         }
                     }
                 },
                 displayDrag: function(index){
-                    console.log('displayDrag', index);
+                    //console.log('displayDrag', index);
                     var day = Math.floor(index / (60*24));
                     var time = index % (60*24);
 
@@ -126,166 +209,231 @@
                         timeH = time;
                     }
 
+                    this.updateView('black');
+                    this.selectedSetPoints = [];
                     for(var dayItt = dayL; dayItt <= dayH; ++dayItt){
-                        for(var timeItt = timeL; timeItt <= timeH; timeItt += 15){
-                            this.selectedTemperatureSetPoints.push(dayItt * 60 * 24 + timeItt);
+                        for(var timeItt = timeL; timeItt <= timeH; timeItt += parseInt(this.stepsize)){
+                            this.selectedSetPoints.push(dayItt * 60 * 24 + timeItt);
                         }
                     }
 
-                    this.calculateAverageTemp();
-                    this.updateView();
+                    this.calculateAverageValue();
+                    this.updateView('red');
                 },
-                updateData: function() {
+                updateData: function(skipUpdateTimeCheck){
+                    if(this.label === 'undefined' || this.stepsize === 'undefined' || this.displaystep === 'undefined' ||
+                            this.displaymax === 'undefined' || this.displaymin === 'undefined'){
+                        // Missing necesary peramiters.
+                        console.log("missing peramiters.", this.label, this.stepsize,
+                                this.displaymax, this.displaymin);
+                        return;
+                    }
+
                     // Get data from server.
-                    if(this.serverLastQueriedAt === undefined || Date.now() - this.serverLastQueriedAt > 600000){
+                    if(!skipUpdateTimeCheck && this.serverLastQueriedAt === undefined || Date.now() - this.serverLastQueriedAt > 600000){
                         this.serverLastQueriedAt = Date.now();
-                        dataStore.sendQueryNow("house", "/tempSettings?", function sendQueryNowCallback(data, code){this.draw();}.bind(this));
+                    //    dataStore.sendQueryNow("house", "/cyclicDB_" + this.label + "?", function sendQueryNowCallback(data, code){this.draw();}.bind(this));
+                        dataStore.sendQueryNow("house", "/cyclicDB_" + this.label + "?");
                     }
                 },
                 draw: function() {
-                        console.log("draw");
+                    console.log("draw", this.label);
 
-                        var child;
-                        var temperatureSetPoints = null;
-                        var temperatureSetPointsControls = null;
-                        for(child in this.children){
-                            if(this.children[child].id ==="temperatureSetPoints"){
-                                temperatureSetPoints = this.children[child];
-                            }
-                            if(this.children[child].id === "temperatureSetPointsControls"){
-                                temperatureSetPointsControls = this.children[child];
-                            }
+                    var child;
+                    var bufferSetPoints = null;
+                    var bufferSetPointsControls = null;
+                    for(child in this.children){
+                        if(this.children[child].id === this.label + "-bufferSetPoints"){
+                            bufferSetPoints = this.children[child];
                         }
-
-                        // The week view showing temperature set points.
-                        if(temperatureSetPoints === null){
-                            temperatureSetPoints = document.createElement('div');
-                            temperatureSetPoints.id = "temperatureSetPoints";
-                            temperatureSetPoints.style["vertical-align"] = "bottom";
-                            this.appendChild(temperatureSetPoints);
-                        }
-
-                        // The buttons that we don't want to re-draw.
-                        if(temperatureSetPointsControls === null){
-                            temperatureSetPointsControls = document.createElement('div');
-                            temperatureSetPointsControls.id = "temperatureSetPointsControls";
-                            temperatureSetPointsControls.style["vertical-align"] = "bottom";
-                            this.appendChild(temperatureSetPointsControls);
-                            temperatureSetPointsControls.innerHTML = temperatureSetPointsControlsTemplate({});
-                        }
-
-                        console.log(dataStore.allDataContainer);
-                        console.log(dataStore.allDataContainer['temp_setting_1_week']);
-
-                        for(var k in dataStore.allDataContainer){
-                            console.log(k);
-                        }
-
-                        var time;
-                        if(dataStore.allDataContainer.temp_setting_1_week !== undefined){
-                            var populateForm = {};
-                            populateForm.temperatureSetKey = {};
-                            populateForm.temperatureSetPoints = {};
-
-                            // Populate key data.
-                            dataStore.allDataContainer.temp_setting_1_week.temperatureSetKey = {};
-                            for(time=0; time < 60*24; time += 60){
-                                populateForm.temperatureSetKey[time] = Math.round(time / 60);
-                            }
-
-                            for(time=0; time < 60*24*7; time += 15){
-                                populateForm.temperatureSetPoints[time] = [dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] -10,
-                                    Math.round(10 * dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time]) / 10];
-                            }
-                            console.log("*****");
-                            temperatureSetPoints.innerHTML = temperatureSetPointsTemplate(populateForm);
-
-                            this.calculateAverageTemp();
-                            document.getElementById("set-temperatureSetPoints").value = this.averageTemperature;
-                        }
-                        this.displayDrag();
-                },
-                calculateAverageTemp: function() {
-                    var temperatureTotal = 0;
-                    var temperatureCount = 0;
-                    var time;
-                    for(var i in this.selectedTemperatureSetPoints){
-                        time = this.selectedTemperatureSetPoints[i];
-                        if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
-                            temperatureTotal += parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time]);
-                            temperatureCount += 1;
+                        if(this.children[child].id === this.label + "-bufferSetPointsControls"){
+                            bufferSetPointsControls = this.children[child];
                         }
                     }
 
-                    this.averageTemperature = (temperatureTotal / temperatureCount).toFixed(1);
+                    // The week view showing data set points.
+                    if(bufferSetPoints === null){
+                        bufferSetPoints = document.createElement('div');
+                        bufferSetPoints.id = this.label + "-bufferSetPoints";
+                        bufferSetPoints.style["vertical-align"] = "bottom";
+                        this.appendChild(bufferSetPoints);
+                        // Note that we haven't populated this div yet.
+                    }
 
-                    document.getElementById("set-temperatureSetPoints").value = this.averageTemperature;
-                },
-                smooth: function(index){
-                    console.log('smooth');
-                    this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
-                    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
-                    this.selectedTemperatureSetPointsUnsaved = true;  // We have data to save.
-                    this.calculateAverageTemp();
+                    // The buttons that we don't want to re-draw.
+                    if(bufferSetPointsControls === null){
+                        bufferSetPointsControls = document.createElement('div');
+                        bufferSetPointsControls.id = this.label + "-bufferSetPointsControls";
+                        bufferSetPointsControls.style["vertical-align"] = "bottom";
+                        this.appendChild(bufferSetPointsControls);
+                        bufferSetPointsControls.innerHTML = bufferSetPointsControlsTemplate({'unique_id': this.label,
+                                                                                             'displaymax': parseInt(this.displaymax),
+                                                                                             'displaymin': parseInt(this.displaymin),
+                                                                                             'displaystep': parseFloat(this.displaystep)});
+                    }
 
                     var time;
-                    for(var i in this.selectedTemperatureSetPoints){
-                        time = this.selectedTemperatureSetPoints[i];
-                        if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
-                            dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] = this.averageTemperature.toString();
+                    if(dataStore.allDataContainer[this.label] !== undefined){
+                        var populateForm = {};
+                        populateForm.humanKey = {};
+                        populateForm.data = {};
+
+                        // Populate key data.
+                        dataStore.allDataContainer[this.label].humanKey = {};
+                        for(time=0; time < 60*24; time += 60){
+                            populateForm.humanKey[time] = Math.round(time / 60);
+                        }
+
+                        // Populate content data.
+                        var maxValue, minValue, averageValue = 0, counterValues = 0, displayValue, actualValue;
+                        for(time=0; time < 60*24*7; time += parseInt(this.stepsize)){
+                            displayValue = (dataStore.allDataContainer[this.label][this.label][0][time] - parseInt(this.displaymin)) * parseInt(this.displayscale);
+                            actualValue = Math.round(10 * dataStore.allDataContainer[this.label][this.label][0][time]) / 10;
+
+                            populateForm.data[time] = [displayValue, actualValue];
+
+                            counterValues += 1;
+                            if(maxValue === undefined || maxValue < parseInt(actualValue)){
+                                maxValue = parseInt(actualValue);
+                            }
+                            if(minValue === undefined || minValue > parseInt(actualValue)){
+                                minValue = parseInt(actualValue);
+                            }
+                            averageValue += parseInt(actualValue);
+                        }
+                        averageValue /= counterValues;
+
+                        // Populate other useful variables.
+                        // Devide widths for sensible resolution when displayed.
+                        populateForm.bufferMetadata = {'headerWidth': 60 / 2,
+                                                       'cellWidth': parseInt(this.stepsize) / 2,
+                                                       'displaymax': parseInt(this.displaymax),
+                                                       'displaymin': parseInt(this.displaymin),
+                                                       'displayscale': parseInt(this.displayscale),
+                                                       'maxValue': maxValue,
+                                                       'minValue': minValue,
+                                                       'averageValue': averageValue,
+                                                       'unique_id': this.label};
+                        bufferSetPoints.innerHTML = bufferSetPointsTemplate(populateForm);
+
+                        this.calculateAverageValue();
+                        document.getElementById("set-" + this.label + "-modifyBufferButton").value = this.averageValue;
+                    }
+                    this.updateView('red');
+                    //this.displayDrag();
+                },
+                calculateAverageValue: function() {
+                    var valueTotal = 0;
+                    var valueCount = 0;
+                    var time;
+                    for(var i in this.selectedSetPoints){
+                        time = this.selectedSetPoints[i];
+                        if(dataStore.allDataContainer[this.label][this.label][0][time] !== undefined){
+                            valueTotal += parseFloat(dataStore.allDataContainer[this.label][this.label][0][time]);
+                            valueCount += 1;
+                        }
+                    }
+                    this.averageValue = (valueTotal / valueCount).toFixed(1);
+                    if(!isNaN(this.averageValue)){
+                        document.getElementById("set-" + this.label + "-modifyBufferButton").value = this.averageValue;
+                    }
+                },
+                smooth: function(index){
+                    //console.log('smooth');
+                    this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
+                    this.selectedSetPointsDirty = true;  // Mark section for complete re-draw.
+                    this.selectedSetPointsUnsaved = true;  // We have data to save.
+                    this.calculateAverageValue();
+
+                    var time;
+                    for(var i in this.selectedSetPoints){
+                        time = this.selectedSetPoints[i];
+                        if(dataStore.allDataContainer[this.label][this.label][0][time] !== undefined){
+                            dataStore.allDataContainer[this.label][this.label][0][time] = this.averageValue.toString();
                         }
                     }
                     this.draw();
                 },
-                setTemperature: function(){
-                    console.log('setTemperature');
+                setValue: function(){
+                    //console.log('setValue');
                     this.serverLastQueriedAt = Date.now();  // Make sure new data is not loaded for a while.
-                    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
-                    this.selectedTemperatureSetPointsUnsaved = true;  // We have data to save.
+                    this.selectedSetPointsDirty = true;  // Mark section for complete re-draw.
+                    this.selectedSetPointsUnsaved = true;  // We have data to save.
 
-                    this.averageTemperature = document.getElementById("set-temperatureSetPoints").value;
-                    console.log("this.averageTemperature: ", this.averageTemperature);
-                    for(var i in this.selectedTemperatureSetPoints){
-                        var time = this.selectedTemperatureSetPoints[i];
-                        if(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] !== undefined){
-                            dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][time] = this.averageTemperature.toString();
+                    this.averageValue = document.getElementById("set-" + this.label + "-modifyBufferButton").value;
+                    //console.log("this.averageValue: ", this.averageValue);
+                    for(var i in this.selectedSetPoints){
+                        var time = this.selectedSetPoints[i];
+                        if(dataStore.allDataContainer[this.label][this.label][0][time] !== undefined){
+                            dataStore.allDataContainer[this.label][this.label][0][time] = this.averageValue.toString();
                         }
                     }
                     this.draw();
                 },
                 cancel: function(){
-                    console.log('cancel');
+                    //console.log('cancel');
                     this.serverLastQueriedAt = Date.now() - 1000000;  // Make data reload next time the section is drawn.
-                    this.selectedTemperatureSetPointsDirty = true;  // Mark section for complete re-draw.
-                    this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
+                    this.selectedSetPointsDirty = true;  // Mark section for complete re-draw.
+                    this.selectedSetPointsUnsaved = false;  // No data to save anymore.
                     this.updateData();                              // Do a DB lookup.
                 },
                 save: function(){
-                    console.log('save');
-                    if(this.selectedTemperatureSetPointsUnsaved !== true){
+                    //console.log('save');
+                    if(this.selectedSetPointsUnsaved !== true){
                         return;
                     }
 
                     var dataToSend = [{'type': 'cyclicBufferInput',
-                        'data': {'key': 'temp_setting_1_week',
-                            'label': 'temp_setting_1_week',
-                            'val': dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0]
+                        'data': {'key': this.label,
+                            'label': this.label,
+                            'val': dataStore.allDataContainer[this.label][this.label][0]
                         }
                     }];
 
-                    console.log(dataToSend);
+                    dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), 
+                            function(){this.updateData(true);}.bind(this), 6);
 
-                    function readTemperatureDatacallback(){
-                        dataStore.sendQueryNow("house", "/tempSettings?", function(data){
-                                console.log("Force lookup.", data);
-                                this.updateView();
-                                }.bind(this));
+                    this.selectedSetPointsUnsaved = false;  // No data to save anymore.
+                },
+                movmentWrapper: function(devId, clicked){
+                    // Make sure we don't update things more often than reqired.
+                    // Limit to a 50Hz cycle.
+                    if(!this.queueUpdate){                
+                        this.queueUpdate = true;
+                        window.setTimeout(function(){this.movment(devId, clicked); this.queueUpdate = false;}.bind(this), 20);
+                    }
+                },
+                movment: function(devId, clicked){
+                    if(devId.split("-").length !== 3 ||
+                            devId.split("-")[2] !== 'setPoints'){
+                        return;
                     }
 
-                    dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){readTemperatureDatacallback();}, 6);
+                    var index = devId.split("-")[0];
 
-                    this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
-                }
+                    if(clicked){
+                        var day = Math.floor(index / (60*24));
+                        var time = index % (60*24);
+                        console.log('dragging', devId, index, day, time, clicked, this.dragging);
+
+                        if(!this.dragging){
+                            // Just started dragging.
+                            this.dragging = true;
+                            this.dragStartDay = day;
+                            this.dragStartTime = time;
+                            this.clearSelected();
+                        }
+                        this.displayDrag(index);
+                        this.lastValidIndex = index;
+                    } else {
+                        if(this.dragging){
+                            console.log('dragging', devId, index, day, time, clicked, this.dragging);
+                            // Just finished dragging.
+                            delete this.dragging;
+                            this.displayDrag(this.lastValidIndex);
+                        }
+                    }
+                },
             }
         });
     })(xtag);

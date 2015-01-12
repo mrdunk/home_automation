@@ -399,6 +399,48 @@ TEST(CyclicTest, read){
     ASSERT_EQ(test1.read(4), 100/4 + (3.0/4)*(100/4));
 }
 
+TEST(CyclicTest, overwriteValue){
+    // Here the vale written should be the same as the value read.
+    MockStatWrapper mockStatInstance;
+    MockOFstreamWrapper mockOFstreamInstance;
+    MockIFstreamWrapper mockIFstreamInstance;
+    MockFileUtils mockFileUtilsInstance(&mockStatInstance, &mockOFstreamInstance, &mockIFstreamInstance);
+
+    InSequence dummy;
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(0);
+
+    Cyclic test1("test1", 2, 12, 4, 0, "/test/path/", &mockFileUtilsInstance);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.overwriteValue(0, 100);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.overwriteValue(1, 100);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.overwriteValue(2, 100);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.overwriteValue(3, 100);
+
+    ASSERT_EQ(test1.read(0), 100);
+    ASSERT_EQ(test1.read(1), 100);
+    ASSERT_EQ(test1.read(2), 100);
+    ASSERT_EQ(test1.read(3), 100);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.overwriteValue(1, 500);
+
+    ASSERT_EQ(test1.read(1), 500);
+}
+
 TEST(CyclicTest, restoreFromDisk){
     struct stat buf_pass;   // Contents of buffer modified by stat() indicate path missing.
     buf_pass.st_mode = S_IFDIR;

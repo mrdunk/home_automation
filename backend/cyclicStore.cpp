@@ -63,11 +63,10 @@ void Cyclic::overwriteValue(int _time, int value){
         time -= divisions;
     }
 
-    p_container[time] = value;
+    p_container[time] = value * update_inertia;
 
     // write p_container[time] to file.
-    string output_line = to_string(time) + " " +
-        to_string(p_container[time]);
+    string output_line = to_string(time) + " " + to_string(p_container[time]);
     p_fileUtilsInstance->write(working_dir, filename_active, output_line);
 }
 
@@ -208,16 +207,19 @@ void Cyclic::to_JSON(Document* p_JSON_output, int step_size){
     }
 
     Value content(kObjectType);
+    Value data(kObjectType);
+    Value node(kObjectType);
+    Value key, val, label;
+
     for(int time = 0; time < mins_in_period; time += step_size){
-        Value key, val;
         key.SetString(to_string(time).c_str(), p_JSON_output->GetAllocator());
         val.SetString(to_string(read(time)).c_str(), p_JSON_output->GetAllocator());
         content.AddMember(key, val, p_JSON_output->GetAllocator());
     }
+    //key.SetString("unique_id", p_JSON_output->GetAllocator());
+    //val.SetString(unique_id.c_str(), p_JSON_output->GetAllocator());
+    //content.AddMember(key, val, p_JSON_output->GetAllocator());
 
-    Value data(kObjectType);
-    Value key;
-    Value label;
     key.SetString(unique_id.c_str(), p_JSON_output->GetAllocator());
     label.SetString(unique_id.c_str(), p_JSON_output->GetAllocator());
     data.AddMember("key", key, p_JSON_output->GetAllocator());
@@ -225,7 +227,6 @@ void Cyclic::to_JSON(Document* p_JSON_output, int step_size){
     data.AddMember("label", label, p_JSON_output->GetAllocator());
 
     p_JSON_output->SetArray();
-    Value node(kObjectType);
     node.AddMember("type", "cyclicBuffer", p_JSON_output->GetAllocator());
     node.AddMember("data", data, p_JSON_output->GetAllocator());
     p_JSON_output->PushBack(node, p_JSON_output->GetAllocator());

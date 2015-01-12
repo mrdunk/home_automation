@@ -1,18 +1,24 @@
 // Functions for the "configure" page.
 
-document.onmousedown = mouseDown;
-document.onmouseup   = mouseUp;
+/* global Handlebars */
+/* exported DisplaySettingsUpdate */
+
 var mouseState = "up";
 
 function mouseDown(ev) {
+    'use strict';
     mouseState = "down";
     //do not write any code here in this function
 }
 
 function mouseUp(ev) {
+    'use strict';
     mouseState = "up";
     //do not write any code here in this function
 }
+
+document.onmousedown = mouseDown;
+document.onmouseup   = mouseUp;
 
 
 Handlebars.registerHelper('safeVal', function (value, safeValue) {
@@ -60,6 +66,20 @@ Handlebars.registerHelper('day', function(time){
     return 'Sat';
 });
 
+Handlebars.registerHelper("math", function(lvalue, operator, rvalue, options) {
+    'use strict';
+    lvalue = parseFloat(lvalue);
+    rvalue = parseFloat(rvalue);
+        
+    return {
+        "+": lvalue + rvalue,
+        "-": lvalue - rvalue,
+        "*": lvalue * rvalue,
+        "/": lvalue / rvalue,
+        "%": lvalue % rvalue
+    }[operator];
+});
+
 function DisplaySettings(){
     'use strict';
     this.populateForm = {};
@@ -69,213 +89,41 @@ function DisplaySettings(){
     this.selectedTemperatureSetPoints = [];
 }
 
-DisplaySettings.prototype.onClick = function(devId, action){
-    'use strict';
-    console.log(devId, action);
-
-    if(action === 'edit'){
-        this.userDevices[devId].configStatus = 'edit';
-    } else if(action === 'cancel'){
-        this.userDevices[devId].description_modified[0] = this.userDevices[devId].description[0];
-        this.userDevices[devId].userId_modified[0] = this.userDevices[devId].userId[0];
-        document.getElementById(devId + "-description").value = this.userDevices[devId].description[0];
-        document.getElementById(devId + "-userId").value = this.userDevices[devId].userId[0];
-        this.userDevices[devId].configStatus = 'view';
-    } else if(action === 'save'){
-        var configData = [];
-        if(this.userDevices[devId].userId_modified !== undefined &&
-                this.userDevices[devId].userId_modified[0] !== this.userDevices[devId].userId[0]){
-            configData.push({'type': 'configuration',
-                           'data': {'key': devId,
-                                    'label': 'userId',
-                                    'val': this.userDevices[devId].userId_modified[0]}
-                          });
-        }
-        if(this.userDevices[devId].description_modified !== undefined &&
-                this.userDevices[devId].description_modified[0] !== this.userDevices[devId].description[0]){
-            configData.push({'type': 'configuration',
-                           'data': {'key': devId,
-                                    'label': 'description',
-                                    'val': this.userDevices[devId].description_modified[0]}
-                          });
-        }
-        console.log(configData);
-        dataStore.serverConnectionsToSend.send("send", JSON.stringify(configData), function(testvar){this.saved(testvar);}.bind(this), 6);
-        this.userDevices[devId].configStatus = 'view';
-/*    } else if(action === 'select'){
-        var day = Math.floor(devId / (60*24));
-        var time = devId % (60*24);
-        console.log(devId, action, day, time);
-
-        this.clearSelected();
-        this.selectedTemperatureSetPoints = [devId];
-        debugger;*/
-    }
-
-    var activeDevices = document.getElementById("activeDevices");
-    this.updateView(activeDevices);
-};
-
-DisplaySettings.prototype.saveTemperature = function(index){
-    'use strict';
-    console.log('DisplaySettings.saveTemperature');
-    if(this.selectedTemperatureSetPointsUnsaved !== true){
-        return;
-    }
-
-    var dataToSend = [{'type': 'cyclicBufferInput',
-                           'data': {'key': 'temp_setting_1_week',
-                                    'label': 'temp_setting_1_week',
-                                    'val': dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0]
-                                   }
-                         }];
-
-    console.log(dataToSend);
-    dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){console.log(testvar);}, 6);
-
-    this.selectedTemperatureSetPointsUnsaved = false;  // No data to save anymore.
-};
-
-DisplaySettings.prototype.saved = function(data){
-    'use strict';
-    console.log(data);
-    if(data === "ok"){
-        dataStore.serverConnectionsToPoll.doRequestsNow();
-    }
-};
-
-DisplaySettings.prototype.onChange = function(devId, field){
-    'use strict';
-    console.log(devId, field);
-    console.log(document.getElementById(devId + "-" + field).value);
-
-    this.userDevices[devId][field + "_modified"] = [document.getElementById(devId + "-" + field).value, Date.now()];
-};
-
-DisplaySettings.prototype.updateView = function(parentNode){
-    'use strict';
-    if(parentNode){
-        var divs = parentNode.getElementsByTagName('div');
-        for(var d in divs){
-            if(divs[d] !== undefined && divs[d].className !== undefined){
-                var classes = divs[d].className.split(" ");
-                for(var c in classes){
-                    var devId = classes[c].split("-")[0];
-                    var state = classes[c].split("-")[1];
-                    if(devId !== undefined && state !== undefined && (state === "edit" || state === "view")){
-                        if(devId in this.userDevices){
-                            if(this.userDevices[devId].configStatus === state){
-                                divs[d].style.display = "inline";
-                            } else {
-                                divs[d].style.display = "none";
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-};
-
-DisplaySettings.prototype.deleteFromView = function(devIds, parentNode){
-    'use strict';
-    var divs = parentNode.getElementsByTagName('div');
-    for(var devId in devIds){
-        var d = divs.length;
-        while(d--){     // To avoid the "resizing the list of divs while itterating through it" problem.
-            if(divs[d] !== undefined && divs[d].className !== undefined){
-                var classes = divs[d].className.split(" ");
-                for(var c in classes){
-                    if(classes[c].substring(0, devId.length) === devId){
-                        var state = classes[c].split("-")[1];
-                        if(classes[c] === devId + "-view" || classes[c] === devId + "-edit" || classes[c] === devId + "-all"){
-                            parentNode.removeChild(divs[d]);
-                        }
-                    }
-                }
-            }
-        }
-    }
-};
-
 DisplaySettings.prototype.update = function(){
     'use strict';
     var main = document.getElementsByTagName("main")[0];
 
     var activeDevices = document.getElementById("activeDevices");
     if(activeDevices === null){
-        activeDevices = document.createElement('div');
+        activeDevices = document.createElement('x-registerDevices');
         activeDevices.id = "activeDevices";
         main.appendChild(activeDevices);
     }
 
-    // Create list of devices not yet displayed on page.
-    var userDevicesNew = {};
-    for(var device in dataStore.allDataContainer){
-        if(dataStore.allDataContainer[device]['1wire'] === undefined && dataStore.allDataContainer[device].description !== undefined){
-            // This dataStore.allDataContainer[device] is a Network device.
-
-            if(this.userDevices[device] === undefined){
-                // New device.
-                this.userDevices[device] = {"configStatus": "view"};
-            }
-            if(document.getElementById(device + "-device") === null){
-                // Device not displayed on screen but data is populated.
-                userDevicesNew[device] = this.userDevices[device];
-            }
-            if(this.userDevices[device].configStatus !== 'edit'){
-                // Don't do anything if we are currently editing this device.
-                for(var item in dataStore.allDataContainer[device]){
-                    // Compare fields between incoming data and that currently displayed.
-                    if(this.userDevices[device][item] === undefined ||
-                            dataStore.allDataContainer[device][item][0] !== this.userDevices[device][item][0]){
-                                this.userDevices[device][item] = dataStore.allDataContainer[device][item];
-                                if(userDevicesNew[device] === undefined){
-                                    userDevicesNew[device] = this.userDevices[device];
-                                }
-                            }
-                }
-            }
-            if(this.userDevices[device].description_modified === undefined){
-                this.userDevices[device].description_modified = [this.userDevices[device].description[0], this.userDevices[device].description[1]];
-            }
-            if(this.userDevices[device].userId_modified === undefined){
-                this.userDevices[device].userId_modified = [this.userDevices[device].userId[0], this.userDevices[device].userId[1]];
-            }
-
-        } else {
-            this.thermometers[device] = dataStore.allDataContainer[device];
-        }
+    var bufferSetPoints = document.getElementById('bufferSetPoints');
+    if(bufferSetPoints === null){
+        bufferSetPoints = document.createElement('x-cyclicBuffer');
+        bufferSetPoints.id = "bufferSetPoints";
+        bufferSetPoints.label = "temp_setting_1_week";
+        bufferSetPoints.stepsize = 15;
+        bufferSetPoints.displaymax = 30;
+        bufferSetPoints.displaymin = 10;
+        bufferSetPoints.displayscale = 1;
+        bufferSetPoints.displaystep = 0.5;
+        main.appendChild(bufferSetPoints);
     }
 
-    var populateForm = {};
-    populateForm.userDevices = userDevicesNew;
-    populateForm.users = dataStore.userDataContainer;
-
-    this.deleteFromView(userDevicesNew, activeDevices);
-
-    // Append new divs to main without intefering with existing ones.
-    var newcontent = document.createElement('div');
-    newcontent.innerHTML = displayConfigureTemplate(populateForm);
-    while (newcontent.firstChild) {
-        activeDevices.appendChild(newcontent.firstChild);
-    }
-
-
-    this.updateTemperatureSetPoints();
-
-    this.updateView(activeDevices);
-};
-
-DisplaySettings.prototype.updateTemperatureSetPoints = function(){
-    'use strict';
-    var main = document.getElementsByTagName("main")[0];
-
-    var temperatureSetPoints = document.getElementById('temperatureSetPoints');
-    if(temperatureSetPoints === null){
-        temperatureSetPoints = document.createElement('x-cyclicBuffer');
-        temperatureSetPoints.id = "temperatureSetPoints";
-        main.appendChild(temperatureSetPoints);
+    var usersSetHome = document.getElementById('usersSetHome');
+    if(usersSetHome === null){
+        usersSetHome = document.createElement('x-cyclicBuffer');
+        usersSetHome.id = "usersSetHome";
+        usersSetHome.label = "whos_home_1_week";
+        usersSetHome.stepsize = 30;
+        usersSetHome.displaymax = 1;
+        usersSetHome.displaymin = 0;
+        usersSetHome.displayscale = 20;
+        usersSetHome.displaystep = 0.1;
+        main.appendChild(usersSetHome);
     }
 };
 

@@ -1,3 +1,14 @@
+/* global AuthKey */
+/* global serverFQDN1 */
+/* global serverFQDN2 */
+/* global appEngineFQDN */
+/* global controlSettings */
+/* exported GetAuthKey */
+
+// TypeDefs:
+var ConnectionsToSend, ConnectionsToPoll, WS, HTTP;
+
+
 /* Get the auth key.
  * No point using the regular framework to get this key because nothing else will work without it.
  * We do a blocking wget for the key. */
@@ -53,10 +64,14 @@ function DataStore(){
     this.allDataContainer = {};
     this.userDataContainer = {};
     this.callbackFunctions = [];
+    this.additionalCallback = [];
 
     this.setupConnections("users");
     this.setupConnections("temperature");
     this.setupConnections("send");
+
+    // Perform a lookup after 3 seconds (to allow everything to catch up).
+    window.setTimeout(function(){this.serverConnectionsToPoll.doRequestsNow();}.bind(this), 3000);
 }
 
 DataStore.prototype.parseIncoming = function(incomingData, code){
@@ -91,7 +106,7 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
         if(newObj[i] === 'invalid user'){
             console.log('Not logged in with registered Google account.');
             // TODO redirect to login page?
-        } else if(typeof newObj[i] === 'string') {
+        //} else if(typeof newObj[i] === 'string') {
         } else if("data" in newObj[i] && "key" in newObj[i].data && "val" in newObj[i].data){
             // Data in format from Home server
             key = newObj[i].data.key;
@@ -160,23 +175,35 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
 
     this.doCallbacks();
 
-    // We can also specify an aditional callback to perform when we have explicetly requested data
+    // We can also specify aditional callbacks to perform when we have explicetly requested data
     // (rather than receiving it as a scheduled event).
-    if(this.additionalCallback){
-        this.additionalCallback();
-        delete this.additionalCallback;
+    var callback;
+    while((callback = this.additionalCallback.shift())){    // Double perenthesis subdue JSLint assignment warning.
+        //console.log(incomingData, code);
+        callback();
     }
 };
 
 /* Perform any callback fuctions that have been registered. */
 DataStore.prototype.doCallbacks = function(){
-    for(var callback in this.callbackFunctions){
-        this.callbackFunctions[callback]();
+    'use strict';
+    // Make sure we don't update things more often than reqired.
+    // Limit to a 50Hz cycle.
+    if(!this.queueUpdate){                
+        this.queueUpdate = true;
+        window.setTimeout(function(){
+                for(var callback in this.callbackFunctions){
+                    this.callbackFunctions[callback]();
+                }
+                this.queueUpdate = false;}.bind(this), 20);
+    } else {
+        console.log(".");
     }
 };
 
 /* Register callback functions to perform when data changes. */
 DataStore.prototype.registerCallbacks = function(callbacks){
+    'use strict';
     if(callbacks){
         this.callbackFunctions = callbacks;
     } else {
@@ -184,6 +211,13 @@ DataStore.prototype.registerCallbacks = function(callbacks){
     }
     this.doCallbacks();
 };
+
+DataStore.prototype.addCallback = function(callback){
+    'use strict';
+    this.callbackFunctions.push(callback);
+    this.doCallbacks();
+};
+
 
 DataStore.prototype.setupConnections = function(role){
     'use strict';
@@ -233,7 +267,7 @@ DataStore.prototype.setupConnections = function(role){
 DataStore.prototype.sendQueryNow = function(destination, path, callback){
     'use strict';
     console.log("DataStore.sendQueryNow");
-    this.additionalCallback = callback;
+    this.additionalCallback.push(callback);
     if(destination === "house"){
         this.serverConnectionsToPoll.doRequest(this.serverHouse, "GET", path, callback);
     } else if(destination === "appengine"){
@@ -282,12 +316,12 @@ ConnectionsToSend.prototype.send = function(key, sendData, callback, retries){
         return;
     }
 
-    var serverMethod = this.htmlTargets[key][1];
+    //var serverMethod = this.htmlTargets[key][1];
     var serverIndex = this.htmlTargets[key][0][1];
     var serverList = this.htmlTargets[key][0][0][serverIndex];
 
     var url = serverList[0] + ":" + serverList[2] + "/clientput?key=" + AuthKey;
-    console.log(serverIndex, url, sendData);
+    //console.log(serverIndex, url, sendData);
     var httpRequest;
 
     if(!(url in this.htmlAttempt)){
@@ -340,11 +374,12 @@ function ConnectionsToPoll(){
  *   timeBetweenRequests: Number of ms to wait before doing this again. */
 ConnectionsToPoll.prototype.registerRequest = function(serverList, method, path, timeBetweenRequests, callback){
     'use strict';
-    console.log("ConnectionsToPoll.registerRequest");
-
     if(path in this.requestQueue){
-        clearTimeout(this.requestQueue.path[2]);
+        //clearTimeout(this.requestQueue.path[2]);
+        // Already registered.
+        return;
     }
+    console.log("ConnectionsToPoll.registerRequest", path);
     var timer = window.setInterval(function(){this.doRequest(serverList, method, path, callback
                                                             );}.bind(this), timeBetweenRequests);
     this.requestQueue[path] = [serverList, timeBetweenRequests, timer, callback];
@@ -432,7 +467,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
                             (this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.CLOSED &&
                             Date.now() - this.wsOpen[url][1] > this.retryConnectionTimeout)){
                     // Haven't tried this connection before or it's been so long it's worth trying again.
-                    console.log("Opening WS to " + url, callback);
+                    console.log("Opening WS to " + url);
                     var websocket = new WS(url, callback);
                     this.wsOpen[url] = [websocket, Date.now()];
 
@@ -458,7 +493,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
                         httpRequest.initialise(null);
                         this.htmlAttempt[url][1] = Date.now();
                         //console.log("* ", url, path);
-                    } else {
+                    //} else {
                         // Too busy to do http request just now or it's too soon since this target failed.
                         //console.log("- ", url, path);
                     }
@@ -466,7 +501,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
             }
         }
     }
-    if(retrySoon == 1){
+    if(retrySoon === 1){
         // Come back soon to see if we have managed to connect.
         window.setTimeout(function(){this.doRequest(serverList, method, path, callback);}.bind(this), this.wsTimeout / 10);
     }
@@ -523,8 +558,8 @@ WS.prototype.onClose = function(evt){
 WS.prototype.onMessage = function(evt){
     'use strict';
     //console.log("WS.onMessage", evt.data.length, this.callback);
-    this.callback(evt.data);
     //console.log("WS.onMessage", evt.data);
+    this.callback(evt.data);
     this.setTimeout();
 };
 
@@ -536,6 +571,7 @@ WS.prototype.onError = function(evt){
 /* If WebSocket is idle for a long time (ie, has not triggered the onMessage() event,
  * we might as well close it. */
 WS.prototype.setTimeout = function(){
+    'use strict';
     if(typeof this.timeoutTimer !== "undefined"){
         clearTimeout(this.timeoutTimer);
     }
@@ -563,7 +599,8 @@ HTTP.prototype.initialise = function(sendData){
         // Firefox, Chrome, etc.
         this.xmlHttp.open(this.method, "http://" + this.url, true );
         //console.log('FF, Chrome', 'XDomain');
-    } else if (typeof XDomainRequest != "undefined") {
+    /* jshint wsh: true */
+    } else if (typeof XDomainRequest !== "undefined") {
         // IE
         this.xmlHttp = new XDomainRequest();
         this.xmlHttp.open(this.method, "http://" + this.url);

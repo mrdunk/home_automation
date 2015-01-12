@@ -1,9 +1,22 @@
+/* global dataStore */
+/* global d3 */
+/* global userBriefTemplate */
+/* global userInfoTemplate */
+/* global thermometerSvg */
+
+/* exported displayTemperature */
+/* exported roundSwitchInit */
+/* exported verticalSwitchInit */
+/* exported verticalSliderInit */
+/* exported loadTemplate */
+
+// TypeDefs:
+var displayUser, displayTemperature, setThermometerTemp;
 
 var controlSettings = {};
 
 var FADETIME = 200;
 var DIALHEIGHT = 300;
-var DIALMARGIN = 10;
 var TEMPMAX_SCALE = 45;
 var TEMPMIN_SCALE = 10;
 var TEMPMAX_COLOR = 30;
@@ -12,15 +25,18 @@ var LOGMAX = Math.log(TEMPMAX_COLOR) *10;
 var LOGMIN = Math.log(TEMPMIN_COLOR) *10;
 
 function preventBehavior(e) {
+    'use strict';
     e.preventDefault(); 
 }
 
 var changeColourGreen = function(switchInstance){
+    'use strict';
     switchInstance.target.classList.remove("switch-unselected");
     switchInstance.target.classList.add("switch-selected");
 };
 
 var changeColourGrey = function(switchInstance){
+    'use strict';
     switchInstance.target.classList.remove("switch-selected");
     switchInstance.target.classList.add("switch-unselected");
 };
@@ -176,8 +192,6 @@ function verticalSliderInit(){
     var maxVal = 42;
     var minVal = 5;
     var rangeVal = minVal - maxVal;
-    var scaledVal;
-
 
     // Called while slider is being dragged.
     function dragSlider(switchInstance){
@@ -215,8 +229,8 @@ function verticalSliderInit(){
 
         controlSettings[switchId] += (y - verticalSliderStoreYPos) * rangeVal / slideHeight;
 
-        if(controlSettings[switchId] < minVal) controlSettings[switchId] = minVal;
-        if(controlSettings[switchId] > maxVal) controlSettings[switchId] = maxVal;
+        if(controlSettings[switchId] < minVal){ controlSettings[switchId] = minVal; }
+        if(controlSettings[switchId] > maxVal){ controlSettings[switchId] = maxVal; }
         verticalSliderStoreYPos = y;
 
         function doTheThings(_switchId){
@@ -344,7 +358,7 @@ function whoshome(clear){
     
 }
 
-function displayUser(userData){
+displayUser = function(userData){
     'use strict';
     var onClick = function(pictureId){
         // Click anywhere on the popup to restore view of all users.
@@ -378,7 +392,7 @@ function displayUser(userData){
 
     workspace.exit()
         .remove();
-}
+};
 
 function displayTemperature(){
     'use strict';
@@ -424,14 +438,15 @@ var loadTemplate = function(filename){
         return ajax.responseText;
 };
 
-function setThermometerTemp(d, i){
-    if(thermometerSvg === undefined){
+setThermometerTemp = function(d, i){
+    'use strict';
+    if(!thermometerSvg){
         return;
     }
     var hue;
     var temperature = d.value["1wire"][0];
 
-    if(temperature > TEMPMAX_SCALE) temperature = TEMPMAX_SCALE;
+    if(temperature > TEMPMAX_SCALE){ temperature = TEMPMAX_SCALE; }
 
     if("temperatureColourLogScale" in controlSettings && controlSettings.temperatureColourLogScale === 1){
         hue = (240 * (LOGMAX - Math.log(temperature) *10) / (LOGMAX - LOGMIN));
@@ -439,8 +454,8 @@ function setThermometerTemp(d, i){
         hue = (240 * (TEMPMAX_COLOR - temperature) / (TEMPMAX_COLOR - TEMPMIN_COLOR));
         
     }
-    if(hue > 256) hue = 256;
-    if(hue < 0) hue = 0;
+    if(hue > 256){ hue = 256; }
+    if(hue < 0){ hue = 0; }
 
     var fillStyle = 'hsl(' + [hue, '70%', '50%'] + ')';
 
@@ -478,5 +493,5 @@ function setThermometerTemp(d, i){
     thermometerSvg.getElementById("tempValue").getElementsByTagName("tspan")[0].innerHTML = (Math.round(temperature * 10) / 10) + "°C";
 
     return thermometerSvg.innerHTML;
-}
+};
 

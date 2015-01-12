@@ -11,7 +11,7 @@
         {{description.[0]}}
     </div>
     <div class="menu {{@key}}-edit unselectable">
-        <input id="{{@key}}-description" type="text" name="description" value="{{description_modified.[0]}}" onchange="displaySettingsInstance.onChange('{{@key}}', 'description')">
+        <input id="{{@key}}-description" type="text" name="description" value="{{description_modified.[0]}}">
     </div>
 
     <div class="menu {{@key}}-view unselectable">
@@ -19,7 +19,7 @@
     </div>
 
     <div class="menu {{@key}}-edit unselectable">
-        <select id="{{@key}}-userId" onchange="displaySettingsInstance.onChange('{{@key}}', 'userId')">
+        <select id="{{@key}}-userId">
             <option value="">none</option>
             {{#each ../users}}
                 <option value="{{@key}}" {{ifSelected @key ../userId_modified.[0]}}>{{displayName}}</option>
@@ -29,11 +29,11 @@
 
 
 	<div class="menu {{@key}}-view unselectable">
-        <button type="button" id="{{@key}}-editButton" style="float:left;" onclick="displaySettingsInstance.onClick('{{@key}}', 'edit')">Edit</button>
+        <button type="button" id="{{@key}}-editButton" style="float:left;">Edit</button>
     </div>
     <div class="menu {{@key}}-edit unselectable">
-        <button class="{{@key}}-edit" type="button" id="{{@key}}-saveButton" onclick="displaySettingsInstance.onClick('{{@key}}', 'save')">Save</button>
-        <button class="{{@key}}-edit" type="button" id="{{@key}}-cancelButton" onclick="displaySettingsInstance.onClick('{{@key}}', 'cancel')">Cancel</button>
+        <button class="{{@key}}-edit" type="button" id="{{@key}}-saveButton">Save</button>
+        <button class="{{@key}}-edit" type="button" id="{{@key}}-cancelButton">Cancel</button>
     </div>
 {{/each}}
 

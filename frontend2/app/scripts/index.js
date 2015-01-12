@@ -1,5 +1,31 @@
-var AuthKey = GetAuthKey();
+/* global GetAuthKey */
+/* global loadTemplate */
+/* global Handlebars */
+/* global DataStore */
+/* global d3 */
+/* global verticalSwitchInit */
+/* global roundSwitchInit */
+/* global verticalSliderInit */
+/* global displayTemperature  */
+/* global whoshome */
+/* global DisplaySettingsUpdate */
 
+/*exported AuthKey */
+/*exported serverFQDN1 */
+/*exported serverFQDN2 */
+/*exported appEngineFQDN */
+/*exported tempSensorList */
+/*exported userInfoTemplate */
+/*exported teperaturesTemplate */
+/*exported userBriefTemplate */
+/*exported displayControlTemplate */
+/*exported displayConfigureTemplate */
+/*exported bufferSetPointsTemplate */
+/*exported bufferSetPointsControlsTemplate */
+/*exported dataStore */
+
+
+var AuthKey = GetAuthKey();
 
 var serverFQDN1 = '192.168.192.254';
 var serverFQDN2 = 'peeping.toythieves.com';
@@ -12,13 +38,14 @@ var teperaturesTemplate = Handlebars.compile(loadTemplate("teperatures.template"
 var userBriefTemplate = Handlebars.compile(loadTemplate("userBrief.template"));
 var displayControlTemplate = Handlebars.compile(loadTemplate("displayControl.template"));
 var displayConfigureTemplate = Handlebars.compile(loadTemplate("displayConfigure.template"));
-var temperatureSetPointsTemplate = Handlebars.compile(loadTemplate("temperatureSetPoints.template"));
-var temperatureSetPointsControlsTemplate = Handlebars.compile(loadTemplate("temperatureSetPointsControls.template"));
+var bufferSetPointsTemplate = Handlebars.compile(loadTemplate("bufferSetPoints.template"));
+var bufferSetPointsControlsTemplate = Handlebars.compile(loadTemplate("bufferSetPointsControls.template"));
 
 var dataStore = new DataStore();
 
 var thermometerSvg;
 d3.xml("thermometer.svg", "image/svg+xml", function(xml) {
+    'use strict';
     thermometerSvg = document.importNode(xml.documentElement, true);
     //console.log(thermometerSvg.getElementById("tempValue"));
     //console.log(thermometerSvg.getElementById("tempValue").innerHTML);
@@ -31,7 +58,7 @@ d3.ns.prefix.inkscape = "http://www.inkscape.org/namespaces/inkscape";
 window.onload = function () {
     'use strict';
     console.log('window.onload');
-    //location.hash = 'startup';
+    location.hash = 'startup';
 
     var main = d3.select("main");
     main.style("background-color", "white");
@@ -44,6 +71,30 @@ window.onload = function () {
     verticalSwitchInit();
     verticalSliderInit();
     roundSwitchInit();
+};
+
+var displayControl = function () {
+    'use strict';
+    var main = document.getElementsByTagName("main")[0];
+    main.innerHTML = displayControlTemplate({});
+
+    verticalSwitchInit();
+    verticalSliderInit();
+    roundSwitchInit();
+
+    dataStore.registerCallbacks([displayTemperature, whoshome, roundSwitchInit]);
+};
+
+var displayConfigure = function () {
+    'use strict';
+    dataStore.registerCallbacks([DisplaySettingsUpdate]);
+};
+
+var displayEmpty = function () {
+    'use strict';
+    var main = document.getElementsByTagName("main")[0];
+    main.innerHTML = 'content missing';
+    dataStore.registerCallbacks([]);
 };
 
 window.onhashchange = function () {
@@ -67,23 +118,3 @@ window.onhashchange = function () {
         .style("background-color", "lightgrey");
 };
 
-var displayControl = function () {
-    var main = document.getElementsByTagName("main")[0];
-    main.innerHTML = displayControlTemplate({});
-
-    verticalSwitchInit();
-    verticalSliderInit();
-    roundSwitchInit();
-
-    dataStore.registerCallbacks([displayTemperature, whoshome, roundSwitchInit]);
-};
-
-var displayConfigure = function () {
-    dataStore.registerCallbacks([DisplaySettingsUpdate]);
-};
-
-var displayEmpty = function () {
-    var main = document.getElementsByTagName("main")[0];
-    main.innerHTML = 'content missing';
-    dataStore.registerCallbacks([]);
-};
