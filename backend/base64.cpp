@@ -1,7 +1,6 @@
 #include "base64.h"
-#include <iostream>
-
 #include <iostream>   // std::cout
+#include <memory>       // unique_ptr
 
 using namespace std;
 
@@ -18,8 +17,12 @@ std::string base64_decode(std::string const& encoded_string) {
     for(i = 0; i < encoded_string.size(); i += 2){
         segment = encoded_string.c_str()[i];
         segment += encoded_string.c_str()[i+1];
-
-        val = stoi(segment, 0, 16);
+        
+        try{
+            val = stoi(segment, 0, 16);
+        } catch(const invalid_argument& e){
+            return "";
+        }
         retVal += (char)val;
     }
 

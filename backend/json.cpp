@@ -140,15 +140,20 @@ int JSONtoInternal(Document* p_JSON_input){
                 cout << (*p_JSON_parent_array)[node_num]["data"]["val"]["0"].GetString() << endl;
                 
                 if((*p_JSON_parent_array)[node_num]["data"].HasMember("val") && (*p_JSON_parent_array)[node_num]["data"].HasMember("label")){
-                    int time, value;
+                    int time;
+                    double value;
                     string label = (*p_JSON_parent_array)[node_num]["data"]["label"].GetString();
 
                     for(Value::ConstMemberIterator itr_val = (*p_JSON_parent_array)[node_num]["data"]["val"].MemberBegin(); 
                             itr_val != (*p_JSON_parent_array)[node_num]["data"]["val"].MemberEnd(); ++itr_val){
                         //cout << itr_val->name.GetString() << "\t" << itr_val->value.GetString() << endl;
-                        time = atoi(itr_val->name.GetString());
-                        value = atoi(itr_val->value.GetString());
-                        Cyclic::lookup(label)->overwriteValue(time, value);
+                        try{
+                            time = atoi(itr_val->name.GetString());
+                            value = atof(itr_val->value.GetString());
+                            Cyclic::lookup(label)->overwriteValue(time, value);
+                        } catch(const std::invalid_argument& e){
+                            cout << "malformed input for: " << e.what() << endl;
+                        }
                     }
                 } else {
                     cout << "Malformed JSON." << endl;
@@ -262,7 +267,7 @@ void GetData(string type, int age, string key, string label, map<string,double>*
         try{
             (*p_retVals)[it->data["key"]] = stod(it->data["val"]);
         } catch(const std::invalid_argument& e){
-            cout << "GetData() stoi error key: " << it->data["key"] << "\t error: " << e.what() << endl;
+            cout << "GetData() stod error key: " << it->data["key"] << "\t error: " << e.what() << endl;
             (*p_retVals)[it->data["key"]] = 0;
         }
     }   

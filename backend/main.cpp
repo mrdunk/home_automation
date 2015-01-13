@@ -30,7 +30,8 @@ using namespace std;
  * ]
  */
 
-string data_path = "";
+string data_path = "/var/lib/homeautod/";
+string port = "55555";
 
 StatWrapperInterface statWrapper;
 OFstreamWrapper ofStreamWrapper;
@@ -301,18 +302,90 @@ void houseKeeping(void){
     cout << "Closing houseKeeping_thread." << endl;
 }
 
+static int exit_flag = 0;
+// Signal handler
+static void hdl(int sig){
+    exit_flag = sig;
+}
+
 int main(int argc, char **argv){
-    if (argc != 2 && argc != 3) {
+    // Parse command line arguments.
+    if (argc < 2 && argc > 4) {
         printf("%s PORT [DATA_PATH]\n", argv[0]);
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
-    if (argc == 3){
+    if (argc >= 2){
+        port = argv[1];
+    }
+    string str_port = port;
+
+    if (argc >= 3){
         data_path = argv[2];
     }
     string str_data_path = data_path;
 
+    int runAsDaemon = 1;
+    if (argc == 4){
+        runAsDaemon = 0;
+    }
+   
+    if(runAsDaemon){ 
+        // Now daemonize the process:
+        /* Our process ID and Session ID */
+        pid_t pid, sid;
+        
+        /* Fork off the parent process */
+        pid = fork();
+        if (pid < 0) {
+                exit(EXIT_FAILURE);
+        }
+        /* If we got a good PID, then
+           we can exit the parent process. */
+        if (pid > 0) {
+                exit(EXIT_SUCCESS);
+        }
 
+        /* Change the file mode mask */
+        umask(0);
+                
+        /* Open any logs here */        
+                
+        /* Create a new SID for the child process */
+        sid = setsid();
+        if (sid < 0) {
+                /* Log the failure */
+                exit(EXIT_FAILURE);
+        }
+        
+
+        
+        /* Change the current working directory */
+        if ((chdir("/")) < 0) {
+                /* Log the failure */
+                exit(EXIT_FAILURE);
+        }
+        
+        /* Close out the standard file descriptors */
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+    }
+
+
+    // Register signal handler
+    struct sigaction act;
+ 
+    memset (&act, '\0', sizeof(act));
+    act.sa_handler = &hdl;
+    if (sigaction(SIGTERM, &act, NULL) < 0) {
+        perror ("sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+
+
+    
     Cyclic store_whos_home_1_week("whos_home_1_week", 30, MINS_IN_WEEK, 10, 0, str_data_path, &fileUtilsInstance);
     Cyclic store_temp_setting_1_week("temp_setting_1_week", 15, MINS_IN_WEEK, 1, 20, str_data_path, &fileUtilsInstance);
 
@@ -328,7 +401,7 @@ int main(int argc, char **argv){
 
     thread houseKeeping_thread(houseKeeping);
 
-    http_server daemon(atoi(argv[1]), &authInstance);
+    http_server daemon(atoi(port.c_str()), &authInstance);
     daemon.register_path("/save", "GET", &CallbackSave);
     daemon.register_path("/read", "GET", &CallbackRead);
     daemon.register_path("/data", "GET", &CallbackGetData);
@@ -338,19 +411,22 @@ int main(int argc, char **argv){
     daemon.register_path("/cyclicDB_temp_setting_1_week", "GET", &store_temp_setting_1_week);
     daemon.register_path("/cyclicDB_whos_home_1_week", "GET", &store_whos_home_1_week);
 
-    ws_server ws_daemon(atoi(argv[1]) +1, &authInstance);
+    ws_server ws_daemon(atoi(port.c_str()) +1, &authInstance);
     ws_daemon.register_path("/data", "GET", &CallbackGetData);
     ws_daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
     ws_daemon.register_path("/cyclicDB_temp_setting_1_week", "GET", &store_temp_setting_1_week);
     ws_daemon.register_path("/cyclicDB_whos_home_1_week", "GET", &store_whos_home_1_week);
 
-    authInstance.populateUsers("./", "autherisedusers");
+    authInstance.populateUsers("/home/duncan/Working/home_automation/backend/", "authorisedusers");
 
-    (void)getchar();
+    while(!exit_flag){
+        sleep(10); /* wait 10 seconds */
+    }
 
     // Tell threads to quit and wait for that to happen.    
     run = 0;
     houseKeeping_thread.join();
 
-    return 0;
+    exit(exit_flag);
+    //exit(EXIT_SUCCESS);
 }

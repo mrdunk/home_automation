@@ -38,7 +38,7 @@ class Cyclic : public HttpCallback {
 
         int update_inertia;
         int previous_time;
-        int previous_value;
+        double previous_value;
         string working_dir;
 
         string filename_active;
@@ -66,11 +66,11 @@ class Cyclic : public HttpCallback {
         static Cyclic* lookup(string unique_id);
 
         /* Queue data to be committed at end of time segment. */
-        void store(int time, int value);
+        void store(int time, double value);
 
         /* Overwrite the value at _time.
          * This does not do any averaging of values or try to ignore jitter. */
-        void overwriteValue(int _time, int value);
+        void overwriteValue(int _time, double value);
 
         /* Return value associated with a time segment. */
         float read(int time);

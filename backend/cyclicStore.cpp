@@ -53,7 +53,7 @@ Cyclic* Cyclic::lookup(string unique_id){
     return NULL;
 }
 
-void Cyclic::overwriteValue(int _time, int value){
+void Cyclic::overwriteValue(int _time, double value){
     // Convert time to number of devisions.
     int time = _time / mins_per_division;
     while(time < 0){
@@ -70,7 +70,7 @@ void Cyclic::overwriteValue(int _time, int value){
     p_fileUtilsInstance->write(working_dir, filename_active, output_line);
 }
 
-void Cyclic::store(int _time, int value){
+void Cyclic::store(int _time, double value){
     // Convert time to number of devisions.
     int time = _time / mins_per_division;
     while(time < 0){
@@ -148,7 +148,11 @@ void Cyclic::restoreFromDisk(void){
             cout << "string: " << line << "\t";
             while((pos = line.find(" ")) != std::string::npos) {
                 cout << "t: " << line.substr(0, pos) << "\t";
-                time = stoi(line.substr(0, pos));
+                try{
+                    time = stoi(line.substr(0, pos));
+                } catch(const std::invalid_argument& e){
+                    time = 0;
+                }
                 line.erase(0, pos + 1);
             }
             val = stod(line);
@@ -235,7 +239,11 @@ void Cyclic::to_JSON(Document* p_JSON_output, int step_size){
 int Cyclic::to_JSON_string(std::string* p_buffer, map<string, string>* p_arguments){
     int step_size = 0;
     if(p_arguments->count("step_size")){
-        step_size = stoi(p_arguments->find("step_size")->second);
+        try{ 
+            step_size = stoi(p_arguments->find("step_size")->second);
+        } catch(const std::invalid_argument& e){
+            step_size = 1;
+        }
     }
     Document array;
     to_JSON(&array, step_size);

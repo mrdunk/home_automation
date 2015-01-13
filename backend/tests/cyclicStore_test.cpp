@@ -397,6 +397,14 @@ TEST(CyclicTest, read){
     test1.store(8, 100);
 
     ASSERT_EQ(test1.read(4), 100/4 + (3.0/4)*(100/4));
+
+    // Test floats as input.
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(2);
+    test1.store(10, 0.1);
+    test1.store(12, 0.1);
+
+    ASSERT_FLOAT_EQ(test1.read(10), 0.1/4);
 }
 
 TEST(CyclicTest, overwriteValue){
@@ -439,6 +447,12 @@ TEST(CyclicTest, overwriteValue){
     test1.overwriteValue(1, 500);
 
     ASSERT_EQ(test1.read(1), 500);
+
+    EXPECT_CALL(mockFileUtilsInstance, write(_,_,_))
+        .Times(1);
+    test1.overwriteValue(1, 0.1);
+
+    ASSERT_FLOAT_EQ(test1.read(1), 0.1);
 }
 
 TEST(CyclicTest, restoreFromDisk){
