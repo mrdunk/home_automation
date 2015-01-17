@@ -126,11 +126,12 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                 this.userDataContainer[newObj[i].id].image = newObj[i].image.url;
             }
             this.userDataContainer[newObj[i].id].displayName = newObj[i].displayName;
-            if(this.userDataContainer[newObj[i].id].home === undefined){
+            //if(this.userDataContainer[newObj[i].id].home === undefined){
                 this.userDataContainer[newObj[i].id].home = false;
-            }
+            //}
 
             // Loop through network devices and cross reference about associated users.
+            var TIMEOUT = 1000 * 60 * 5;  // 5 minutes in ms.
             for(j in this.allDataContainer){
                 if('userId' in this.allDataContainer[j] && this.allDataContainer[j].userId[0] === newObj[i].id){
                     // Save to the regular DB.
@@ -138,29 +139,28 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                     this.allDataContainer[j].displayName = [newObj[i].displayName, Date.now()];
 
                     // Also populate the userDataContainer DB with all available data.
-                    if(!("description" in this.allDataContainer[j])){
-                        this.allDataContainer[j].description = ["",0];
+                    if(!("description" in this.allDataContainer[j]) || this.allDataContainer[j].description[1] + TIMEOUT < Date.now()){
+                        this.allDataContainer[j].description = ["", Date.now()];
                     }
-                    if(!("net_clients" in this.allDataContainer[j])){
-                        this.allDataContainer[j].net_clients = ["",0];
+                    if(!("net_clients" in this.allDataContainer[j]) || this.allDataContainer[j].net_clients[1] + TIMEOUT < Date.now()){
+                        this.allDataContainer[j].net_clients = ["", Date.now()];
                     }
+
                     if(!("description" in this.userDataContainer[newObj[i].id])){
                         this.userDataContainer[newObj[i].id].description = [this.allDataContainer[j].description[0]];
-                    } else if(this.userDataContainer[newObj[i].id].description.indexOf(this.allDataContainer[j].description[0]) < 0){
+                    } else if(this.userDataContainer[newObj[i].id].description !== this.allDataContainer[j].description[0]){ 
                         this.userDataContainer[newObj[i].id].description.push(this.allDataContainer[j].description[0]);
                     }
                     if(!("macAddr" in this.userDataContainer[newObj[i].id])){
                         this.userDataContainer[newObj[i].id].macAddr = [j];
                         this.userDataContainer[newObj[i].id].net_clients = [this.allDataContainer[j].net_clients[0]];
-                        if(this.allDataContainer[j].net_clients[0] !== ""){
-                            this.userDataContainer[newObj[i].id].home = true;
-                        }
                     } else if(this.userDataContainer[newObj[i].id].macAddr.indexOf(j) < 0){
                         this.userDataContainer[newObj[i].id].macAddr.push(j);
                         this.userDataContainer[newObj[i].id].net_clients.push(this.allDataContainer[j].net_clients[0]);
-                        if(this.allDataContainer[j].net_clients[0] !== ""){
-                            this.userDataContainer[newObj[i].id].home = true;
-                        }
+                    }
+
+                    if(this.allDataContainer[j].net_clients[0] !== "" && this.allDataContainer[j].net_clients[1] + TIMEOUT > Date.now()){
+                        this.userDataContainer[newObj[i].id].home = true;
                     }
                 } else if('userId' in this.allDataContainer[j] && this.allDataContainer[j].userId[0] ===""){
                     this.allDataContainer[j].image = [[], Date.now()];
@@ -170,8 +170,8 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
         }
     }
     
-    console.log(this.allDataContainer);
-    console.log(this.userDataContainer);
+    //console.log(this.allDataContainer);
+    //console.log(this.userDataContainer);
 
     this.doCallbacks();
 
@@ -196,8 +196,8 @@ DataStore.prototype.doCallbacks = function(){
                     this.callbackFunctions[callback]();
                 }
                 this.queueUpdate = false;}.bind(this), 20);
-    } else {
-        console.log(".");
+    //} else {
+        //console.log(".");
     }
 };
 
@@ -232,7 +232,7 @@ DataStore.prototype.setupConnections = function(role){
                              ['/data?type=output', 30000]];
 
     this.querysAppEngineUsers = [['/listUsers/?', 30000]];
-    this.querysHouseSensors = [['/data?type=sensors&data={"label":"1wire"}', 30000]];
+    this.querysHouseSensors = [['/data?type=sensors&data={"label":"1wire"}&age=300', 30000]];
     this.querysAppEngineSensors = [];
 
     var querysHouse, querysAppEngine;
@@ -426,7 +426,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
             if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null &&
                     this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.OPEN){
                 var openFor = Date.now() - this.wsOpen[url][1];
-                console.log("WS already open to " + url + " for " + openFor + " ms.");
+                //console.log("WS already open to " + url + " for " + openFor + " ms.");
                 ws_sucess = url;
 
                 // Send the request.

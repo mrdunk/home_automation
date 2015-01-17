@@ -6,8 +6,6 @@
 
 /* exported displayTemperature */
 /* exported roundSwitchInit */
-/* exported verticalSwitchInit */
-/* exported verticalSliderInit */
 /* exported loadTemplate */
 
 // TypeDefs:
@@ -24,22 +22,6 @@ var TEMPMIN_COLOR = 15;
 var LOGMAX = Math.log(TEMPMAX_COLOR) *10;
 var LOGMIN = Math.log(TEMPMIN_COLOR) *10;
 
-function preventBehavior(e) {
-    'use strict';
-    e.preventDefault(); 
-}
-
-var changeColourGreen = function(switchInstance){
-    'use strict';
-    switchInstance.target.classList.remove("switch-unselected");
-    switchInstance.target.classList.add("switch-selected");
-};
-
-var changeColourGrey = function(switchInstance){
-    'use strict';
-    switchInstance.target.classList.remove("switch-selected");
-    switchInstance.target.classList.add("switch-unselected");
-};
 
 function roundSwitchInit(){
     'use strict';
@@ -141,179 +123,6 @@ function roundSwitchInit(){
     }
 }
 
-function verticalSwitchInit(){
-    'use strict';
-
-    var height = "44px";
-    var width = "20px";
-
-    var toggleSwitch = function(switchInstance){
-        console.log(switchInstance);
-        var switchId = switchInstance.target.id.slice(0, switchInstance.target.id.lastIndexOf("-"));
-        console.log(switchId);
-        if(controlSettings[switchId] === undefined || controlSettings[switchId] === 0){
-            controlSettings[switchId] = 1;
-            document.getElementById(switchId).getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top = "20px";
-        } else {
-            controlSettings[switchId] = 0;
-            document.getElementById(switchId).getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top = "0px";
-        }
-    };
-
-    // The HTML that makes up a switch.
-    var switchHtml = "<div class='switch-footprint'><div class='switch-outer switch-unselected'><div class='switch-inner'></div></div></div>";
-
-    var switches = document.getElementsByTagName("verticalswitch");
-
-    for(var sw = 0; sw < switches.length; sw++){    
-        switches[sw].innerHTML = switchHtml;
-        switches[sw].getElementsByTagName("div")[0].id = switches[sw].id + "-footprint";
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].id = switches[sw].id + "-outer";
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].id = switches[sw].id + "-inner";
-        switches[sw].getElementsByTagName("div")[0].style.width = width;
-        switches[sw].getElementsByTagName("div")[0].style.height = height;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseover = changeColourGreen;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseleave = changeColourGrey;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onclick = toggleSwitch;
-    }
-}
-
-var verticalSliderStoreYPos;    // Tempory storage while a slider is being dragged.
-/* An analouge slider. */
-var verticalSliderUpdate = [];
-function verticalSliderInit(){
-    'use strict';
-
-    var height = 200;
-    var width = 30;
-    var slideHeight = (200 - 6) * 0.8;      // (height - (2 * border)) * ((height - knob_height) / height)
-    var heightPx = height + "px";
-    var widthPx = width + "px";
-    var maxVal = 42;
-    var minVal = 5;
-    var rangeVal = minVal - maxVal;
-
-    // Called while slider is being dragged.
-    function dragSlider(switchInstance){
-        console.log("dragSlider");
-        var switchId;
-        if(switchInstance.target === undefined){
-            switchId = switchInstance.id;
-        } else {
-            switchId = switchInstance.target.id;
-        }
-
-        var x,y;
-        if(switchInstance.clientX && switchInstance.clientY){
-            // This is a mouse event.
-            x = switchInstance.clientX;
-            y = switchInstance.clientY;
-            console.log(x,y);
-        } else if(switchInstance.touches !== undefined) {
-            // Touch event.
-            x = switchInstance.touches[0].pageX;
-            y = switchInstance.touches[0].pageY;
-        } else {
-            if(verticalSliderStoreYPos === undefined){
-                y = maxVal;
-                verticalSliderStoreYPos = y;
-            } else {
-                return;
-            }
-        }
-
-        var pos = switchId.lastIndexOf("-");
-        if(pos > -1){
-            switchId = switchId.substr(0, pos);
-        }
-
-        controlSettings[switchId] += (y - verticalSliderStoreYPos) * rangeVal / slideHeight;
-
-        if(controlSettings[switchId] < minVal){ controlSettings[switchId] = minVal; }
-        if(controlSettings[switchId] > maxVal){ controlSettings[switchId] = maxVal; }
-        verticalSliderStoreYPos = y;
-
-        function doTheThings(_switchId){
-            var node = document.getElementById(_switchId);
-            node.getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.top =
-                ((controlSettings[switchId] - maxVal) * slideHeight / rangeVal) + "px";
-
-            node.getElementsByTagName("p")[0].innerHTML = (Math.round(controlSettings[switchId] * 10) / 10) + "°C";
-
-            displayTemperature();
-            
-            delete verticalSliderUpdate[_switchId];
-        }
-
-        // We don't want to update things every time a drag event is detected.
-        // Insstead do it every 20ms.
-        if(verticalSliderUpdate[switchId] === undefined){
-            verticalSliderUpdate[switchId] = setTimeout(function(){ doTheThings(switchId); }, 20);
-        }
-
-    }
-
-    // Called when slider is first dragged.
-    function dragSliderStart(switchInstance){
-        var x,y;
-        if(switchInstance.clientX !== undefined && switchInstance.clientY !== undefined){
-            console.log("dragSliderStart click");
-            //var crt = this.cloneNode(true);
-            //crt.style.backgroundColor = "black";
-            //crt.innerHTML = "";
-            //crt.style.position = "absolute"; crt.style.top = "0px"; crt.style.right = "0px";
-            //crt.style.height = "20px";
-            //crt.style.width = widthPx;
-            //document.body.appendChild(crt);
-            //switchInstance.dataTransfer.setDragImage(crt, 0, 0);
-            
-            x = switchInstance.clientX;
-            y = switchInstance.clientY;
-        } else {
-            console.log("dragSliderStart touch");
-            x = switchInstance.changedTouches[0].pageX;
-            y = switchInstance.changedTouches[0].pageY;
-        }
-        verticalSliderStoreYPos = y;
-    }
-
-    // The HTML that makes up a switch.
-    var switchHtml = "<div class='switch-footprint'><div class='switch-outer switch-unselected'>" +
-                     "<div class='slider-inner'></div></div><div><p class='switch-display'></p></div></div>";
-
-    // Fetch all sliders.
-    var switches = document.getElementsByTagName("verticalslider");
-
-    for(var sw = 0; sw < switches.length; sw++){
-        if(controlSettings[switches[sw].id] === undefined){
-            controlSettings[switches[sw].id] = minVal;
-        }
-        switches[sw].innerHTML = switchHtml;
-        switches[sw].getElementsByTagName("div")[0].id = switches[sw].id + "-footprint";
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].id = switches[sw].id + "-outer";
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].getElementsByTagName("div")[0].id = switches[sw].id + "-inner";
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.width = widthPx;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].style.height = heightPx;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseover = changeColourGreen;
-        switches[sw].getElementsByTagName("div")[0].getElementsByTagName("div")[0].onmouseleave = changeColourGrey;
-
-        // Mouse click events
-        switches[sw].ondrag = dragSlider;
-        switches[sw].draggable = true;
-        switches[sw].ondragstart = dragSliderStart;
-
-        // Mobile touch events.
-        switches[sw].ontouchmove = dragSlider;
-        switches[sw].ontouchstart = dragSliderStart;
-       
-        // Don't scroll screen when clicking/touching slider.
-        switches[sw].addEventListener("touchmove", preventBehavior, false);
-
-        // Draw slider in starting position.
-        dragSlider(switches[sw]);
-    }
-}
-
 function whoshome(clear){
     'use strict';
 
@@ -397,10 +206,6 @@ displayUser = function(userData){
 function displayTemperature(){
     'use strict';
 
-    var svg = d3.select("main").select("#dials").select("svg");
-    svg.attr("height", DIALHEIGHT)
-        .attr("width", "100%");
-
     function filterData(inputData){
         var retData = [];
         for(var i in inputData){
@@ -408,23 +213,26 @@ function displayTemperature(){
                 retData[i] = inputData[i];
             }
         }
-        retData.test = {"1wire": [controlSettings.setTemperatureSlider, 0]};
         return retData;
     }
 
+    var svgTest = document.getElementById("dialsSvg");
+    svgTest.setAttribute("height", DIALHEIGHT);
+    var index = 0;
+    var newThermometer, oldThermometer, key;
+    for(key in filterData(dataStore.allDataContainer)){
+        oldThermometer = svgTest.getElementById("thermometer-" + key);
+        newThermometer = setThermometerTemp(dataStore.allDataContainer[key], index);
+        newThermometer.id = "thermometer-" + key;
 
-    var thermometers = svg.selectAll(".thermometer")
-        .data(d3.entries(filterData(dataStore.allDataContainer)));
-
-    thermometers.html(setThermometerTemp);
-
-    thermometers.enter().append("svg")
-        .attr("class", "thermometer")
-        .attr("x", function(d,i){return 100*i;})
-        .html(setThermometerTemp);
-
-    thermometers.exit()
-        .remove();
+        if(oldThermometer === null){
+            svgTest.appendChild(newThermometer);
+        }else{
+            svgTest.replaceChild(newThermometer, oldThermometer);
+        }
+        index += 1;
+    }
+    return;
 }
 
 
@@ -440,11 +248,18 @@ var loadTemplate = function(filename){
 
 setThermometerTemp = function(d, i){
     'use strict';
+
+    /*var testElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    testElement.setAttribute("cx","100");
+    testElement.setAttribute("cy","100");
+    testElement.setAttribute("r","80");
+    return testElement; */
+
     if(!thermometerSvg){
         return;
     }
     var hue;
-    var temperature = d.value["1wire"][0];
+    var temperature = d["1wire"][0];
 
     if(temperature > TEMPMAX_SCALE){ temperature = TEMPMAX_SCALE; }
 
@@ -492,6 +307,6 @@ setThermometerTemp = function(d, i){
 
     thermometerSvg.getElementById("tempValue").getElementsByTagName("tspan")[0].innerHTML = (Math.round(temperature * 10) / 10) + "°C";
 
-    return thermometerSvg.innerHTML;
+    return thermometerSvg;
 };
 

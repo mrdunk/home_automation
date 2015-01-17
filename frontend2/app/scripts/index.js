@@ -3,9 +3,7 @@
 /* global Handlebars */
 /* global DataStore */
 /* global d3 */
-/* global verticalSwitchInit */
 /* global roundSwitchInit */
-/* global verticalSliderInit */
 /* global displayTemperature  */
 /* global whoshome */
 /* global DisplaySettingsUpdate */
@@ -14,7 +12,6 @@
 /*exported serverFQDN1 */
 /*exported serverFQDN2 */
 /*exported appEngineFQDN */
-/*exported tempSensorList */
 /*exported userInfoTemplate */
 /*exported teperaturesTemplate */
 /*exported userBriefTemplate */
@@ -31,7 +28,7 @@ var serverFQDN1 = '192.168.192.254';
 var serverFQDN2 = 'peeping.toythieves.com';
 var appEngineFQDN = 'home-automation-7.appspot.com';
 
-var tempSensorList = ['00000536d60c', '0000053610c1'];
+//var tempSensorList = ['00000536d60c', '0000053610c1', '00000536b89a'];
 
 var userInfoTemplate = Handlebars.compile(loadTemplate("userInfo.template"));
 var teperaturesTemplate = Handlebars.compile(loadTemplate("teperatures.template"));
@@ -67,9 +64,6 @@ window.onload = function () {
         .duration(2000)
         .style("background-color", "lightgrey");
 
-
-    verticalSwitchInit();
-    verticalSliderInit();
     roundSwitchInit();
 };
 
@@ -78,8 +72,6 @@ var displayControl = function () {
     var main = document.getElementsByTagName("main")[0];
     main.innerHTML = displayControlTemplate({});
 
-    verticalSwitchInit();
-    verticalSliderInit();
     roundSwitchInit();
 
     dataStore.registerCallbacks([displayTemperature, whoshome, roundSwitchInit]);

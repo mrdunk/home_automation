@@ -11,12 +11,14 @@
 #include <sys/stat.h>
 #include <thread>           // std::thread
 #include <algorithm>        // std::count
+#include <curl/curl.h>
 
 #define MIN_TEMP -55    // degrees centegrade
 #define MAX_TEMP 125    // degrees centegrade
 
 #define READAHEAD 30    // control temperature acording to how it is set this far in the future.
 
+#define CONFIGFILENAME "homeautod.cfg"
 using namespace std;
 
 /* [ { 'type': STRING, 
@@ -54,6 +56,7 @@ int CallbackPost(std::string* p_buffer, map<string, string>* p_arguments){
         cout << p_buffer->c_str() << endl;
         return 1;
     }
+
     return 0;
 }
 
@@ -80,34 +83,49 @@ int CallbackGetData(std::string* p_buffer, map<string, string>* p_arguments){
 
 /* Save configuration to disk cache. */
 int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
-    if(fileUtilsInstance.writable(data_path, "configuration") != 1){
+    if(fileUtilsInstance.writable(data_path, CONFIGFILENAME) != 1){
         *p_buffer = "Cannot write to " + data_path + ".";
         return 1;
     }
 
     // Path exists and is writable.
+    fileUtilsInstance._rename(data_path + CONFIGFILENAME, data_path + CONFIGFILENAME + ".back");
+
     string buffer;
     map<string, string> arguments_to_save;
     arguments_to_save["type"] = "configuration";
     arguments_to_save["pretty"] = "1";
     CallbackGetData(&buffer, &arguments_to_save);
 
-    fileUtilsInstance.write(data_path, "test", buffer);
-
+    fileUtilsInstance.write(data_path, CONFIGFILENAME, buffer);
+    
     *p_buffer = "ok";
+    return 0;
+}
+
+/* Wrapper arround CallbackSave() that we can call with no arguments.*/
+int SaveConfig(void){
+    std::string buffer;
+    map<string, string> unused_arguments;
+    if(CallbackSave(&buffer, &unused_arguments)){
+        cout << buffer << endl;
+        return 1;
+    }
+
+    cout << "Configuration saved." << endl;
     return 0;
 }
 
 /* Read saved configuration to disk cache. */
 int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
-    if(fileUtilsInstance.writable(data_path, "configuration") != 1){
+    if(fileUtilsInstance.writable(data_path, CONFIGFILENAME) != 1){
         *p_buffer = "Cannot write to " + data_path + ".";
         return 1;
     }
 
     string line, buffer;
     do{
-        fileUtilsInstance.readLine(data_path, "test", &line);
+        fileUtilsInstance.readLine(data_path, CONFIGFILENAME, &line);
         buffer += line + "\n";
     }while(line != "");
 
@@ -143,6 +161,21 @@ int minutesIntoWeek(void){
 }
 
 int SwitchHeating(int state){
+    // Switch hardware
+    static CURL* curl = curl_easy_init();
+    static CURLcode res;
+
+    if(state){
+        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.192.8/cgi-bin/relay.cgi?on");
+    } else {
+        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.192.8/cgi-bin/relay.cgi?off");
+    }
+    res = curl_easy_perform(curl);
+    if(res != CURLE_OK){
+        cout << "Switch failed. " << curl_easy_strerror(res) << endl;
+    }
+
+    // Update DB
     string jsonText = "[{\"type\":\"output\",\"data\":{\"key\":\"heatOnOff\",\"label\":\"output\",\"val\":\"" + to_string(state) + "\"}}]";
     Document document;
     document.Parse(jsonText.c_str());
@@ -237,7 +270,7 @@ void houseKeeping(void){
             }
         }
 
-        Cyclic::lookup("whos_home_1_week")->store(mins, unique_users.size());
+        Cyclic::lookup("whos_home_1_week")->store(mins, (unique_users.size() > 0));
 
         configuredTemperature = Cyclic::lookup("temp_setting_1_week")->read(mins);
         if(unique_users.size() > 0){
@@ -297,6 +330,13 @@ void houseKeeping(void){
         cout << "heatingState: " << heatingState << endl;
         cout << endl;
 
+
+        map<string,string> newConfiguration;
+        GetData("configuration", 31, "", "", &newConfiguration);
+        if(newConfiguration.size()){
+            // elements younger than last save exist.
+            SaveConfig();
+        }
     }
 
     cout << "Closing houseKeeping_thread." << endl;
@@ -400,7 +440,7 @@ int main(int argc, char **argv){
     CallbackRead(&unused_buffer, &unused_arguments);
 
     thread houseKeeping_thread(houseKeeping);
-
+    
     http_server daemon(atoi(port.c_str()), &authInstance);
     daemon.register_path("/save", "GET", &CallbackSave);
     daemon.register_path("/read", "GET", &CallbackRead);
@@ -410,7 +450,7 @@ int main(int argc, char **argv){
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
     daemon.register_path("/cyclicDB_temp_setting_1_week", "GET", &store_temp_setting_1_week);
     daemon.register_path("/cyclicDB_whos_home_1_week", "GET", &store_whos_home_1_week);
-
+    
     ws_server ws_daemon(atoi(port.c_str()) +1, &authInstance);
     ws_daemon.register_path("/data", "GET", &CallbackGetData);
     ws_daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
@@ -426,6 +466,9 @@ int main(int argc, char **argv){
     // Tell threads to quit and wait for that to happen.    
     run = 0;
     houseKeeping_thread.join();
+
+    // Save Config to disk.
+    SaveConfig();
 
     exit(exit_flag);
     //exit(EXIT_SUCCESS);

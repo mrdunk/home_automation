@@ -1,14 +1,10 @@
-     <div style='display: inline-block;'>
+     <div width="100%">
       <div id="people" style="height: 68px;"></div>
-      <div id="dials">
+      <div id="dials" width="100%">
         <roundswitch id="heatOnOff"></roundswitch>
 
-        <verticalslider id="setTemperatureSlider"></verticalslider>
-        <div style="float: left;"><svg id="dialsSvg"></svg></div>
-      </div>
-      <div id="content">
-          <verticalswitch id="stopDataSwitch"></verticalswitch>
-          <verticalswitch id="stopWsSwitch"></verticalswitch>
-          <verticalswitch id="heatOnOff-secondary"></verticalswitch>
+        <div style="overflow:hidden;" width="100%" height="100%">
+            <svg id="dialsSvg" width="100%" height="100%"></svg>
+        </div>
       </div>
      </div>

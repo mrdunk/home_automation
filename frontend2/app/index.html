@@ -4,46 +4,23 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <!-- <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"> -->
-    <meta name="viewport" content="width=768, initial-scale=0.5, maximum-scale=1">
+    <meta name="viewport" content="width=399, initial-scale=1, maximum-scale=1">
     <title>Temperature Control</title>
 
-    <!-- Add to homescreen for Chrome on Android -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="icon" sizes="196x196" href="images/touch/chrome-touch-icon-196x196.png">
 
-    <!-- Add to homescreen for Safari on iOS -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Web Starter Kit">
-
-    <!-- Tile icon for Win8 (144x144 + tile color) -->
-    <meta name="msapplication-TileImage" content="images/touch/ms-touch-icon-144x144-precomposed.png">
-    <meta name="msapplication-TileColor" content="#3372DF">
-
-    <!-- SEO: If your mobile URL is different from the desktop URL, add a canonical link to the desktop page https://developers.google.com/webmasters/smartphone-sites/feature-phones -->
-    <!--
-    <link rel="canonical" href="http://www.example.com/">
-    -->
-
-    <!-- build:css styles/components/main.min.css -->
     <link rel="stylesheet" href="styles/h5bp.css">
     <link rel="stylesheet" href="styles/components/components.css">
     <link rel="stylesheet" href="styles/main.css">
-    <!-- endbuild -->
 
   </head>
   <body>
-    <header class="app-bar promote-layer">
+    <header class="app-bar">
       <div class="app-bar-container">
-        <button class="menu"><img src="images/hamburger.svg" alt="Menu"></button>
         <h1 class="logo">Temperature Control</h1>
-        <section class="app-bar-actions">
-        <!-- Put App Bar Buttons Here -->
-        </section>
       </div>
     </header>
 
-    <nav class="navdrawer-container promote-layer">
+    <nav class="navdrawer-container">
       <h4>Navigation</h4>
       <ul>
         <li><a href="#graphs">Graphs</a></li>
@@ -55,43 +32,16 @@
     <main>
     </main>
 
-    <!-- build:js scripts/main.min.js -->
-    <script src="/scripts/main.js"></script>
-    <!-- endbuild -->
-
-    <!-- build:js scripts/3rdparty/d3/d3.min.js -->
     <script src="/scripts/3rdparty/d3/d3.min.js"></script>
-    <!-- endbuild -->
-
-    <!-- build:js scripts/3rdparty/handlebars-v2.0.0.js -->
     <script src="/scripts/3rdparty/handlebars-v2.0.0.js"></script>
-    <!-- endbuild -->
-
-    <!-- build:js scripts/data.js -->
     <script src="/scripts/data.js"></script>
-    <!-- endbuild -->
-    
-    <!-- build:js scripts/controls.js -->
     <script src="/scripts/controls.js"></script>
-    <!-- endbuild -->
-
-    <!-- build:js scripts/displayConfigure.js -->
     <script src="/scripts/displayConfigure.js"></script>
-    <!-- endbuild -->
-
-    <!-- build:js scripts/index.js -->
     <script src="/scripts/index.js"></script>
-    <!-- endbuild -->
-
-    <script src="/scripts/3rdparty/x-tag-components.js"></script>
-    <link rel="import" href="cyclicBuffer.html">
-    <link rel="import" href="registerDevices.html">
-
-    <!-- Built with love using Web Starter Kit -->
-
-
-    <!-- <x-cyclicBuffer identifier="temp_setting_1_week"></x-cyclicBuffer> -->
-    <!-- <x-registerDevices></x-registerDevices> -->
+    <script src="/scripts/3rdparty/x-tag-components.min.js"></script>
+    
+    <script src="/scripts/cyclicBuffer.js"></script>
+    <script src="/scripts/registerDevices.js"></script>
 
   </body>
 </html>

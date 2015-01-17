@@ -17,7 +17,9 @@ void Auth::populateUsers(string path, string filename){
     do{
         p_fileUtilsInstance->readLine(path, filename, &line);
         if(line != ""){
-            line.erase(line.find(" "), line.size());
+            try{
+                line.erase(line.find(" "), line.size());
+            } catch(const std::out_of_range& e){ }
             cout << "* |" << line << "|" << endl;
             validUsers.push_back(line);
         }
