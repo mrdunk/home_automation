@@ -43,6 +43,8 @@ FileUtils fileUtilsInstance(&statWrapper, &ofStreamWrapper, &ifStreamWrapper);
 
 Auth authInstance(&fileUtilsInstance);
 
+int minutesIntoWeek(void);  // typedef
+
 /* All threads should exit if run==0. */
 int run = 1;
 
@@ -113,6 +115,11 @@ int SaveConfig(void){
     }
 
     cout << "Configuration saved." << endl;
+    return 0;
+}
+
+int CallbackTime(std::string* p_buffer, map<string, string>* p_arguments){
+    *p_buffer = "[{\"type\":\"time\",\"data\":{\"key\":\"time\",\"label\":\"time\",\"val\":\"" + std::to_string(minutesIntoWeek()) + "\"}}]";
     return 0;
 }
 
@@ -265,8 +272,9 @@ void houseKeeping(void){
         for(auto it_userDevs = userDevices.begin(); it_userDevs != userDevices.end(); ++it_userDevs){
             string macAddr = it_userDevs->first;
             string userId = it_userDevs->second;
-            if(userId != "none" && networkClients.count(macAddr) > 0 && count(unique_users.begin(), unique_users.end(), macAddr) == 0){
-                unique_users.push_back(macAddr);
+            if(userId != "none" && networkClients.count(macAddr) > 0 && count(unique_users.begin(), unique_users.end(), userId) == 0){
+                cout << macAddr << " " << userId << endl;
+                unique_users.push_back(userId);
             }
         }
 
@@ -316,9 +324,9 @@ void houseKeeping(void){
 
         if(heatingState != userOveride){
             if(userOveride == 0){
-                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature -1);
+                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature -0.25);
             } else {
-                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature +1);
+                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature +0.25);
             }
             heatingState = userOveride;
         } else {
@@ -337,6 +345,15 @@ void houseKeeping(void){
             // elements younger than last save exist.
             SaveConfig();
         }
+
+        // Store average temperature accross all probes.
+        Cyclic::lookup("average_temp_1_week")->store(mins, averageTemperature);
+
+        // Store whether heating was on or off.
+        Cyclic::lookup("heating_state_1_week")->store(mins, heatingState);
+
+        // Store whether somone is actually at home (or heating has been triggered remotley).
+        Cyclic::lookup("occupied_1_week")->store(mins, unique_users.size() || (userInput > 0));
     }
 
     cout << "Closing houseKeeping_thread." << endl;
@@ -425,12 +442,17 @@ int main(int argc, char **argv){
 
 
 
-    
+    Cyclic store_average_temp_1_week("average_temp_1_week", 15, MINS_IN_WEEK, 1, 0, str_data_path, &fileUtilsInstance);
+    Cyclic store_heating_state_1_week("heating_state_1_week", 15, MINS_IN_WEEK, 1, 0, str_data_path, &fileUtilsInstance);
     Cyclic store_whos_home_1_week("whos_home_1_week", 30, MINS_IN_WEEK, 10, 0, str_data_path, &fileUtilsInstance);
     Cyclic store_temp_setting_1_week("temp_setting_1_week", 15, MINS_IN_WEEK, 1, 20, str_data_path, &fileUtilsInstance);
+    Cyclic store_occupied_1_week("occupied_1_week", 15, MINS_IN_WEEK, 1, 0, str_data_path, &fileUtilsInstance);
 
+    Cyclic::lookup("average_temp_1_week")->restoreFromDisk();
+    Cyclic::lookup("heating_state_1_week")->restoreFromDisk();
     Cyclic::lookup("whos_home_1_week")->restoreFromDisk();
     Cyclic::lookup("temp_setting_1_week")->restoreFromDisk();
+    Cyclic::lookup("occupied_1_week")->restoreFromDisk();
 
     cout << "allCyclic.size: " << Cyclic::allCyclic.size() << endl;
 
@@ -448,14 +470,22 @@ int main(int argc, char **argv){
     daemon.register_path("/put", "POST", &CallbackPost);
     daemon.register_path("/clientput", "POST", &CallbackPost);
     daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
+    daemon.register_path("/serverTime", "GET", &CallbackTime);
     daemon.register_path("/cyclicDB_temp_setting_1_week", "GET", &store_temp_setting_1_week);
     daemon.register_path("/cyclicDB_whos_home_1_week", "GET", &store_whos_home_1_week);
+    daemon.register_path("/cyclicDB_average_temp_1_week", "GET", &store_average_temp_1_week);
+    daemon.register_path("/cyclicDB_heating_state_1_week", "GET", &store_heating_state_1_week);
+    daemon.register_path("/cyclicDB_occupied_1_week", "GET", &store_occupied_1_week);
     
     ws_server ws_daemon(atoi(port.c_str()) +1, &authInstance);
     ws_daemon.register_path("/data", "GET", &CallbackGetData);
     ws_daemon.register_path("/whoin", "GET", &store_whos_home_1_week);
+    ws_daemon.register_path("/serverTime", "GET", &CallbackTime);
     ws_daemon.register_path("/cyclicDB_temp_setting_1_week", "GET", &store_temp_setting_1_week);
     ws_daemon.register_path("/cyclicDB_whos_home_1_week", "GET", &store_whos_home_1_week);
+    ws_daemon.register_path("/cyclicDB_average_temp_1_week", "GET", &store_average_temp_1_week);
+    ws_daemon.register_path("/cyclicDB_heating_state_1_week", "GET", &store_heating_state_1_week);
+    ws_daemon.register_path("/cyclicDB_occupied_1_week", "GET", &store_occupied_1_week);
 
     authInstance.populateUsers("/home/duncan/Working/home_automation/backend/", "authorisedusers");
 

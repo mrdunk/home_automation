@@ -223,12 +223,14 @@ function displayTemperature(){
     for(key in filterData(dataStore.allDataContainer)){
         oldThermometer = svgTest.getElementById("thermometer-" + key);
         newThermometer = setThermometerTemp(dataStore.allDataContainer[key], index);
-        newThermometer.id = "thermometer-" + key;
+        if(newThermometer){
+            newThermometer.id = "thermometer-" + key;
 
-        if(oldThermometer === null){
-            svgTest.appendChild(newThermometer);
-        }else{
-            svgTest.replaceChild(newThermometer, oldThermometer);
+            if(oldThermometer === null){
+                svgTest.appendChild(newThermometer);
+            }else{
+                svgTest.replaceChild(newThermometer, oldThermometer);
+            }
         }
         index += 1;
     }
@@ -248,12 +250,6 @@ var loadTemplate = function(filename){
 
 setThermometerTemp = function(d, i){
     'use strict';
-
-    /*var testElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    testElement.setAttribute("cx","100");
-    testElement.setAttribute("cy","100");
-    testElement.setAttribute("r","80");
-    return testElement; */
 
     if(!thermometerSvg){
         return;

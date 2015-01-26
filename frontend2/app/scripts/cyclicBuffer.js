@@ -4,7 +4,7 @@
 /* global bufferSetPointsTemplate */
 /* global mouseState */
 
-    (function(xtag, datastore) {
+    (function(xtag) {
         'use strict';
         xtag.register('x-cyclicBuffer', {
             lifecycle: {
@@ -12,7 +12,7 @@
                     this.touchState = 'up';
 
                     // Make sure this gets updated whenever new data arrives.
-                    dataStore.addCallback(function sendQueryNowCallback(data, code){this.draw();}.bind(this));
+                    //dataStore.addCallback(function sendQueryNowCallback(data, code){this.draw();}.bind(this));
 
                     if(this.label){
                         this.updateData();
@@ -173,7 +173,20 @@
                         // Get the data from server.
                         this.updateData();
                     }
-                }                              
+                },
+                updated: {
+                    // For some reason, setting .updated results in a 
+                    // "Uncaught TypeError: Cannot assign to read only property 'updated'" error
+                    // We can achieve the same thing by just reading this value.
+                    get: function(){
+                        console.log('get');
+                        this.draw();
+                    },
+                    set: function(value){
+                        this.setAttribute('updated', value);
+                        this.draw();
+                    }
+                }                
             },
             methods: {
                 clearSelected: function(){
@@ -287,7 +300,7 @@
                         populateForm.data = {};
 
                         // Populate key data.
-                        dataStore.allDataContainer[this.label].humanKey = {};
+                        //dataStore.allDataContainer[this.label].humanKey = {};
                         for(time=0; time < 60*24; time += 60){
                             populateForm.humanKey[time] = Math.round(time / 60);
                         }
@@ -325,7 +338,9 @@
                         bufferSetPoints.innerHTML = bufferSetPointsTemplate(populateForm);
 
                         this.calculateAverageValue();
-                        document.getElementById("set-" + this.label + "-modifyBufferButton").value = this.averageValue;
+                        if(document.getElementById("set-" + this.label + "-modifyBufferButton")){
+                            document.getElementById("set-" + this.label + "-modifyBufferButton").value = this.averageValue;
+                        }
                     }
                     this.updateView('red');
                     //this.displayDrag();

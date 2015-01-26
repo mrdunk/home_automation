@@ -80,56 +80,12 @@ Handlebars.registerHelper("math", function(lvalue, operator, rvalue, options) {
     }[operator];
 });
 
-function DisplaySettings(){
-    'use strict';
-    this.populateForm = {};
-    this.userDevices = {};
-    this.thermometers = {};
-
-    this.selectedTemperatureSetPoints = [];
-}
-
-DisplaySettings.prototype.update = function(){
-    'use strict';
-    var main = document.getElementsByTagName("main")[0];
-
-    var activeDevices = document.getElementById("activeDevices");
-    if(activeDevices === null){
-        activeDevices = document.createElement('x-registerDevices');
-        activeDevices.id = "activeDevices";
-        main.appendChild(activeDevices);
-    }
-
-    var bufferSetPoints = document.getElementById('bufferSetPoints');
-    if(bufferSetPoints === null){
-        bufferSetPoints = document.createElement('x-cyclicBuffer');
-        bufferSetPoints.id = "bufferSetPoints";
-        bufferSetPoints.label = "temp_setting_1_week";
-        bufferSetPoints.stepsize = 15;
-        bufferSetPoints.displaymax = 30;
-        bufferSetPoints.displaymin = 10;
-        bufferSetPoints.displayscale = 1;
-        bufferSetPoints.displaystep = 0.5;
-        main.appendChild(bufferSetPoints);
-    }
-
-    var usersSetHome = document.getElementById('usersSetHome');
-    if(usersSetHome === null){
-        usersSetHome = document.createElement('x-cyclicBuffer');
-        usersSetHome.id = "usersSetHome";
-        usersSetHome.label = "whos_home_1_week";
-        usersSetHome.stepsize = 30;
-        usersSetHome.displaymax = 1;
-        usersSetHome.displaymin = 0;
-        usersSetHome.displayscale = 20;
-        usersSetHome.displaystep = 0.1;
-        main.appendChild(usersSetHome);
-    }
-};
-
-/* Wrapper arround an instance of the DisplaySettings calss so we can use it as a callback easily. */
-var displaySettingsInstance = new DisplaySettings();
 var DisplaySettingsUpdate = function(){
     'use strict';
-    displaySettingsInstance.update();
+    var activeDevices = document.getElementById("activeDevices");
+    var bufferSetPoints = document.getElementById("bufferSetPoints");
+    var usersSetHome = document.getElementById("usersSetHome");
+    activeDevices.updated = true;
+    bufferSetPoints.updated = true;
+    usersSetHome.updated = true;
 };

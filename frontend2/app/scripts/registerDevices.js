@@ -2,17 +2,20 @@
 /* global xtag */
 /* global displayConfigureTemplate */
 
-    (function(xtag, datastore) {
+    (function(xtag) {
         'use strict';
         xtag.register('x-registerDevices', {
             lifecycle: {
                 created: function() {
+                    console.log('x-registerDevices');
+                    this.className = 'registerDevices';
+
                     this.userDevices = {};
                     this.thermometers = {};
                     this.updateView();
 
                     // Make sure this gets updated whenever new data arrives.
-                    dataStore.addCallback(function(){this.updateView();}.bind(this));
+//                    dataStore.addCallback(function(){this.updateView();}.bind(this));
                 }
             },
             events: {
@@ -85,13 +88,26 @@
                 },
             },
             accessors: {
+                updated: {
+                    // For some reason, setting .updated results in a 
+                    // "Uncaught TypeError: Cannot assign to read only property 'updated'" error
+                    // We can achieve the same thing by just reading this value.
+                    get: function(){
+                        console.log('get');
+                        this.updateView();
+                    },
+                    set: function(value){
+                        this.setAttribute('updated', value);
+                        this.updateView();
+                    }
+                }
             },
             methods: {
                 updateData: function(){
                     dataStore.serverConnectionsToPoll.doRequestsNow();
                 },
                 updateView: function(){
-                    //console.log('updateView');
+                    console.log('updateView');
                     // Create list of devices not yet displayed on page.
                     var userDevicesNew = {};
                     for(var device in dataStore.allDataContainer){

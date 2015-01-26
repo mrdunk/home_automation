@@ -6,27 +6,30 @@
         value.net_clients:  List of IPs associated with this user.
         value.macAddr:      List of MAC addresses.                  --}}
 
+<span title="{{value.displayName}}" class="hideWhenMaximized whosHomeMin"><img src="{{value.image}}" width="60" height="60"></span>
 
-<dl class="displayUserTitle hideWhenMinimized">
+<div class="hideWhenMinimized whosHomeMax">
+  <dl class="displayUserTitle">
     <dt>User</dt>
     <dd><img src="{{value.image}}" width="60" height="60"></dd>
     <dd>{{value.displayName}}</dd>
-</dl>
-<dl class="displayUser hideWhenMinimized">
+  </dl>
+  <dl class="displayUser">
     <dt>Device</dt>
     {{#each value.description}}
         <dd>{{safeVal this '&nbsp;'}}</dd>
     {{/each}}
-</dl>
-<dl class="displayUser hideWhenMinimized">
+  </dl>
+  <dl class="displayUser">
     <dt>IP-Address</dt>
     {{#each value.net_clients}}
         <dd>{{safeVal this '&nbsp;'}}</dd>
     {{/each}}
-</dl>
-<dl class="displayUser hideWhenMinimized">
+  </dl>
+  <dl class="displayUser">
     <dt>MAC-Address</dt>
     {{#each value.macAddr}}
         <dd>{{safeVal this '&nbsp;'}}</dd>
     {{/each}}
-</dl>
+  </dl>
+</div>

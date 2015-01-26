@@ -7,6 +7,7 @@
 /* global displayTemperature  */
 /* global whoshome */
 /* global DisplaySettingsUpdate */
+/* global UpdateGraphs */
 
 /*exported AuthKey */
 /*exported serverFQDN1 */
@@ -37,6 +38,7 @@ var displayControlTemplate = Handlebars.compile(loadTemplate("displayControl.tem
 var displayConfigureTemplate = Handlebars.compile(loadTemplate("displayConfigure.template"));
 var bufferSetPointsTemplate = Handlebars.compile(loadTemplate("bufferSetPoints.template"));
 var bufferSetPointsControlsTemplate = Handlebars.compile(loadTemplate("bufferSetPointsControls.template"));
+var userInfoTemplate2 = Handlebars.compile(loadTemplate("userInfo2.template"));
 
 var dataStore = new DataStore();
 
@@ -55,22 +57,22 @@ d3.ns.prefix.inkscape = "http://www.inkscape.org/namespaces/inkscape";
 window.onload = function () {
     'use strict';
     console.log('window.onload');
-    location.hash = 'startup';
+    //location.hash = 'control';
+    window.onhashchange();
 
-    var main = d3.select("main");
-    main.style("background-color", "white");
+    //var main = d3.select("main");
+    //main.style("background-color", "white");
 
-    main.transition()
-        .duration(2000)
-        .style("background-color", "lightgrey");
-
-    roundSwitchInit();
+    //main.transition()
+    //    .duration(2000)
+    //    .style("background-color", "lightgrey");
 };
 
 var displayControl = function () {
     'use strict';
-    var main = document.getElementsByTagName("main")[0];
-    main.innerHTML = displayControlTemplate({});
+    var controls = document.getElementById('controls');
+    controls.style.display = "block";
+    controls.innerHTML = displayControlTemplate({});
 
     roundSwitchInit();
 
@@ -79,34 +81,73 @@ var displayControl = function () {
 
 var displayConfigure = function () {
     'use strict';
+    console.log('displayConfigure()');
+
+    document.getElementById('activeDevices').style.display = "block";
+    document.getElementById('bufferSetPoints').style.display = "block";
+    document.getElementById('usersSetHome').style.display = "block";
+
     dataStore.registerCallbacks([DisplaySettingsUpdate]);
+};
+
+
+var displayGraphs = function () {
+    'use strict';
+    console.log('displayGraphs()');
+
+    var graph = document.getElementById('graph');
+    graph.style.display = "block";
+
+    dataStore.registerCallbacks([UpdateGraphs]);
+};
+
+var test = function(){
+    'use strict';
+    console.log('test()');
+
+    var whoshome = document.getElementById("whosHome");
+    whoshome.style.display = "block";
+    document.getElementById("whosHome").updated = "true";
+    dataStore.registerCallbacks([function(){whoshome.updated = "true";}]);
 };
 
 var displayEmpty = function () {
     'use strict';
-    var main = document.getElementsByTagName("main")[0];
-    main.innerHTML = 'content missing';
-    dataStore.registerCallbacks([]);
+    //var main = document.getElementsByTagName("main")[0];
+    //main.innerHTML = 'content missing';
 };
 
 window.onhashchange = function () {
     'use strict';
-    console.log(location.hash);
-    document.getElementsByTagName("main")[0].innerHTML = "";
+    
+    dataStore.registerCallbacks([]);
 
-    var main = d3.select("main");
-    main.style("background-color", "white");
+    var main = document.getElementsByTagName("main")[0];
+    for(var child in main.children){
+        if(main.children[child].style){
+            main.children[child].style.display = "none";
+        }
+    }
+    //purge(main);
+    //removeChildren(main);
+
+    /*var main2 = d3.select("main");
+    main2.style("background-color", "white");*/
 
     if(location.hash === '#control'){
         displayControl();
     } else if(location.hash === '#config'){
         displayConfigure();
+    } else if(location.hash === '#graphs'){
+        displayGraphs();
+    } else if(location.hash === '#test'){
+        test();
     } else {
         displayEmpty();
     }
 
-    main.transition()
+    /*main2.transition()
         .duration(2000)
-        .style("background-color", "lightgrey");
+        .style("background-color", "lightgrey");*/
 };
 

@@ -124,10 +124,11 @@ body.open {
 }
 
 main {
-  margin: 0 auto;
-  /* Height of the header */
-  padding: 60px 16px 16px 16px;
-  min-height: 100%;
+    position: absolute;
+    margin: 0 auto;
+    /* Height of the header */
+    min-height: 100%;
+    width:100%;
 }
 
 /** Larger Screens - desktops and tablets **/
@@ -270,6 +271,10 @@ main {
 }
 
 .whosHome {
+}
+
+.whosHomeMin
+{
     float: left;
     width: 64px;
     margin: 0 0 0 2px;
@@ -277,6 +282,39 @@ main {
     text-align: center;
     border: 1px solid black;
     z-index: 10;
+
+    -webkit-transition: 0.5s;  /* For Safari 3.1 to 6.0 */
+    transition: 0.5s;
+}
+
+.whosHomeMax
+{
+    position: absolute;     /* Must be absolute or relative for z-index to work. */
+    border: 1px solid #000;
+    background: #000;
+    padding: 5px;
+    margin: 0;
+    overflow: hidden;
+    /*display: inline-block;*/
+    z-index: 10;    /* So divs overlap the temperature bar. */
+
+    -webkit-transition: 0.5s;  /* For Safari 3.1 to 6.0 */
+    transition: 0.5s;
+}
+
+.whosHomeMax dd{
+    margin: 0;
+    padding: 0;
+    min-width: 10px;
+    min-height: 1.5em;
+}
+
+.whosHomeMax dt{
+    font-weight: bold;
+}
+
+dd.whosHome {
+    margin: 0;
 }
 
 div.displayUser
@@ -287,8 +325,20 @@ div.displayUser
     padding: 5px;
     margin: 0;
     overflow: hidden;
-    display: inline-block;
+    /*display: inline-block;*/
     z-index: 10;    /* So divs overlap the temperature bar. */
+}
+
+.displayNone{
+    /*display: none;*/
+    visibility: hidden;
+    opacity:0;
+}
+
+.displayVisible{
+    /*display: block;*/
+    visibility:  visible;
+    opacity:1;
 }
 
 dl.displayUser
@@ -446,6 +496,20 @@ p.switch-display
     display: inline;
 }
 
+.registerDevices
+{
+    position:relative;
+    float: left; 
+    width: 800px;
+}
+
+.cyclicBuffer
+{
+    position:relative;
+    float: left;
+    width: 800px;
+}
+
 .cyclicLabel
 {
     background-color:#00EEEE;
@@ -502,4 +566,88 @@ p.switch-display
    */
    -ms-user-select: none;
    user-select: none;
+}
+
+.window{
+  border-color:black;
+  border-style:solid;
+  border-width:1px;
+  position: absolute;
+}
+
+.window-transition_pos{
+  -webkit-transition: width 0.5s, height 0.5s, top 0.1s linear, left 0.1s linear; /* For Safari 3.1 to 6.0 */
+  transition: width 0.5s, height 0.5s, top 0.1s linear, left 0.1s linear;
+}
+
+.window-transition_long{
+    -webkit-transition: width 0.5s, height 0.5s, top 0.5s, left 0.5s; /* For Safari 3.1 to 6.0 */
+    transition: width 0.5s, height 0.5s, top 0.5s, left 0.5s;
+}
+
+.window-header{
+    background-color:blue;
+    height:1.2em;
+    width:100%;
+    border-width:1px;
+    border-color:blue;
+    border-style:solid;
+    position: absolute;
+}
+
+.window-button{
+    background-color:grey;
+    border-color:black;
+    border-style:solid;
+    border-width:1px;
+    width:1em;
+    height:1em;
+    float: left;
+}
+
+.graph{
+    width:100%;
+    height:10em;
+    position: absolute;
+}
+
+.graph-container{
+    width:100%;
+    height:10em;
+    position: absolute;
+}
+
+.graphToolTipLine{
+    border-width:0.1em;
+    border-color:#080808;
+    border-style:solid;
+    position: absolute;
+}
+
+.graphToolTipBox{
+    border-width:0.2em;
+    padding:0.2em;
+    border-color:#080808;
+    border-style:solid;
+    position: absolute;
+    background-color:#080808;
+    color:white;
+    -webkit-border-radius: 10px;
+    -webkit-border-top-left-radius: 0;
+    -moz-border-radius: 10px;
+    -moz-border-radius-topleft: 0;
+    border-radius: 10px;
+    border-top-left-radius: 0;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.graphLineLabel{
+    width:4em;
+    display: inline-block;
+}
+.graphLineIcon{
+    width:1em;
+    height:1em;
+    display: inline-block;
 }

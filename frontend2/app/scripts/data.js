@@ -48,7 +48,7 @@ function GetAuthKey(){
                 url: '/logIn/'};
     }
 
-    if(returnedData.loginStatus === true){
+    if(returnedData.loginStatus && returnedData.loginStatus === true){
         console.log(returnedData.key, 'Auth');
         return returnedData.key;
     }
@@ -209,7 +209,10 @@ DataStore.prototype.registerCallbacks = function(callbacks){
     } else {
         this.callbackFunctions = [];
     }
-    this.doCallbacks();
+
+    if(this.callbackFunctions.length){
+        this.doCallbacks();
+    }
 };
 
 DataStore.prototype.addCallback = function(callback){
@@ -425,7 +428,7 @@ ConnectionsToPoll.prototype.doRequest = function(serverList, method, path, callb
             url = address + ":" + wsPort;
             if(url in this.wsOpen && this.wsOpen[url][0].websocket !== null &&
                     this.wsOpen[url][0].websocket.readyState === this.wsOpen[url][0].websocket.OPEN){
-                var openFor = Date.now() - this.wsOpen[url][1];
+                //var openFor = Date.now() - this.wsOpen[url][1];
                 //console.log("WS already open to " + url + " for " + openFor + " ms.");
                 ws_sucess = url;
 
