@@ -525,9 +525,10 @@ function WS(url, callback){
 
 WS.prototype.initialise = function(){
     'use strict';
-    if(typeof websocket !== "undefined"){
+    if(typeof this.websocket !== "undefined"){
         if(this.websocket !== null){
-            if(this.websocket.readyState === this.websocket.CONNECTING || this.websocket.readyState === this.websocket.CLOSING){
+            if(this.websocket.readyState === this.websocket.CONNECTING || 
+                    this.websocket.readyState === this.websocket.CLOSING){
                 // Currently in an in-between state so come back later.
                 return;
             }
@@ -562,6 +563,9 @@ WS.prototype.onMessage = function(evt){
     'use strict';
     //console.log("WS.onMessage", evt.data.length, this.callback);
     //console.log("WS.onMessage", evt.data);
+    if(!this.callback){
+        return;
+    }
     this.callback(evt.data);
     this.setTimeout();
 };

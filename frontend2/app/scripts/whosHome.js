@@ -1,6 +1,6 @@
 /* global dataStore */
 /* global xtag */
-/* global userInfoTemplate */
+/* global userInfoTemplate2 */
 
 (function(xtag) {
     'use strict';
@@ -12,13 +12,6 @@
         },
         accessors: {
             updated: {
-                // For some reason, setting .updated results in a 
-                // "Uncaught TypeError: Cannot assign to read only property 'updated'" error
-                // We can achieve the same thing by just reading this value.
-                get: function get(){
-                    //console.log('get');
-                    this.update(true);
-                },
                 set: function set(value){
                     //console.log('set', value);
                     this.setAttribute('updated', value);
@@ -84,7 +77,6 @@
             },
             displayUsers: function displayUsers(displayIfOut){
                 var usersHome = [];
-                var childrenToUpdate = [];
                 for(var userId in dataStore.userDataContainer){
                     if(dataStore.userDataContainer[userId].home || displayIfOut){
                         usersHome.push(userId);
@@ -95,9 +87,23 @@
                         var childId = this.children[child].id.split('-')[1];
                         var index = usersHome.indexOf(childId);
                         if(index >= 0){
-                            // found an existing matching user element.
+                            // found an existing matching user element so remove it from the list of things to do,
                             usersHome.splice(index, 1);
-                            childrenToUpdate.push(this.children[child]);
+
+                            // and update it.
+                            var maximized = false;
+                            if(this.children[child].classList.contains('maximized')){
+                                maximized = true;
+                            }
+                            var data = { 'key': childId,
+                                         'value': dataStore.userDataContainer[childId] };
+                            this.children[child].innerHTML = userInfoTemplate2(data);
+                            if(maximized){
+                                this.children[child].classList.add('maximized');
+                                this.maximize(this.children[child]);
+                            } else {
+                                this.minimize(this.children[child]);
+                            }
                         }
                     }
                 }

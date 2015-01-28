@@ -20,6 +20,16 @@
             },
             events: {
                 tap: function(devId){
+                    if(this.tapStart){
+                        return;
+                    }
+                    // this.tapStart ensures we don't get multiple clicks froma single press
+                    // when the button underneath where getting clicked changes.
+                    // This was a problem when clicking the "Edit" button also clicked the "Save"
+                    // button which appeared in place of "Edit".
+                    this.tapStart = true;
+                    window.setTimeout(function clearTapStart(){this.tapStart = false;}.bind(this), 1000);
+
                     var devIdId = devId.srcElement.id;
                     if(devIdId.split("-").length !== 2){
                         return;
@@ -27,11 +37,12 @@
 
                     devId = devIdId.split("-")[0];
                     var action = devIdId.split("-")[1];
-                    //console.log('click', devIdId, devId, action);
+                    console.log('tap', devIdId, devId, action);
 
                     if(action === 'editButton'){
                         this.userDevices[devId].configStatus = 'edit';
                     } else if(action === 'cancelButton'){
+
                         // Use .slice() for deep copy.
                         this.userDevices[devId].description_modified =
                                 this.userDevices[devId].description.slice();

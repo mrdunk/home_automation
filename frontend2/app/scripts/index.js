@@ -14,6 +14,7 @@
 /*exported serverFQDN2 */
 /*exported appEngineFQDN */
 /*exported userInfoTemplate */
+/*exported userInfoTemplate2 */
 /*exported teperaturesTemplate */
 /*exported userBriefTemplate */
 /*exported displayControlTemplate */

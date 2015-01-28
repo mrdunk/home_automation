@@ -121,6 +121,9 @@ void ws_server::on_message(connection_hdl hdl, server::message_ptr msg) {
                 do_get(hdl, msg, &arguments, &path, &page_content);
             } else if(method == "/POST" || method == "/post" || method == "POST" || method == "post"){
                 // TODO
+                page_content = "[{\"error\": \"POST not yet implemented\", \"method\": \"" + method + "\"}]";
+            } else {
+                page_content = "[{\"error\": \"Invalid method\", \"method\": \"" + method + "\"}]";
             }
 
             m_server.send(it, page_content, msg->get_opcode());
