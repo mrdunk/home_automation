@@ -59,19 +59,14 @@ function GetAuthKey(){
 
 function DataStore(){
     'use strict';
-    this.serverConnectionsToPoll = new ConnectionsToPoll();
-    this.serverConnectionsToSend = new ConnectionsToSend();
     this.allDataContainer = {};
     this.userDataContainer = {};
     this.callbackFunctions = [];
     this.additionalCallback = [];
 
-    this.setupConnections("users");
-    this.setupConnections("temperature");
-    this.setupConnections("send");
+    this.network = new Network();
 
-    // Perform a lookup after 3 seconds (to allow everything to catch up).
-    window.setTimeout(function(){this.serverConnectionsToPoll.doRequestsNow();}.bind(this), 3000);
+    this.setupConnections();
 }
 
 DataStore.prototype.parseIncoming = function(incomingData, code){
@@ -222,10 +217,62 @@ DataStore.prototype.addCallback = function(callback){
 };
 
 
-DataStore.prototype.setupConnections = function(role){
+DataStore.prototype.setupConnections = function(){
     'use strict';
-    // [serverFQDN, webSocket_port, http_port]
-    this.serverHouse = [[serverFQDN1, "55556", "55555"], [serverFQDN2, "55556", "55555"]];
+
+    // defines: 
+    var DO_WEBSOCKET = true;
+    var SKIP_WEBSOCKET = false;
+
+    var serverHouse = [[serverFQDN1, "55555", DO_WEBSOCKET], [serverFQDN2, "55555", DO_WEBSOCKET]];
+    var serverAppEngine = [[appEngineFQDN, "80", SKIP_WEBSOCKET]];
+
+    var querysHouse = [['/data?type=configuration&data={"label":"userId"}', 30000],
+                       ['/data?type=configuration&data={"label":"description"}', 30000],
+                       ['/data?type=sensors&data={"label":"net_clients"}&age=300', 30000],
+                       ['/data?type=userInput', 30000],
+                       ['/data?type=output', 30000],
+                       ['/data?type=sensors&data={"label":"1wire"}&age=300', 30000],
+                       ['/cyclicDB_average_temp_1_week?', 600000],                      // 600000ms = 10 mins.
+                       ['/cyclicDB_temp_setting_1_week?', 600000],                      // 600000ms = 10 mins.
+                       ['/cyclicDB_heating_state_1_week?', 600000],                     // 600000ms = 10 mins.
+                       ['/serverTime?', 30000],
+                       ['/clientput?', 0]                                               // No repeate for POST data.
+                      ];
+    var querysAppEngine = [['/listUsers/?', 60000]];
+    
+    var q, s, query, fqdn, port, time, doWebsocket;
+    for(q in querysHouse){
+        query = querysHouse[q][0];
+        time = querysHouse[q][1];
+        for(s in serverHouse){
+            fqdn = serverHouse[s][0];
+            port = serverHouse[s][1];
+            doWebsocket = serverHouse[s][2];
+            this.network.registerQuery(query, fqdn, port, doWebsocket);
+            if(time){
+                this.network.setQueryInterval(query, time);
+            }
+            this.network.registerCallback(query, function parseIncomingCallback(data, code){this.parseIncoming(data, code)}.bind(this));
+        }
+    }
+    for(q in querysAppEngine){
+        query = querysAppEngine[q][0];
+        time = querysAppEngine[q][1];
+        for(s in serverAppEngine){
+            fqdn = serverAppEngine[s][0];
+            port = serverAppEngine[s][1];
+            doWebsocket = serverAppEngine[s][2];
+            this.network.registerQuery(query, fqdn, port, doWebsocket);
+            if(time){
+                this.network.setQueryInterval(query, time);
+            }
+            this.network.registerCallback(query, function parseIncomingCallback(data, code){this.parseIncoming(data, code)}.bind(this));
+        }
+    }
+
+
+/*    this.serverHouse = [[serverFQDN1, "55556", "55555"], [serverFQDN2, "55556", "55555"]];
     this.serverAppEngine = [[appEngineFQDN, "", "80"]];
 
     this.querysHouseUsers = [['/data?type=configuration&data={"label":"userId"}', 30000],
@@ -259,7 +306,7 @@ DataStore.prototype.setupConnections = function(role){
 
     if(role === "send"){
         this.serverConnectionsToSend.registerRequest(role, this.serverHouse, "POST");
-    }
+    }*/
 };
 
 /* Args:
@@ -267,6 +314,7 @@ DataStore.prototype.setupConnections = function(role){
  *  path: Path and arguments of URL.
  *  callback: Function to call when complete.
  */
+/*
 DataStore.prototype.sendQueryNow = function(destination, path, callback){
     'use strict';
     console.log("DataStore.sendQueryNow");
@@ -365,7 +413,7 @@ function ConnectionsToPoll(){
     this.requestQueue = {};
     this.wsTimeout = 500;                // ms
     this.retryConnectionTimeout = 20000; // ms
-}
+}*/
 
 /* Register a query to be sent to server(s) at specified intervals.
  *
@@ -375,7 +423,7 @@ function ConnectionsToPoll(){
  *   method:     GET/POST/etc
  *   path:       Data to be sent. Sent in Path for HTTP-GET. Sent as payload for WS-GET.
  *   timeBetweenRequests: Number of ms to wait before doing this again. */
-ConnectionsToPoll.prototype.registerRequest = function(serverList, method, path, timeBetweenRequests, callback){
+/*ConnectionsToPoll.prototype.registerRequest = function(serverList, method, path, timeBetweenRequests, callback){
     'use strict';
     if(path in this.requestQueue){
         //clearTimeout(this.requestQueue.path[2]);
@@ -391,7 +439,7 @@ ConnectionsToPoll.prototype.registerRequest = function(serverList, method, path,
     this.doRequest(serverList, method, path, callback);
 };
 
-/* Do all requests now rather than wait for the scheduled event. */
+// Do all requests now rather than wait for the scheduled event.
 ConnectionsToPoll.prototype.doRequestsNow = function(){
     'use strict';
     for(var path in this.requestQueue){
@@ -575,8 +623,8 @@ WS.prototype.onError = function(evt){
     console.log("WS.onError", evt.data);
 };
 
-/* If WebSocket is idle for a long time (ie, has not triggered the onMessage() event,
- * we might as well close it. */
+// If WebSocket is idle for a long time (ie, has not triggered the onMessage() event,
+// we might as well close it. 
 WS.prototype.setTimeout = function(){
     'use strict';
     if(typeof this.timeoutTimer !== "undefined"){
@@ -606,7 +654,7 @@ HTTP.prototype.initialise = function(sendData){
         // Firefox, Chrome, etc.
         this.xmlHttp.open(this.method, "http://" + this.url, true );
         //console.log('FF, Chrome', 'XDomain');
-    /* jshint wsh: true */
+    // jshint wsh: true 
     } else if (typeof XDomainRequest !== "undefined") {
         // IE
         this.xmlHttp = new XDomainRequest();
@@ -690,4 +738,4 @@ HTTP.prototype.onreadystatechange = function(evt){
     'use strict';
     //console.log("onreadystatechange", evt);
 };
-
+*/

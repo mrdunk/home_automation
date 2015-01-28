@@ -57,7 +57,8 @@ function roundSwitchInit(){
                                    }
                          }];
         console.log("** sending: ", controlSettings[switchId]);
-        dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){console.log(testvar);}, 6);
+        //dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), function(testvar){console.log(testvar);}, 6);
+        dataStore.network.put(JSON.stringify(dataToSend));
 
         // Redraw switch.        
         roundSwitchInit();

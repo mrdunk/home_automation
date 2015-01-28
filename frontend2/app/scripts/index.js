@@ -84,9 +84,20 @@ var displayConfigure = function () {
     'use strict';
     console.log('displayConfigure()');
 
-    document.getElementById('activeDevices').style.display = "block";
-    document.getElementById('bufferSetPoints').style.display = "block";
-    document.getElementById('usersSetHome').style.display = "block";
+    var activeDevices = document.getElementById('activeDevices');
+    if(activeDevices){
+        activeDevices.style.display = "block";
+    }
+
+    var bufferSetPoints = document.getElementById('bufferSetPoints');
+    if(bufferSetPoints){
+        bufferSetPoints.style.display = "block";
+    }
+
+    var usersSetHome = document.getElementById('usersSetHome');
+    if(usersSetHome){
+        usersSetHome.style.display = "block";
+    }
 
     dataStore.registerCallbacks([DisplaySettingsUpdate]);
 };
@@ -97,9 +108,11 @@ var displayGraphs = function () {
     console.log('displayGraphs()');
 
     var graph = document.getElementById('graph');
-    graph.style.display = "block";
+    if(graph){
+        graph.style.display = "block";
 
-    dataStore.registerCallbacks([UpdateGraphs]);
+        dataStore.registerCallbacks([UpdateGraphs]);
+    }
 };
 
 var test = function(){
@@ -107,9 +120,11 @@ var test = function(){
     console.log('test()');
 
     var whoshome = document.getElementById("whosHome");
-    whoshome.style.display = "block";
-    document.getElementById("whosHome").updated = "true";
-    dataStore.registerCallbacks([function(){whoshome.updated = "true";}]);
+    if(whoshome){
+        whoshome.style.display = "block";
+        document.getElementById("whosHome").updated = "true";
+        dataStore.registerCallbacks([function(){whoshome.updated = "true";}]);
+    }
 };
 
 var displayEmpty = function () {

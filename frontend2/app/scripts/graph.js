@@ -42,10 +42,14 @@ function minsToTime(time){
     xtag.register('x-graph', {
         lifecycle: {
             created: function(){
-                dataStore.sendQueryNow("house", "/cyclicDB_average_temp_1_week?");
-                dataStore.sendQueryNow("house", "/cyclicDB_temp_setting_1_week?");
-                dataStore.sendQueryNow("house", "/cyclicDB_heating_state_1_week?");
-                dataStore.sendQueryNow("house", "/serverTime?");
+                //dataStore.sendQueryNow("house", "/cyclicDB_average_temp_1_week?");
+                //dataStore.sendQueryNow("house", "/cyclicDB_temp_setting_1_week?");
+                //dataStore.sendQueryNow("house", "/cyclicDB_heating_state_1_week?");
+                //dataStore.sendQueryNow("house", "/serverTime?");
+                dataStore.network.get('/cyclicDB_average_temp_1_week?');
+                dataStore.network.get('/cyclicDB_temp_setting_1_week?');
+                dataStore.network.get('/cyclicDB_heating_state_1_week?');
+                dataStore.network.get('/serverTime?');
 
                 this.draw();
             }

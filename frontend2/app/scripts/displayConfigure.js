@@ -85,7 +85,13 @@ var DisplaySettingsUpdate = function(){
     var activeDevices = document.getElementById("activeDevices");
     var bufferSetPoints = document.getElementById("bufferSetPoints");
     var usersSetHome = document.getElementById("usersSetHome");
-    activeDevices.updated = true;
-    bufferSetPoints.updated = true;
-    usersSetHome.updated = true;
+    if(activeDevices){
+        activeDevices.updated = true;
+    }
+    if(bufferSetPoints){
+        bufferSetPoints.updated = true;
+    }
+    if(usersSetHome){
+        usersSetHome.updated = true;
+    }
 };

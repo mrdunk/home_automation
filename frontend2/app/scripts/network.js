@@ -26,14 +26,36 @@ Network.prototype.get = function(query){
     this.ws.get(query);
 };
 
+Network.prototype.put = function(sendData){
+    'use strict';
+
+    // TODO do this for WebSockets as well.
+    // (only working for http just now.)
+    this.http.put(sendData);
+};
+
 /* Make query lookup happen at a regular interval. */
 Network.prototype.setQueryInterval = function(query, time){
     'use strict';
+    //console.log('Network.setQueryInterval(', query, time, ')');
 
-    setInterval(function(){this.get(query);}.bind(this), time);
+    window.setInterval(function(){this.get(query);}.bind(this), time);
 
     // Also do this once now.
     this.get(query);
+};
+
+Network.prototype.registerCallback = function(query, callback){
+    'use strict';
+    if(!this.ws.callbacksSucess[query]){
+        this.ws.callbacksSucess[query] = [];
+    }
+    this.ws.callbacksSucess[query].push(callback);
+
+    if(!this.http.callbacksSucess[query]){
+        this.http.callbacksSucess[query] = [];
+    }
+    this.http.callbacksSucess[query].push(callback);
 };
 
 
@@ -162,7 +184,7 @@ WS.prototype.onOpen = function(evt, query){
 WS.prototype.onMessage = function(evt, query){
     'use strict';
     //console.log("WS.onMessage", evt.data, evt);
-    this.onSucess(query);
+    this.onSucess(query, evt.data);
 };
 
 /*WS.prototype.onError = function(evt){
@@ -170,13 +192,13 @@ WS.prototype.onMessage = function(evt, query){
     console.log("WS.onError", evt.data);
 };*/
 
-WS.prototype.onSucess = function(query){
+WS.prototype.onSucess = function(query, response, status){
     'use strict';
     console.log("WS.onSucess");
 
     if(this.callbacksSucess[query]){
         for(var callback in this.callbacksSucess[query]){
-            this.callbacksSucess[query][callback](query);
+            this.callbacksSucess[query][callback](response, status);
         }
     }
 
@@ -200,7 +222,7 @@ WS.prototype.onFail = function(query){
 function HTTP(){
     'use strict';
     this.querys = {};
-    this.RETRY_TIME = 1000;     // 1000ms.
+    this.RETRY_TIME = 5000;     // 5000ms.
     this.NUMBER_RETRYS = 3;
 
     this.callbacksSucess = {};
@@ -254,11 +276,43 @@ HTTP.prototype.get = function(query, retryCount){
     }
     this.querys[query].attemptNumber = attemptNumber;
 
-    this.getSingle(query, attemptNumber, 'GET', retryCount);
+    this.xmlRequest(query, attemptNumber, 'GET', retryCount);
 };
 
-HTTP.prototype.getSingle = function(query, attemptNumber, method, retryCount){
+HTTP.prototype.put = function(sendData, retryCount){
     'use strict';
+    console.log('HTTP.put(' + sendData, retryCount + ')');
+     
+    var query = '/clientput?';
+
+    if(!this.querys[query]){
+        // query not registered.
+        return;
+    }
+
+    if(!retryCount){
+        retryCount = 1;
+    }
+
+    var attemptNumber = this.querys[query].attemptNumber;
+    var successNumber = this.querys[query].successNumber;
+
+    if(attemptNumber !== successNumber){
+        attemptNumber++;
+        if(attemptNumber === this.querys[query].serverList.length){
+            attemptNumber = 0;
+        }
+    }
+    this.querys[query].attemptNumber = attemptNumber;
+
+    this.xmlRequest(query, attemptNumber, 'POST', retryCount, sendData);
+};
+
+HTTP.prototype.xmlRequest = function(query, attemptNumber, method, retryCount, sendData){
+    'use strict';
+    if(!sendData){
+        sendData = '';
+    }
     var server = this.querys[query].serverList[attemptNumber].server;
     var port = this.querys[query].serverList[attemptNumber].port;
 
@@ -287,53 +341,59 @@ HTTP.prototype.getSingle = function(query, attemptNumber, method, retryCount){
             xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
             //xmlHttp.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
         }
-        xmlHttp.onloadend = function(evt) { this.onloadend(evt, query, attemptNumber, retryCount); }.bind(this);
+        xmlHttp.onloadend = function(evt) { this.onloadend(evt, query, attemptNumber, sendData, retryCount); }.bind(this);
 
-        xmlHttp.send('test data');
+        xmlHttp.send(sendData);
     } catch(e){
         console.log(e);
     }
 };
 
-HTTP.prototype.onloadend = function(evt, query, attemptNumber, retryCount){
+HTTP.prototype.onloadend = function(evt, query, attemptNumber, sendData, retryCount){
     'use strict';
-    console.log("HTTP.onloadend", evt);
+    //console.log("HTTP.onloadend", evt);
     
     var response = evt.target.response;
     var status = evt.target.status;
-    console.log(response, status);
+    //console.log(response, status);
 
     if([200, 403].indexOf(status) >= 0){
         this.querys[query].successNumber = attemptNumber;
-        this.onSucess(query);
+        this.onSucess(query, response, status);
     } else if(this.querys[query].successNumber === attemptNumber){
         // This query previously passed but now fails.
         this.querys[query].successNumber = -1;
-        this.onFail(query, retryCount);
+        this.onFail(query, sendData, retryCount);
     } else {
-        this.onFail(query, retryCount);
+        this.onFail(query, sendData, retryCount);
     }
 };
 
-HTTP.prototype.onSucess = function(query){
+HTTP.prototype.onSucess = function(query, response, status){
     'use strict';
     console.log("HTTP.onSucess");
 
     if(this.callbacksSucess[query]){
         for(var callback in this.callbacksSucess[query]){
-            this.callbacksSucess[query][callback](query);
+            this.callbacksSucess[query][callback](response, status);
         }
     }
 };
 
-HTTP.prototype.onFail = function(query, retryCount){
+HTTP.prototype.onFail = function(query, sendData, retryCount){
     'use strict';
-    console.log("HTTP.onFail");
+    console.log("HTTP.onFail", retryCount, this.NUMBER_RETRYS);
 
     if(retryCount++ < this.NUMBER_RETRYS){
-        window.setTimeout(function ws_retry_timer(){
-            this.get(query, retryCount);
-        }.bind(this), this.RETRY_TIME);
+        if(query === '/clientput?'){
+            window.setTimeout(function ws_retry_timer(){
+                this.put(sendData, retryCount);
+            }.bind(this), this.RETRY_TIME);
+        } else {
+            window.setTimeout(function ws_retry_timer(){
+                this.get(query, retryCount);
+            }.bind(this), this.RETRY_TIME);
+        }
     }
 
     if(this.callbacksFail[query]){
