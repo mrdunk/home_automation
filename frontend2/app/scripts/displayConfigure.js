@@ -82,6 +82,7 @@ Handlebars.registerHelper("math", function(lvalue, operator, rvalue, options) {
 
 var DisplaySettingsUpdate = function(){
     'use strict';
+    console.log('DisplaySettingsUpdate');
     var activeDevices = document.getElementById("activeDevices");
     var bufferSetPoints = document.getElementById("bufferSetPoints");
     var usersSetHome = document.getElementById("usersSetHome");

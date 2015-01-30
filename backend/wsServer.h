@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <string>     // std::string, std::to_string
+#include <mutex>
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
@@ -102,6 +103,8 @@ class ws_server{
     con_list m_connections;
 
     Auth* p_authInstance;
+
+    std::mutex m_mutex;
 };
 
 

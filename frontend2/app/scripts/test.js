@@ -1,6 +1,4 @@
 /* exported AuthKey */
-/* global WS */
-/* global HTTP */
 /* global Network */
 
 var serverFQDN1 = '192.168.192.254';

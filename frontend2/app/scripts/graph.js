@@ -22,6 +22,34 @@ function minsToDay(time){
     return 'Sat';
 }
 
+function dayToMins(time){
+    'use strict';
+    if(!time || time.split(' ').length === 1){
+        return;
+    }
+    var day = time.split(' ')[0];
+    var hour = parseInt(time.split(' ')[1].split(':')[0]);
+
+    var minuteTotal = 0;
+    if(day === 'Mon'){
+        minuteTotal += 1440;
+    } else if(day === 'Tue'){
+        minuteTotal += 2 * 1440;
+    } else if(day === 'Wed'){
+        minuteTotal += 3 * 1440;
+    } else if(day === 'Thu'){
+        minuteTotal += 4 * 1440;
+    } else if(day === 'Fri'){
+        minuteTotal += 5 * 1440;
+    } else if(day === 'Sat'){
+        minuteTotal += 6 * 1440;
+    }
+    minuteTotal += 60 * hour;
+    console.log(day, hour, minuteTotal, minsToDay(minuteTotal));
+
+    return minuteTotal;
+}
+
 function minsToTime(time){
     'use strict';
     var day = minsToDay(time);
@@ -75,52 +103,61 @@ function minsToTime(time){
                 if(index % 60 === 0){
                     var temperatureSetPoint = 0;
                     
+                    var indexM3 = index -30;
                     var indexM2 = index -30;
                     var indexM1 = index -15;
-                    var indexP1 = index +15;
+                    if(indexM3 < 0){
+                        indexM3 += MinutesInWeek;
+                    }
                     if(indexM2 < 0){
                         indexM2 += MinutesInWeek;
                     }
                     if(indexM1 < 0){
                         indexM1 += MinutesInWeek;
                     }
-                    if(indexP1 >= MinutesInWeek){
-                        indexP1 -= MinutesInWeek;
-                    }
 
+                    var m3, m2, m1, m0;
 
                     if(dataStore.allDataContainer.temp_setting_1_week){
-                        temperatureSetPoint = parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][indexM2]);
-                        temperatureSetPoint += parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][indexM1]);
-                        temperatureSetPoint += parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][index]);
-                        temperatureSetPoint += parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][indexP1]);
+                        m3 = parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][indexM3]);
+                        m2 = parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][indexM2]);
+                        m1 = parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][indexM1]);
+                        m0 = parseFloat(dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[0][index]);
+
+                        temperatureSetPoint = (m3 + m2 + m1 + m0) / (Boolean(m3) + Boolean(m2) + Boolean(m1) + Boolean(m0));                        
                     }
 
                     var temperatureAverage = 0;
                     if(dataStore.allDataContainer.average_temp_1_week){
-                        temperatureAverage = parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][indexM2]);
-                        temperatureAverage += parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][indexM1]);
-                        temperatureAverage += parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][index]);
-                        temperatureAverage += parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][indexP1]);
+                        m3 = parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][indexM3]);
+                        m2 = parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][indexM2]);
+                        m1 = parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][indexM1]);
+                        m0 = parseFloat(dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[0][index]);
+
+                        temperatureAverage = (m3 + m2 + m1 + m0) / (Boolean(m3) + Boolean(m2) + Boolean(m1) + Boolean(m0));
                     }
 
                     var heatingState = 0;
                     if(dataStore.allDataContainer.heating_state_1_week){
-                        heatingState = parseFloat(dataStore.allDataContainer.heating_state_1_week.heating_state_1_week[0][indexM2]);
+                        heatingState = parseFloat(dataStore.allDataContainer.heating_state_1_week.heating_state_1_week[0][indexM3]);
+                        heatingState |= parseFloat(dataStore.allDataContainer.heating_state_1_week.heating_state_1_week[0][indexM2]);
                         heatingState |= parseFloat(dataStore.allDataContainer.heating_state_1_week.heating_state_1_week[0][indexM1]);
                         heatingState |= parseFloat(dataStore.allDataContainer.heating_state_1_week.heating_state_1_week[0][index]);
-                        heatingState |= parseFloat(dataStore.allDataContainer.heating_state_1_week.heating_state_1_week[0][indexP1]);
                     }
                     
-                    // I have updated Chart.js to not re-fresh the image on every .addData() ehrn yhe 3rd peramiter === true.
-                    this.myLineChart.addData([(temperatureSetPoint / 4), (temperatureAverage / 4)], minsToTime(index), true);
+                    // I have updated Chart.js to not re-fresh the image on every .addData() when the 3rd peramiter === true.
+                    this.myLineChart.addData([temperatureSetPoint, temperatureAverage], minsToTime(index), true);
                     this.myLineChart2.addData([heatingState], minsToTime(index), true);
                 }
             },
-            updateData: function updateData(){
-                var timeInt = dataStore.allDataContainer.time.time[0];
-                timeInt -= timeInt % 60;
-                
+            /* Initialy populate graph. */
+            bootstrapData: function bootstrapData(){
+                this.lastUpdated = Date.now();
+                var currentTimeInt = dataStore.allDataContainer.time.time[0];
+                console.log(currentTimeInt);
+                currentTimeInt -= currentTimeInt % 60;
+                console.log(currentTimeInt);
+
                 while(this.myLineChart.datasets[0].points.length){
                     this.myLineChart.removeData();
                 }
@@ -128,31 +165,68 @@ function minsToTime(time){
                     this.myLineChart2.removeData();
                 }
 
-                for(var itterator = timeInt + 60; itterator <= timeInt + MinutesInWeek; itterator += 60){
+                for(var itterator = currentTimeInt + 60; itterator <= currentTimeInt + MinutesInWeek; 
+                            itterator += 60){
                     var adjustedItterator = itterator;
-                    if(itterator >= MinutesInWeek){
-                        adjustedItterator = itterator - MinutesInWeek;
+                    if(adjustedItterator >= MinutesInWeek){
+                        adjustedItterator -= MinutesInWeek;
                     }
                     this.addPoint(adjustedItterator);
                 }
                 this.myLineChart.update();
                 this.myLineChart2.update();
             },
+            updateData: function updateData(){
+                var currentTimeInt = dataStore.allDataContainer.time.time[0];
+                console.log(currentTimeInt);
+                currentTimeInt -= currentTimeInt % 60;
+                console.log(currentTimeInt);
+
+                console.log(this.myLineChart.scale.xLabels[0]);
+                var oldestTimeInt = dayToMins(this.myLineChart.scale.xLabels[0]);
+                var lastValidTimeInt = oldestTimeInt - 60;
+                if(lastValidTimeInt < 0){
+                    lastValidTimeInt += MinutesInWeek;
+                }
+                var timeGap = currentTimeInt - lastValidTimeInt;
+                if(timeGap < 0){
+                    timeGap += MinutesInWeek;
+                }
+                
+
+                for(var itterator = lastValidTimeInt + 60; itterator <= lastValidTimeInt + timeGap; itterator += 60){
+                    var adjustedItterator = itterator;
+                    if(adjustedItterator >= MinutesInWeek){
+                        adjustedItterator -= MinutesInWeek;
+                    }
+                    this.myLineChart.removeData();
+                    this.myLineChart2.removeData();
+                    this.addPoint(adjustedItterator);
+                }
+                this.myLineChart.update();
+                this.myLineChart2.update();
+            },
             draw: function draw(){
+                if(!dataStore.allDataContainer.time){
+                    // Data not read yet.
+                    return;
+                }
                 if(this.myLineChart){
                     // TODO update existing.
                     console.log('drawnAlready');
+
+                    // Update not more than every 10 minutes.
+                    if(!this.lastUpdated || Date.now() > this.lastUpdated + (1*60*1000)){
+                        console.log('updating', Date.now() - this.lastUpdated);
+                        this.lastUpdated = Date.now();
+                        window.setTimeout(this.updateData.bind(this), 1000);
+                        //this.updateData();
+                    }
                     return;
                 }
                 if(!document.getElementsByTagName('x-graph').length || !dataStore.allDataContainer.temp_setting_1_week ||
                         !dataStore.allDataContainer.average_temp_1_week || !dataStore.allDataContainer.heating_state_1_week){
                     console.log('data not received yet');
-                    return;
-                }
-                if(this.myLineChart){
-                    this.myLineChart.draw();
-                    this.myLineChart2.draw();
-                    console.log('redrawing');
                     return;
                 }
                 console.log('**** not drawnAlready', this.drawnAlready);
@@ -211,7 +285,7 @@ function minsToTime(time){
                 this.innerHTML = '<canvas id="heatingStateGraph" width="' + GRAPHWIDTH + '" height="' + GRAPHHEIGHT + '" class="graph"></canvas>' +
                                  '<canvas id="temperatureGraph" width="' + GRAPHWIDTH + '" height="' + GRAPHHEIGHT + '" class="graph"></canvas>' +
                                  '<div id="graphToolTipLine" class="graphToolTipLine"></div>' +
-                                 '<div id="graphToolTipBox" class="graphToolTipBox"></div>';
+                                 '<div id="graphToolTipBox" class="graphToolTipBox graphToolTipBoxRight"></div>';
 
                 var canvasTop = document.getElementById("temperatureGraph");
                 var ctxTop = canvasTop.getContext("2d");
@@ -229,9 +303,15 @@ function minsToTime(time){
                     var activePoints = this.myLineChart.getPointsAtEvent(evt);
                     if(activePoints[0]){
                         var x = activePoints[0].x;
-
+                        var boxPos = x;
+                        if(x > GRAPHWIDTH / 2){
+                            toolTipBox.className = toolTipBox.className.replace('Right', 'Left');
+                            boxPos = boxPos - toolTipBox.offsetWidth +2;
+                        } else {
+                            toolTipBox.className = toolTipBox.className.replace('Left', 'Right');
+                        }
                         toolTipLine.style.left = "" + x + "px";
-                        toolTipBox.style.left = "" + x + "px";
+                        toolTipBox.style.left = "" + boxPos + "px";
 
                         toolTipBox.innerHTML = '<b>' + activePoints[0].label + '</b>';
                         for(var i in activePoints){
@@ -245,7 +325,7 @@ function minsToTime(time){
                     }
                 }.bind(this);
 
-                this.updateData();
+                this.bootstrapData();
             }
         }
     });
@@ -254,6 +334,6 @@ function minsToTime(time){
 
 function UpdateGraphs(){
     'use strict';
-    console.log('UpdateGraphs()');
+    //console.log('UpdateGraphs()');
     document.getElementById('graph').updated = true;
 }

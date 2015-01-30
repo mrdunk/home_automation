@@ -19,7 +19,7 @@
                 }
             },
             events: {
-                tap: function(devId){
+                tap: function tap(devId){
                     if(this.tapStart){
                         return;
                     }
@@ -37,7 +37,7 @@
 
                     devId = devIdId.split("-")[0];
                     var action = devIdId.split("-")[1];
-                    console.log('tap', devIdId, devId, action);
+                    //console.log('tap', devIdId, devId, action);
 
                     if(action === 'editButton'){
                         this.userDevices[devId].configStatus = 'edit';
@@ -79,12 +79,13 @@
                                     'val': this.userDevices[devId].description_modified[0]}
                                     });
                         }
-                        dataStore.serverConnectionsToSend.send("send", JSON.stringify(configData), 
-                                function(data){
+                        dataStore.network.put(JSON.stringify(configData), 
+                                function registerDevicesSaveCallback(data){
+                                    console.log('callback: ' , data);
                                     if(data === "ok"){
                                         this.updateData();
                                     }
-                                }.bind(this), 6);
+                                }.bind(this));
 
                         // Use .slice() for deep copy.
                         this.userDevices[devId].description_modified =
@@ -103,22 +104,23 @@
                     // For some reason, setting .updated results in a 
                     // "Uncaught TypeError: Cannot assign to read only property 'updated'" error
                     // We can achieve the same thing by just reading this value.
-                    get: function(){
+                    get: function updateViewGet(){
                         console.log('get');
                         this.updateView();
                     },
-                    set: function(value){
+                    set: function updateViewSet(value){
                         this.setAttribute('updated', value);
                         this.updateView();
                     }
                 }
             },
             methods: {
-                updateData: function(){
-                    dataStore.serverConnectionsToPoll.doRequestsNow();
+                updateData: function updateData(){
+                    dataStore.network.get('/data?type=configuration&data={"label":"description"}');
+                    dataStore.network.get('/data?type=configuration&data={"label":"userId"}');
                 },
-                updateView: function(){
-                    console.log('updateView');
+                updateView: function updateView(){
+                    //console.log('updateView');
                     // Create list of devices not yet displayed on page.
                     var userDevicesNew = {};
                     for(var device in dataStore.allDataContainer){
@@ -202,7 +204,7 @@
                     }
 
                 },
-                deleteFromView: function(userDevicesNew){
+                deleteFromView: function deleteFromView(userDevicesNew){
                     // Remove any divs that are in the provided list.
                     var divs = this.getElementsByTagName('div');
                     for(var devId in userDevicesNew){

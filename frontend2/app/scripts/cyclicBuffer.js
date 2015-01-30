@@ -253,12 +253,11 @@
                     // Get data from server.
                     if(!skipUpdateTimeCheck && this.serverLastQueriedAt === undefined || Date.now() - this.serverLastQueriedAt > 600000){
                         this.serverLastQueriedAt = Date.now();
-                    //    dataStore.sendQueryNow("house", "/cyclicDB_" + this.label + "?", function sendQueryNowCallback(data, code){this.draw();}.bind(this));
-                        dataStore.sendQueryNow("house", "/cyclicDB_" + this.label + "?");
+                        dataStore.network.get('/cyclicDB_' + this.label + '?');
                     }
                 },
                 draw: function() {
-                    console.log("draw", this.label);
+                    //console.log("draw", this.label);
 
                     var child;
                     var bufferSetPoints = null;
@@ -294,6 +293,7 @@
                     }
 
                     var time;
+                    var displayStep = parseFloat(this.getAttribute('displayStep'));
                     if(dataStore.allDataContainer[this.label] !== undefined){
                         var populateForm = {};
                         populateForm.humanKey = {};
@@ -309,7 +309,7 @@
                         var maxValue, minValue, averageValue = 0, counterValues = 0, displayValue, actualValue;
                         for(time=0; time < 60*24*7; time += parseInt(this.stepsize)){
                             displayValue = (dataStore.allDataContainer[this.label][this.label][0][time] - parseInt(this.displaymin)) * parseInt(this.displayscale);
-                            actualValue = Math.round(10 * dataStore.allDataContainer[this.label][this.label][0][time]) / 10;
+                            actualValue = Math.round(dataStore.allDataContainer[this.label][this.label][0][time] / displayStep) * displayStep;
 
                             populateForm.data[time] = [displayValue, actualValue];
 
@@ -346,6 +346,7 @@
                     //this.displayDrag();
                 },
                 calculateAverageValue: function() {
+                    var displayStep = parseFloat(this.getAttribute('displayStep'));
                     var valueTotal = 0;
                     var valueCount = 0;
                     var time;
@@ -356,7 +357,8 @@
                             valueCount += 1;
                         }
                     }
-                    this.averageValue = (valueTotal / valueCount).toFixed(1);
+                    this.averageValue = valueTotal / valueCount;
+                    this.averageValue = Math.round(this.averageValue / displayStep) * displayStep;
                     if(!isNaN(this.averageValue)){
                         document.getElementById("set-" + this.label + "-modifyBufferButton").value = this.averageValue;
                     }
@@ -413,8 +415,7 @@
                         }
                     }];
 
-                    dataStore.serverConnectionsToSend.send("send", JSON.stringify(dataToSend), 
-                            function(){this.updateData(true);}.bind(this), 6);
+                    dataStore.network.put(JSON.stringify(dataToSend), function(){this.updateData(true);}.bind(this));
 
                     this.selectedSetPointsUnsaved = false;  // No data to save anymore.
                 },

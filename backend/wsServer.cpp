@@ -73,6 +73,8 @@ ws_server::~ws_server(){
 }
 
 void ws_server::on_open(connection_hdl hdl) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     m_connections.insert(hdl);
 
     user_agent = m_server.get_user_agent();
@@ -93,12 +95,14 @@ void ws_server::on_open(connection_hdl hdl) {
 }
 
 void ws_server::on_close(connection_hdl hdl) {
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_connections.erase(hdl);
 }
 
 void ws_server::on_message(connection_hdl hdl, server::message_ptr msg) {
     for (auto it : m_connections) {
         if(it.lock().get() == hdl.lock().get()){
+            std::lock_guard<std::mutex> lock(m_mutex);
 
             map<string, string> arguments;
             string path;
