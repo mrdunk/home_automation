@@ -1,7 +1,7 @@
 // Functions for the "configure" page.
 
 /* global Handlebars */
-/* exported DisplaySettingsUpdate */
+/* exported displaySettingsUpdate */
 
 var mouseState = "up";
 
@@ -80,9 +80,9 @@ Handlebars.registerHelper("math", function(lvalue, operator, rvalue, options) {
     }[operator];
 });
 
-var DisplaySettingsUpdate = function(){
+var displaySettingsUpdate = function(){
     'use strict';
-    console.log('DisplaySettingsUpdate');
+    console.log('displaySettingsUpdate');
     var activeDevices = document.getElementById("activeDevices");
     var bufferSetPoints = document.getElementById("bufferSetPoints");
     var usersSetHome = document.getElementById("usersSetHome");

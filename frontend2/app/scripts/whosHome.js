@@ -2,12 +2,14 @@
 /* global xtag */
 /* global userInfoTemplate2 */
 
+/* exported updateWhoshome */
+
 (function(xtag) {
     'use strict';
     xtag.register('x-whosHome', {
         lifecycle: {
             created: function created(){
-                this.update(true);
+                this.update();
             }
         },
         accessors: {
@@ -15,7 +17,7 @@
                 set: function set(value){
                     //console.log('set', value);
                     this.setAttribute('updated', value);
-                    this.update(true);
+                    this.update();
                 }
             }
         },
@@ -25,17 +27,17 @@
                 this.displayUsers(displayIfOut);
             },
             createUser: function createUser(userId, displayIfOut){
-                if(!dataStore.userDataContainer || !dataStore.userDataContainer[userId]){
+                if(!dataStore.allDataContainer || !dataStore.allDataContainer[userId]){
                     // Data not loaded yet.
                     return;
                 }
-                if(!dataStore.userDataContainer[userId].home && !displayIfOut){
+                if(!dataStore.allDataContainer[userId].home && !displayIfOut){
                     // User not in house.
                     return;
                 }
 
                 var data = { 'key': userId,
-                             'value': dataStore.userDataContainer[userId] };
+                             'value': dataStore.allDataContainer[userId] };
 
                 var userInfo = document.createElement('div');
                 userInfo.innerHTML = userInfoTemplate2(data);
@@ -58,8 +60,9 @@
             },
             garbageCollectUsers: function garbageCollectUsers(displayIfOut){
                 var usersHome = [];
-                for(var userId in dataStore.userDataContainer){
-                    if(dataStore.userDataContainer[userId].home || displayIfOut){
+                for(var userId in dataStore.allDataContainer){
+                    if(dataStore.allDataContainer[userId].type === 'user' &&
+                            (dataStore.allDataContainer[userId].home || displayIfOut)){
                         usersHome.push(userId);
                     }
                 }
@@ -77,8 +80,9 @@
             },
             displayUsers: function displayUsers(displayIfOut){
                 var usersHome = [];
-                for(var userId in dataStore.userDataContainer){
-                    if(dataStore.userDataContainer[userId].home || displayIfOut){
+                for(var userId in dataStore.allDataContainer){
+                    if(dataStore.allDataContainer[userId].type === 'user' && 
+                            (dataStore.allDataContainer[userId].home || displayIfOut)){
                         usersHome.push(userId);
                     }
                 }
@@ -96,7 +100,7 @@
                                 maximized = true;
                             }
                             var data = { 'key': childId,
-                                         'value': dataStore.userDataContainer[childId] };
+                                         'value': dataStore.allDataContainer[childId] };
                             this.children[child].innerHTML = userInfoTemplate2(data);
                             if(maximized){
                                 this.children[child].classList.add('maximized');
@@ -136,3 +140,8 @@
         }
     });
 })(xtag);
+
+function updateWhoshome(){
+    'use strict';
+    document.getElementById("whosHome").updated = true;
+}

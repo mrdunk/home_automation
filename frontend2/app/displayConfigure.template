@@ -22,7 +22,7 @@
         <select id="{{@key}}-userId">
             <option value="">none</option>
             {{#each ../users}}
-                <option value="{{@key}}" {{ifSelected @key ../userId_modified.[0]}}>{{displayName}}</option>
+                <option value="{{@key}}" {{ifSelected @key ../userId_modified.[0]}}>{{displayName.[0]}}</option>
             {{/each}}
         </select>
     </div>

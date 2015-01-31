@@ -5,9 +5,9 @@
 /* global d3 */
 /* global roundSwitchInit */
 /* global displayTemperature  */
-/* global whoshome */
-/* global DisplaySettingsUpdate */
-/* global UpdateGraphs */
+/* global displaySettingsUpdate */
+/* global updateGraphs */
+/* global updateWhoshome */
 
 /*exported AuthKey */
 /*exported serverFQDN1 */
@@ -32,9 +32,7 @@ var appEngineFQDN = 'home-automation-7.appspot.com';
 
 //var tempSensorList = ['00000536d60c', '0000053610c1', '00000536b89a'];
 
-var userInfoTemplate = Handlebars.compile(loadTemplate("userInfo.template"));
 var teperaturesTemplate = Handlebars.compile(loadTemplate("teperatures.template"));
-var userBriefTemplate = Handlebars.compile(loadTemplate("userBrief.template"));
 var displayControlTemplate = Handlebars.compile(loadTemplate("displayControl.template"));
 var displayConfigureTemplate = Handlebars.compile(loadTemplate("displayConfigure.template"));
 var bufferSetPointsTemplate = Handlebars.compile(loadTemplate("bufferSetPoints.template"));
@@ -75,9 +73,16 @@ var displayControl = function () {
     controls.style.display = "block";
     controls.innerHTML = displayControlTemplate({});
 
-    roundSwitchInit();
+    var whoshome = document.getElementById("whosHome");
+    if(whoshome){
+        whoshome.style.display = "block";
+        document.getElementById("whosHome").updated = "true";
+    }
 
-    dataStore.registerCallbacks([displayTemperature, whoshome, roundSwitchInit]);
+    roundSwitchInit();
+    displayTemperature();
+    updateWhoshome();
+    dataStore.registerCallbacks([updateWhoshome, displayTemperature, roundSwitchInit]);
 };
 
 var displayConfigure = function () {
@@ -99,7 +104,8 @@ var displayConfigure = function () {
         usersSetHome.style.display = "block";
     }
 
-    dataStore.registerCallbacks([DisplaySettingsUpdate]);
+    displaySettingsUpdate();
+    dataStore.registerCallbacks([displaySettingsUpdate]);
 };
 
 
@@ -110,8 +116,8 @@ var displayGraphs = function () {
     var graph = document.getElementById('graph');
     if(graph){
         graph.style.display = "block";
-
-        dataStore.registerCallbacks([UpdateGraphs]);
+        updateGraphs();  // Update now.
+        dataStore.registerCallbacks([updateGraphs]);
     }
 };
 
@@ -123,7 +129,8 @@ var test = function(){
     if(whoshome){
         whoshome.style.display = "block";
         document.getElementById("whosHome").updated = "true";
-        dataStore.registerCallbacks([function(){whoshome.updated = "true";}]);
+        whoshome.updated = "true";  // Update now.
+        dataStore.registerCallbacks([function whoshomeUpdate(){whoshome.updated = "true";}]);
     }
 };
 

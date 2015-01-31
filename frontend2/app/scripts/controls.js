@@ -1,7 +1,4 @@
 /* global dataStore */
-/* global d3 */
-/* global userBriefTemplate */
-/* global userInfoTemplate */
 /* global thermometerSvg */
 
 /* exported displayTemperature */
@@ -9,11 +6,10 @@
 /* exported loadTemplate */
 
 // TypeDefs:
-var displayUser, displayTemperature, setThermometerTemp;
+var displayTemperature, setThermometerTemp;
 
 var controlSettings = {};
 
-var FADETIME = 200;
 var DIALHEIGHT = 300;
 var TEMPMAX_SCALE = 45;
 var TEMPMIN_SCALE = 10;
@@ -123,86 +119,6 @@ function roundSwitchInit(){
         drawCircle(context, diskColour, outlineColour);
     }
 }
-
-function whoshome(clear){
-    'use strict';
-
-    var onClick = function(pictureId){
-        d3.select("main").select("#people").selectAll("div")
-            .transition()
-            .duration(FADETIME)
-            .style("-webkit-transform", "scale(0)")
-            .each("end", function(){displayUser(pictureId);});
-    };
-
-    if(clear){
-        // Remove all pre-existing so transitions work.
-        d3.select("main").select("#people").selectAll("div").remove();
-    }
-
-    var workspace = d3.select("main").select("#people").selectAll("div")
-        .data(d3.entries(dataStore.userDataContainer));
-
-    // Modify existing.
-    workspace
-        .filter(function(d){return d.value.home;})
-        .html(userBriefTemplate)
-        .attr("class", "whosHome")
-        .on("click", onClick)
-        .style("-webkit-transform", "scale(1)");
-
-    // Append new.
-    workspace.enter()
-        .append("div")
-        .filter(function(d){return d.value.home;})
-        .html(userBriefTemplate)
-        .attr("class", "whosHome")
-        .on("click", onClick)
-        .style("-webkit-transform", "scale(0)")
-        .transition()
-        .duration(FADETIME)
-        .style("-webkit-transform", "scale(1)");
- 
-    workspace.exit()
-        .remove();
-    
-}
-
-displayUser = function(userData){
-    'use strict';
-    var onClick = function(pictureId){
-        // Click anywhere on the popup to restore view of all users.
-        d3.select("main").select("#people").selectAll("div")
-            .transition()
-            .duration(FADETIME)
-            .style("-webkit-transform", "scale(0)")
-            .each("end", function(){whoshome(true);});
-    };
-
-    // Remove all pre-existing so transitions work.
-    d3.select("main").select("#people").selectAll("div").remove();
-
-    var workspace = d3.select("main").select("#people").selectAll("div").data([userData]);
-
-    workspace.html(userInfoTemplate)
-        .attr("class", "displayUser")
-        .on("click", onClick)
-        .style("-webkit-transform", "scale(0)");
-
-    workspace.enter()
-        .append("div")
-        .attr("class", "displayUser")
-        .html(userInfoTemplate)
-        .on("click", onClick)
-        .style("-webkit-transform", "scale(0)");
-
-    workspace.transition()
-        .duration(FADETIME)
-        .style("-webkit-transform", "scale(1)");
-
-    workspace.exit()
-        .remove();
-};
 
 function displayTemperature(){
     'use strict';

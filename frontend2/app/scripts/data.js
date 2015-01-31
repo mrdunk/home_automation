@@ -58,7 +58,6 @@ function DataStore(){
     this.allDataContainer = {};
     this.userDataContainer = {};
     this.callbackFunctions = [];
-    this.additionalCallback = [];
 
     this.network = new Network();
 
@@ -87,21 +86,13 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
         return;
     }
 
-    var i, j, type, key, label, val;
+    var i, type, key, label, val;
 
-    if("ListUsers" in newObj){
-        // Unwrap AppEngine format a little bit.
-        // TODO ratify the 2 formats.
-        newObj = newObj.ListUsers;
-
-        // Empty this.userDataContainer so we can re-build from scratch.
-        this.userDataContainer = {};
-    }
+    var TIMEOUT = 1000 * 60 * 5;  // 5 minutes in ms.
     for(i in newObj){
         if(newObj[i] === 'invalid user'){
             console.log('Not logged in with registered Google account.');
             // TODO redirect to login page?
-        //} else if(typeof newObj[i] === 'string') {
         } else if("data" in newObj[i] && "key" in newObj[i].data && "val" in newObj[i].data){
             // Data in format from Home server
             type = newObj[i].type;
@@ -110,83 +101,93 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
             val = newObj[i].data.val;
             if(!(key in this.allDataContainer)){
                 this.allDataContainer[key] = {};
+
             }
             this.allDataContainer[key][label] = [val, Date.now()];
 
-            if(type === 'configuration' && label === 'userId'){
-                // Since we have set a new userId, we also need to update the other user attributes.
-                if(this.userDataContainer[val]){
-                    this.allDataContainer[key].displayName = [this.userDataContainer[val].displayName, Date.now()];
-                    this.allDataContainer[key].image[0].url = this.userDataContainer[val].image;
-                    this.allDataContainer[key].image[1] = Date.now();
+            if(type === 'user'){
+                // Information about all users that have ever logged into the AppEngine app.
+                this.allDataContainer[key].type = 'user';
+                this.allDataContainer[key].home = false;
+                for(var macAddr in this.allDataContainer[key].devices){
+                    if(this.allDataContainer[macAddr] && this.allDataContainer[macAddr].net_clients &&
+                            this.allDataContainer[macAddr].net_clients[0] !== "" && this.allDataContainer[macAddr].net_clients[1] + TIMEOUT > Date.now()){
+                        this.allDataContainer[key].home = true;
+                    }
+                }
+            } else if(type === 'sensors'){
+                this.allDataContainer[key].type = label;
+            }
+
+            if(label === 'net_clients' && val !== ''){
+                // An active device on the network with DHCP lease.
+                // "key" will be the MAC address of the device.
+                // "val" is the IP address.
+                if(this.allDataContainer[key].userId){
+                    var userId = this.allDataContainer[key].userId[0];
+                    this.allDataContainer[userId].home = true;
+
+                    if(!this.allDataContainer[userId].devices){
+                        this.allDataContainer[userId].devices = {};
+                    }
+                    if(!this.allDataContainer[userId].devices[key]){
+                        this.allDataContainer[userId].devices[key] = {};
+                    }
+                    this.allDataContainer[userId].devices[key].net_clients = val;
                 }
             }
-        } else {
-            // Presume data from AppEngine.
-            // TODO ratify the 2 formats.
 
-            // Populate the userDataContainer DB with all available data.
-            this.userDataContainer[newObj[i].id] = {};
-            if(newObj[i].image !== undefined){
-                this.userDataContainer[newObj[i].id].image = newObj[i].image.url;
+
+            if(type === 'configuration' && label === 'userId'){
+                // This entry type links user to device.
+                // "key" will be the MAC address of the device.
+                // "val" will be the user ID.
+                
+                // Update the device entry making sure it contains information about the user.
+                if(this.allDataContainer[val] && this.allDataContainer[val].displayName){
+                    this.allDataContainer[key].displayName = this.allDataContainer[val].displayName;
+                }
+                if(this.allDataContainer[val] && this.allDataContainer[val].image){
+                    this.allDataContainer[key].image = this.allDataContainer[val].image;
+                }
+
+                // Update the user entry making sure it contains information about all devices.
+                if(!this.allDataContainer[val]){
+                    this.allDataContainer[val] = {};
+                }
+                if(!this.allDataContainer[val].devices){
+                    this.allDataContainer[val].devices = {};
+                }
+                if(!this.allDataContainer[val].devices[key]){
+                    this.allDataContainer[val].devices[key] = {};
+                }
+                if(this.allDataContainer[key] && this.allDataContainer[key].description){
+                    this.allDataContainer[val].devices[key].description = this.allDataContainer[key].description[0];
+                }
+                if(this.allDataContainer[key] && this.allDataContainer[key].net_clients){
+                    this.allDataContainer[val].devices[key].net_clients = this.allDataContainer[key].net_clients[0];
+                }
             }
-            this.userDataContainer[newObj[i].id].displayName = newObj[i].displayName;
-            //if(this.userDataContainer[newObj[i].id].home === undefined){
-                this.userDataContainer[newObj[i].id].home = false;
-            //}
-
-            // Loop through network devices and cross reference about associated users.
-            var TIMEOUT = 1000 * 60 * 5;  // 5 minutes in ms.
-            for(j in this.allDataContainer){
-                if('userId' in this.allDataContainer[j] && this.allDataContainer[j].userId[0] === newObj[i].id){
-                    // Save to the regular DB.
-                    this.allDataContainer[j].image = [newObj[i].image, Date.now()];
-                    this.allDataContainer[j].displayName = [newObj[i].displayName, Date.now()];
-
-                    // Also populate the userDataContainer DB with all available data.
-                    if(!("description" in this.allDataContainer[j]) || this.allDataContainer[j].description[1] + TIMEOUT < Date.now()){
-                        this.allDataContainer[j].description = ["", Date.now()];
+            if(type === 'configuration' && label === 'description'){
+                // This entry type defines a device description.
+                // "key" will be the MAC address of the device.
+                // "val" will be the new description.
+                if(this.allDataContainer[key].userId){
+                    var userId = this.allDataContainer[key].userId[0];
+                    for(var macAddr in this.allDataContainer[userId].devices){
+                        if(macAddr === key){
+                            if(!this.allDataContainer[userId].devices[key]){
+                                this.allDataContainer[userId].devices[key] = {};
+                            }
+                            this.allDataContainer[userId].devices[key].description = val;
+                        }
                     }
-                    if(!("net_clients" in this.allDataContainer[j]) || this.allDataContainer[j].net_clients[1] + TIMEOUT < Date.now()){
-                        this.allDataContainer[j].net_clients = ["", Date.now()];
-                    }
-
-                    if(!("description" in this.userDataContainer[newObj[i].id])){
-                        this.userDataContainer[newObj[i].id].description = [this.allDataContainer[j].description[0]];
-                    } else if(this.userDataContainer[newObj[i].id].description !== this.allDataContainer[j].description[0]){ 
-                        this.userDataContainer[newObj[i].id].description.push(this.allDataContainer[j].description[0]);
-                    }
-                    if(!("macAddr" in this.userDataContainer[newObj[i].id])){
-                        this.userDataContainer[newObj[i].id].macAddr = [j];
-                        this.userDataContainer[newObj[i].id].net_clients = [this.allDataContainer[j].net_clients[0]];
-                    } else if(this.userDataContainer[newObj[i].id].macAddr.indexOf(j) < 0){
-                        this.userDataContainer[newObj[i].id].macAddr.push(j);
-                        this.userDataContainer[newObj[i].id].net_clients.push(this.allDataContainer[j].net_clients[0]);
-                    }
-
-                    if(this.allDataContainer[j].net_clients[0] !== "" && this.allDataContainer[j].net_clients[1] + TIMEOUT > Date.now()){
-                        this.userDataContainer[newObj[i].id].home = true;
-                    }
-                } else if('userId' in this.allDataContainer[j] && this.allDataContainer[j].userId[0] ===""){
-                    this.allDataContainer[j].image = [[], Date.now()];
-                    this.allDataContainer[j].displayName = ["", Date.now()];
                 }
             }
         }
     }
     
-    //console.log(this.allDataContainer);
-    //console.log(this.userDataContainer);
-
     this.doCallbacks();
-
-    // We can also specify aditional callbacks to perform when we have explicetly requested data
-    // (rather than receiving it as a scheduled event).
-    var callback;
-    while((callback = this.additionalCallback.shift())){    // Double perenthesis subdue JSLint assignment warning.
-        //console.log(incomingData, code);
-        callback();
-    }
 };
 
 /* Perform any callback fuctions that have been registered. */
@@ -198,7 +199,9 @@ DataStore.prototype.doCallbacks = function(){
         this.queueUpdate = true;
         window.setTimeout(function(){
                 for(var callback in this.callbackFunctions){
-                    this.callbackFunctions[callback]();
+                    if(this.callbackFunctions[callback]){
+                        this.callbackFunctions[callback]();
+                    }
                 }
                 this.queueUpdate = false;}.bind(this), 20);
     //} else {
@@ -250,7 +253,8 @@ DataStore.prototype.setupConnections = function(){
                        ['/serverTime?', 30000],
                        ['/clientput?', 0]                                               // No repeate for POST data.
                       ];
-    var querysAppEngine = [['/listUsers/?', 60000]];
+    var querysAppEngine = [//['/listUsers/?', 60000],
+                           ['/listUsers2/?', 60000]];
     
     var q, s, query, fqdn, port, time, doWebsocket;
     for(q in querysHouse){

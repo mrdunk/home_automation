@@ -405,8 +405,8 @@ HTTP.prototype.onFail = function(query, sendData, retryCount, callback){
     }
 
     if(this.callbacksFail[query]){
-        for(var callback in this.callbacksFail[query]){
-            this.callbacksFail[query][callback](query);
+        for(var itterator in this.callbacksFail[query]){
+            this.callbacksFail[query][itterator](query);
         }
     }
 };

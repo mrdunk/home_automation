@@ -13,9 +13,6 @@
                     this.userDevices = {};
                     this.thermometers = {};
                     this.updateView();
-
-                    // Make sure this gets updated whenever new data arrives.
-//                    dataStore.addCallback(function(){this.updateView();}.bind(this));
                 }
             },
             events: {
@@ -168,9 +165,18 @@
                             this.thermometers[device] = dataStore.allDataContainer[device];
                         }
                     }
+
+                    var users = {};
+                    for(var entry in dataStore.allDataContainer){
+                        if(dataStore.allDataContainer[entry].type === 'user'){
+                            users[entry] = dataStore.allDataContainer[entry];
+                        }
+                    }
+
+
                     var populateForm = {};
                     populateForm.userDevices = userDevicesNew;
-                    populateForm.users = dataStore.userDataContainer;
+                    populateForm.users = users;
                     
                     // Get rid of any stale entries from the display.
                     this.deleteFromView(userDevicesNew);

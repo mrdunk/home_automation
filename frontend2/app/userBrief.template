@@ -1,9 +1,0 @@
-{{!-- The following tags are valid in this template:
-        key:                The Google id.
-        value.image:        Default Google icon.
-        value.displayName:  Default display name.
-        value.description:  List of device names associated with this user.
-        value.net_clients:  List of IPs associated with this user.
-        value.macAddr:      List of MAC addresses.                  --}}
-
-<span title="{{value.displayName}}"><img src="{{value.image}}" width="60" height="60"></span>

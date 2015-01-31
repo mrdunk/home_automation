@@ -2,7 +2,7 @@
 /* global xtag */
 /* global Chart */
 
-/* exported UpdateGraphs */
+/* exported updateGraphs */
 
 function minsToDay(time){
     'use strict';
@@ -88,11 +88,11 @@ function minsToTime(time){
                 // "Uncaught TypeError: Cannot assign to read only property 'updated'" error
                 // We can achieve the same thing by just reading this value.
                 get: function(){
-                    console.log('get');
+                    //console.log('get');
                     this.draw();
                 },
                 set: function(value){
-                    console.log('set', value);
+                    //console.log('set', value);
                     this.setAttribute('updated', value);
                     this.draw();
                 }
@@ -154,9 +154,7 @@ function minsToTime(time){
             bootstrapData: function bootstrapData(){
                 this.lastUpdated = Date.now();
                 var currentTimeInt = dataStore.allDataContainer.time.time[0];
-                console.log(currentTimeInt);
                 currentTimeInt -= currentTimeInt % 60;
-                console.log(currentTimeInt);
 
                 while(this.myLineChart.datasets[0].points.length){
                     this.myLineChart.removeData();
@@ -178,11 +176,8 @@ function minsToTime(time){
             },
             updateData: function updateData(){
                 var currentTimeInt = dataStore.allDataContainer.time.time[0];
-                console.log(currentTimeInt);
                 currentTimeInt -= currentTimeInt % 60;
-                console.log(currentTimeInt);
 
-                console.log(this.myLineChart.scale.xLabels[0]);
                 var oldestTimeInt = dayToMins(this.myLineChart.scale.xLabels[0]);
                 var lastValidTimeInt = oldestTimeInt - 60;
                 if(lastValidTimeInt < 0){
@@ -332,8 +327,8 @@ function minsToTime(time){
 })(xtag);
 
 
-function UpdateGraphs(){
+function updateGraphs(){
     'use strict';
-    //console.log('UpdateGraphs()');
+    //console.log('updateGraphs()');
     document.getElementById('graph').updated = true;
 }

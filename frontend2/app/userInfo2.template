@@ -1,35 +1,37 @@
 {{!-- The following tags are valid in this template:
-        key:                The Google id.
-        value.image:        Default Google icon.
-        value.displayName:  Default display name.
-        value.description:  List of device names associated with this user.
-        value.net_clients:  List of IPs associated with this user.
-        value.macAddr:      List of MAC addresses.                  --}}
+        key:                            The Google id.
+        value.image.[0]:                Default Google icon.
+        value.displayName.[0]:          Default display name.
+        value.devices.description:      List of device names associated with this user.
+        value.devices.net_clients:      List of IPs associated with this user.
+        value.devices.macAddr:          List of MAC addresses.                  --}}
 
-<span title="{{value.displayName}}" class="hideWhenMaximized whosHomeMin"><img src="{{value.image}}" width="60" height="60"></span>
+<span title="{{value.displayName}}" class="hideWhenMaximized whosHomeMin"><img src="{{value.image.[0]}}" width="60" height="60"></span>
 
 <div class="hideWhenMinimized whosHomeMax">
   <dl class="displayUserTitle">
     <dt>User</dt>
-    <dd><img src="{{value.image}}" width="60" height="60"></dd>
-    <dd>{{value.displayName}}</dd>
+    <dd><img src="{{value.image.[0]}}" width="60" height="60"></dd>
+    <dd>{{value.displayName.[0]}}</dd>
   </dl>
+
   <dl class="displayUser">
     <dt>Device</dt>
-    {{#each value.description}}
-        <dd>{{safeVal this '&nbsp;'}}</dd>
-    {{/each}}
-  </dl>
-  <dl class="displayUser">
-    <dt>IP-Address</dt>
-    {{#each value.net_clients}}
-        <dd>{{safeVal this '&nbsp;'}}</dd>
-    {{/each}}
-  </dl>
-  <dl class="displayUser">
-    <dt>MAC-Address</dt>
-    {{#each value.macAddr}}
-        <dd>{{safeVal this '&nbsp;'}}</dd>
-    {{/each}}
-  </dl>
+      {{#each value.devices}}
+        <dd>{{safeVal this.description '&nbsp;'}}</dd>
+      {{/each}}
+    </dl>
+    <dl class="displayUser">
+      <dt>IP-Address</dt>
+      {{#each value.devices}}
+        <dd>{{safeVal this.net_clients '&nbsp;'}}</dd>
+      {{/each}}
+    </dl>
+    <dl class="displayUser">
+      <dt>MAC-Address</dt>
+      {{#each value.devices}}
+        <dd>{{safeVal @key '&nbsp;'}}</dd>
+      {{/each}}
+    </dl>
+
 </div>
