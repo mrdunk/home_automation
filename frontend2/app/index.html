@@ -4,14 +4,15 @@
 
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!-- <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"> -->
-    <meta name="viewport" content="width=399, initial-scale=1, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <!--<meta name="viewport" content="width=399, initial-scale=1, maximum-scale=1">-->
     <title>Temperature Control</title>
 
 
     <link rel="stylesheet" href="styles/h5bp.css">
     <link rel="stylesheet" href="styles/components/components.css">
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/c3.min.css" type="text/css">
 
   </head>
   <body>
@@ -35,14 +36,15 @@
     <main>
         <x-whosHome id="whosHome"></x-whosHome>
         <x-graph id="graph"></x-graph>
+        <x-graph2 id="graph2"></x-graph2>
         <x-controls id="controls"></x-controls>
         <x-registerDevices id="activeDevices"></x-registerDevices>
         <x-cyclicBuffer id="bufferSetPoints" label="temp_setting_1_week" stepSize="15" displayMax="30" displayMin="10" displayScale="1" displayStep="0.5"></x-cyclicBuffer>
         <x-cyclicBuffer id="usersSetHome" label="whos_home_1_week" stepSize="30" displayMax="1" displayMin="0" displayScale="20" displayStep="0.01"></x-cyclicBuffer>
     </main>
 
-    <script src="/scripts/3rdparty/x-tag-components.min.js"></script> 
     <script src="/scripts/3rdparty/d3/d3.min.js"></script>
+    <script src="/scripts/3rdparty/x-tag-components.min.js"></script> 
     <script src="/scripts/3rdparty/handlebars-v2.0.0.js"></script>
     <script src="/scripts/network.js"></script>
     <script src="/scripts/data.js"></script>
@@ -56,6 +58,9 @@
     
     <script src="/scripts/3rdparty/Chart.js"></script>
     <script src="/scripts/graph.js"></script>
+
+    <script src="/scripts/3rdparty/c3.min.js"></script>
+    <script src="/scripts/graph2.js"></script>
 
   </body>
 </html>

@@ -86,7 +86,7 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
         return;
     }
 
-    var i, type, key, label, val;
+    var i, type, key, label, val, userId, macAddr;
 
     var TIMEOUT = 1000 * 60 * 5;  // 5 minutes in ms.
     for(i in newObj){
@@ -109,11 +109,21 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                 // Information about all users that have ever logged into the AppEngine app.
                 this.allDataContainer[key].type = 'user';
                 this.allDataContainer[key].home = false;
-                for(var macAddr in this.allDataContainer[key].devices){
+                var removeDevices = [];
+                for(macAddr in this.allDataContainer[key].devices){
                     if(this.allDataContainer[macAddr] && this.allDataContainer[macAddr].net_clients &&
                             this.allDataContainer[macAddr].net_clients[0] !== "" && this.allDataContainer[macAddr].net_clients[1] + TIMEOUT > Date.now()){
+                        // Device matching macAddr has been seen on the network within TIMEOUT.
                         this.allDataContainer[key].home = true;
                     }
+                    if(!this.allDataContainer[macAddr] || !this.allDataContainer[macAddr].userId || this.allDataContainer[macAddr].userId[0] !== key){
+                        // Looks like this macAddr is no longer associated with the userid (key).
+                        removeDevices.push(macAddr);
+                    }
+                }
+                for(var removeDevice in removeDevices){
+                    var removeMac = removeDevices[removeDevice];
+                    delete this.allDataContainer[key].devices[removeMac];
                 }
             } else if(type === 'sensors'){
                 this.allDataContainer[key].type = label;
@@ -124,7 +134,7 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                 // "key" will be the MAC address of the device.
                 // "val" is the IP address.
                 if(this.allDataContainer[key].userId){
-                    var userId = this.allDataContainer[key].userId[0];
+                    userId = this.allDataContainer[key].userId[0];
                     this.allDataContainer[userId].home = true;
 
                     if(!this.allDataContainer[userId].devices){
@@ -173,8 +183,8 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                 // "key" will be the MAC address of the device.
                 // "val" will be the new description.
                 if(this.allDataContainer[key].userId){
-                    var userId = this.allDataContainer[key].userId[0];
-                    for(var macAddr in this.allDataContainer[userId].devices){
+                    userId = this.allDataContainer[key].userId[0];
+                    for(macAddr in this.allDataContainer[userId].devices){
                         if(macAddr === key){
                             if(!this.allDataContainer[userId].devices[key]){
                                 this.allDataContainer[userId].devices[key] = {};

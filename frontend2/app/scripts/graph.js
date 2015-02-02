@@ -52,10 +52,16 @@ function dayToMins(time){
 
 function minsToTime(time){
     'use strict';
+    var minutesInWeek = 60 * 24 * 7;
+    time %= minutesInWeek;
+    if(time < 0){
+        time += minutesInWeek;
+    }
+
     var day = minsToDay(time);
     var hour = parseInt((time / 60) % 24);
     hour = hour > 9 ? "" + hour: "0" + hour;
-    var minute = time % 60;
+    var minute = (time % 60).toFixed(0);
     minute = minute > 9 ? "" + minute: "0" + minute;
 
     return day + " " + hour + ":" + minute;
@@ -70,10 +76,6 @@ function minsToTime(time){
     xtag.register('x-graph', {
         lifecycle: {
             created: function(){
-                //dataStore.sendQueryNow("house", "/cyclicDB_average_temp_1_week?");
-                //dataStore.sendQueryNow("house", "/cyclicDB_temp_setting_1_week?");
-                //dataStore.sendQueryNow("house", "/cyclicDB_heating_state_1_week?");
-                //dataStore.sendQueryNow("house", "/serverTime?");
                 dataStore.network.get('/cyclicDB_average_temp_1_week?');
                 dataStore.network.get('/cyclicDB_temp_setting_1_week?');
                 dataStore.network.get('/cyclicDB_heating_state_1_week?');

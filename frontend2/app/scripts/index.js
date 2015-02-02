@@ -7,6 +7,7 @@
 /* global displayTemperature  */
 /* global displaySettingsUpdate */
 /* global updateGraphs */
+/* global updateGraphsb */
 /* global updateWhoshome */
 
 /*exported AuthKey */
@@ -125,12 +126,11 @@ var test = function(){
     'use strict';
     console.log('test()');
 
-    var whoshome = document.getElementById("whosHome");
-    if(whoshome){
-        whoshome.style.display = "block";
-        document.getElementById("whosHome").updated = "true";
-        whoshome.updated = "true";  // Update now.
-        dataStore.registerCallbacks([function whoshomeUpdate(){whoshome.updated = "true";}]);
+    var graph2 = document.getElementById('graph2');
+    if(graph2){
+        graph2.style.display = "block";
+        updateGraphsb();  // Update now.
+        dataStore.registerCallbacks([updateGraphsb]);
     }
 };
 
