@@ -1,4 +1,3 @@
-<p>title: {{bufferMetadata.unique_id}} {{bufferMetadata.displaymin}}</p>
 <div class="cyclicLabel unselectable" style="height: 28px; display: inline; clear: both;">
     .
 </div>

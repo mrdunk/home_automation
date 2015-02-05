@@ -9,10 +9,8 @@
         xtag.register('x-cyclicBuffer', {
             lifecycle: {
                 created: function() {
+                    this.className = 'cyclicBuffer';
                     this.touchState = 'up';
-
-                    // Make sure this gets updated whenever new data arrives.
-                    //dataStore.addCallback(function sendQueryNowCallback(data, code){this.draw();}.bind(this));
 
                     if(this.label){
                         this.updateData();

@@ -19,6 +19,8 @@ body {
   position: relative;
   font-family: 'Roboto Condensed', 'Helvetica', 'Arial', sans-serif;
   font-weight: 300;
+  color: #404040;
+  line-height: 1.6250em;
   background-color: #FFFFFF;
   box-sizing: border-box;
   min-height: 100%;
@@ -41,7 +43,7 @@ body.open {
 
 .app-bar-container {
   width: 100%;
-  height: 10px;
+  HEIGHT: 10px;
 }
 
 
@@ -499,13 +501,14 @@ p.switch-display
 {
     position:relative;
     float: left; 
-    width: 800px;
+    clear: left;
 }
 
 .cyclicBuffer
 {
     position:relative;
     float: left;
+    clear: left;
     width: 800px;
 }
 

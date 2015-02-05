@@ -91,8 +91,18 @@ var displaySettingsUpdate = function(){
     }
     if(bufferSetPoints){
         bufferSetPoints.updated = true;
+        if(bufferSetPoints.offsetWidth > window.innerWidth){
+            bufferSetPoints.style.zoom = (window.innerWidth / bufferSetPoints.offsetWidth);
+        } else {
+            bufferSetPoints.style.zoom = 1;
+        }
     }
     if(usersSetHome){
         usersSetHome.updated = true;
+        if(usersSetHome.offsetWidth > window.innerWidth){
+            usersSetHome.style.zoom = (window.innerWidth / usersSetHome.offsetWidth);
+        } else {
+            usersSetHome.style.zoom = 1;
+        }
     }
 };

@@ -189,7 +189,7 @@ int SwitchHeating(int state){
     return JSONtoInternal(&document);
 }
 
-int ClearUserInput(void){
+int ClearUserInputOnOff(void){
     string jsonText = "[{\"type\":\"userInput\",\"data\":{\"key\":\"heatOnOff\",\"label\":\"controler\",\"val\":\"0\"}}]";
     Document document;
     document.Parse(jsonText.c_str());
@@ -251,11 +251,15 @@ void houseKeeping(void){
         map<string,int> userInputValues;
         GetData("userInput", 60*60, "", "", &userInputValues);
         userInput = 0;
-        if(userInputValues.size()){
-            userInput = userInputValues.begin()->second;
-        } else {
+        for(auto it = userInputValues.begin(); it != userInputValues.end(); ++it){
+            cout << it->first << "," << it->second << endl;
+            if(it->first == "heatOnOff"){
+                userInput = it->second;
+            }
+        }
+        if(!userInput){
             // Storing a null userInput value means there is less work to do on the client, checking time stamps, etc.
-            ClearUserInput();
+            ClearUserInputOnOff();
         }
 
 
@@ -304,11 +308,11 @@ void houseKeeping(void){
 
         if(heatingState == 1 && userInput > 0){
             // We seem to have clicked the userInput button after the heating came on anyway.
-            ClearUserInput();
+            ClearUserInputOnOff();
             cout << "Strange user input. heatingState: 1  userInput: 1" << endl;
         } else if(heatingState == 0 && userInput < 0){
             // We seem to have clicked the userInput button after the heating switched off anyway.
-            ClearUserInput();
+            ClearUserInputOnOff();
             cout << "Strange user input. heatingState: 0  userInput: -1" << endl;
         }
 

@@ -27,7 +27,13 @@
                     this.tapStart = true;
                     window.setTimeout(function clearTapStart(){this.tapStart = false;}.bind(this), 1000);
 
-                    var devIdId = devId.srcElement.id;
+                    var devIdId;
+                    if(devId.srcElement){
+                       devIdId = devId.srcElement.id;
+                    } else {
+                        devIdId = devId.target.id;
+                    }
+
                     if(devIdId.split("-").length !== 2){
                         return;
                     }

@@ -7,7 +7,6 @@
 /* global displayTemperature  */
 /* global displaySettingsUpdate */
 /* global updateGraphs */
-/* global updateGraphsb */
 /* global updateWhoshome */
 
 /*exported AuthKey */
@@ -109,28 +108,14 @@ var displayConfigure = function () {
     dataStore.registerCallbacks([displaySettingsUpdate]);
 };
 
-
-var displayGraphs = function () {
+var displayGraphs = function(){
     'use strict';
-    console.log('displayGraphs()');
-
-    var graph = document.getElementById('graph');
-    if(graph){
-        graph.style.display = "block";
-        updateGraphs();  // Update now.
-        dataStore.registerCallbacks([updateGraphs]);
-    }
-};
-
-var test = function(){
-    'use strict';
-    console.log('test()');
 
     var graph2 = document.getElementById('graph2');
     if(graph2){
         graph2.style.display = "block";
-        updateGraphsb();  // Update now.
-        dataStore.registerCallbacks([updateGraphsb]);
+        updateGraphs();  // Update now.
+        dataStore.registerCallbacks([updateGraphs]);
     }
 };
 
@@ -163,8 +148,6 @@ window.onhashchange = function () {
         displayConfigure();
     } else if(location.hash === '#graphs'){
         displayGraphs();
-    } else if(location.hash === '#test'){
-        test();
     } else {
         displayEmpty();
     }
