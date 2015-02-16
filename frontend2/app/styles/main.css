@@ -26,10 +26,6 @@ body {
   min-height: 100%;
 }
 
-body.open {
-  overflow: hidden;
-}
-
 .app-bar {
   display: block;
   width: 100%;
@@ -213,9 +209,6 @@ main {
     min-height: initial;
   }
 
-  body {
-    overflow-y: scroll;
-  }
 
   .navdrawer-container {
     position: relative;

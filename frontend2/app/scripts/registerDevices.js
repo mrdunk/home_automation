@@ -11,7 +11,6 @@
                     this.className = 'registerDevices';
 
                     this.userDevices = {};
-                    this.thermometers = {};
                     this.updateView();
                 }
             },
@@ -127,8 +126,7 @@
                     // Create list of devices not yet displayed on page.
                     var userDevicesNew = {};
                     for(var device in dataStore.allDataContainer){
-                        if(!dataStore.allDataContainer[device]['1wire'] && 
-                                dataStore.allDataContainer[device].description){
+                        if(dataStore.allDataContainer[device].type === 'net_client'){
                             // This dataStore.allDataContainer[device] is a Network device.
                             if(!this.userDevices[device]){
                                 // New device.
@@ -136,17 +134,20 @@
                             }
                             if(this.userDevices[device].configStatus !== 'edit'){
                                 // As long as we are not currently editing it...
-                                for(var item in dataStore.allDataContainer[device]){
-                                    // Compare fields between incoming data and that currently displayed.
-                                     if(!this.userDevices[device][item] ||
-                                             dataStore.allDataContainer[device][item][0] !== 
-                                             this.userDevices[device][item][0]){
-                                         this.userDevices[device][item] = 
-                                             dataStore.allDataContainer[device][item];
-                                         if(!userDevicesNew[device]){
-                                             userDevicesNew[device] = this.userDevices[device];
-                                         }
-                                     }
+                                for(var i in ['description', 'net_clients', 'userId', 'displayName']){
+                                    var item = ['description', 'net_clients', 'userId', 'displayName'][i];
+                                    if(!dataStore.allDataContainer[device][item]){
+                                        this.userDevices[device][item] = '';
+                                        if(!userDevicesNew[device]){
+                                            userDevicesNew[device] = this.userDevices[device];
+                                        }
+                                    } else if(!this.userDevices[device][item] ||
+                                            dataStore.allDataContainer[device][item][0] !== this.userDevices[device][item][0]){
+                                        this.userDevices[device][item] = dataStore.allDataContainer[device][item];
+                                        if(!userDevicesNew[device]){
+                                            userDevicesNew[device] = this.userDevices[device];
+                                        }
+                                    }
                                 }
                             }
                             if(document.getElementById(device + "-device") === null && 
@@ -165,10 +166,6 @@
                                             this.userDevices[device].userId.slice();
                                 }
                             }
-                        } else {
-                            // This dataStore.allDataContainer[device] is a thermomiter.
-                            // TODO do something with these.
-                            this.thermometers[device] = dataStore.allDataContainer[device];
                         }
                     }
 

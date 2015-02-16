@@ -103,27 +103,12 @@ class WhoAmI(webapp2.RequestHandler):
     def get(self):
 	response = WhoIs(self, 'me')
 	self.response.headers['Content-Type'] = 'application/json'
-	self.response.out.write(response)
+        self.response.out.write(json.dumps(response))
+	#self.response.out.write(response)
+
 
 @decorator.oauth_aware
 def WhoIs(instance, userId):
-	if users.get_current_user():   # decorator.has_credentials():
-	    http = decorator.http()
-
-	    logging.info(decorator.get_flow())
-	    logging.info(decorator.get_credentials().to_json())
-
-    	    # Call the service using the authorized Http object.a
-	    data = service.people()
-	    response = data.get(userId=userId,fields='id,displayName,image').execute(http=http)
-	    return response
-	else:
-	    #response = "{u'loginStatus': false, u'url': u'" + decorator.authorize_url() + "'}"
-	    response = "{u'loginStatus': false, u'url': u'/logIn/'}"
-            return response
-
-@decorator.oauth_aware
-def WhoIs2(instance, userId):
         if users.get_current_user():   # decorator.has_credentials():
             http = decorator.http()
 
@@ -147,48 +132,6 @@ def WhoIs2(instance, userId):
             response = "{u'loginStatus': false, u'url': u'/logIn/'}"
             return response
 
-class ListUsers(webapp2.RequestHandler):
-    @decorator.oauth_aware
-    def get(self):
-        if users.get_current_user():
-            # Get list of users that have authenticated with this site using their Google cert.
-	    userList = User.query(ancestor=parentKey()).fetch()
-
-            # Loop through the list of users, building information about them.
-	    response = {'ListUsers':[]}
-	    for userId in userList:
-		response['ListUsers'].append(WhoIs(self, userId.key.id()))
-
-            #self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
-            #self.response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
-            self.response.headers['Access-Control-Allow-Origin'] = 'http://http://home-automation-7.appspot.com/'
-	    self.response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
-	    self.response.headers['Access-Control-Allow-Methods'] = 'GET'
-            self.response.headers['Access-Control-Allow-Credentials'] = 'true'
-
-            self.response.headers['Content-Type'] = 'application/json'
-            self.response.out.write(json.dumps(response))
-
-class ListUsers2(webapp2.RequestHandler):
-    @decorator.oauth_aware
-    def get(self):
-        if users.get_current_user():
-            userList = User.query(ancestor=parentKey()).fetch()
-
-            response = []
-            for userId in userList:
-                response += WhoIs2(self, userId.key.id())
-
-            #self.response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.254:3000'
-            #self.response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
-            self.response.headers['Access-Control-Allow-Origin'] = 'http://http://home-automation-7.appspot.com/'
-            self.response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
-            self.response.headers['Access-Control-Allow-Methods'] = 'GET'
-            self.response.headers['Access-Control-Allow-Credentials'] = 'true'
-
-            self.response.headers['Content-Type'] = 'application/json'
-            self.response.out.write(json.dumps(response))
-
 
 class User(ndb.Model):
 	#userId = ndb.StringProperty()
@@ -210,7 +153,5 @@ application = webapp2.WSGIApplication([
     ('/authKey/', AuthKey),
     ('/logIn/', LogIn),
     ('/who/', WhoAmI),
-    ('/listUsers/', ListUsers),
-    ('/listUsers2/', ListUsers2),
     (decorator.callback_path, decorator.callback_handler()),
 ], debug=True)

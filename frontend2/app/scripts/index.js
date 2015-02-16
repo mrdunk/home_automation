@@ -8,6 +8,7 @@
 /* global displaySettingsUpdate */
 /* global updateGraphs */
 /* global updateWhoshome */
+/* global setVacation */
 
 /*exported AuthKey */
 /*exported serverFQDN1 */
@@ -56,15 +57,8 @@ d3.ns.prefix.inkscape = "http://www.inkscape.org/namespaces/inkscape";
 window.onload = function () {
     'use strict';
     console.log('window.onload');
-    //location.hash = 'control';
+    location.hash = 'control';
     window.onhashchange();
-
-    //var main = d3.select("main");
-    //main.style("background-color", "white");
-
-    //main.transition()
-    //    .duration(2000)
-    //    .style("background-color", "lightgrey");
 };
 
 var displayControl = function () {
@@ -89,9 +83,9 @@ var displayConfigure = function () {
     'use strict';
     console.log('displayConfigure()');
 
-    var activeDevices = document.getElementById('activeDevices');
-    if(activeDevices){
-        activeDevices.style.display = "block";
+    var registerDevices = document.getElementById('registerDevices');
+    if(registerDevices){
+        registerDevices.style.display = "block";
     }
 
     var bufferSetPoints = document.getElementById('bufferSetPoints');
@@ -148,6 +142,10 @@ window.onhashchange = function () {
         displayConfigure();
     } else if(location.hash === '#graphs'){
         displayGraphs();
+    } else if(location.hash === '#onHoliday'){
+        setVacation(1);
+    } else if(location.hash === '#offHoliday'){
+        setVacation(0);
     } else {
         displayEmpty();
     }

@@ -56,7 +56,6 @@ function GetAuthKey(){
 function DataStore(){
     'use strict';
     this.allDataContainer = {};
-    this.userDataContainer = {};
     this.callbackFunctions = [];
 
     this.network = new Network();
@@ -88,42 +87,34 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
 
     var i, type, key, label, val, userId, macAddr;
 
-    var TIMEOUT = 1000 * 60 * 5;  // 5 minutes in ms.
     for(i in newObj){
         if(newObj[i] === 'invalid user'){
             console.log('Not logged in with registered Google account.');
             // TODO redirect to login page?
         } else if("data" in newObj[i] && "key" in newObj[i].data && "val" in newObj[i].data){
             // Data in format from Home server
-            type = newObj[i].type;
+            type = null;
+            if(newObj[i].type){
+                type = newObj[i].type;
+            }
             key = newObj[i].data.key;
             label = newObj[i].data.label;
             val = newObj[i].data.val;
             if(!(key in this.allDataContainer)){
                 this.allDataContainer[key] = {};
-
             }
             this.allDataContainer[key][label] = [val, Date.now()];
 
             if(type === 'user'){
-                // Information about all users that have ever logged into the AppEngine app.
+                // Information about a in user.
                 this.allDataContainer[key].type = 'user';
-                this.allDataContainer[key].home = false;
-                var removeDevices = [];
-                for(macAddr in this.allDataContainer[key].devices){
-                    if(this.allDataContainer[macAddr] && this.allDataContainer[macAddr].net_clients &&
-                            this.allDataContainer[macAddr].net_clients[0] !== "" && this.allDataContainer[macAddr].net_clients[1] + TIMEOUT > Date.now()){
-                        // Device matching macAddr has been seen on the network within TIMEOUT.
-                        this.allDataContainer[key].home = true;
-                    }
-                    if(!this.allDataContainer[macAddr] || !this.allDataContainer[macAddr].userId || this.allDataContainer[macAddr].userId[0] !== key){
-                        // Looks like this macAddr is no longer associated with the userid (key).
-                        removeDevices.push(macAddr);
-                    }
-                }
-                for(var removeDevice in removeDevices){
-                    var removeMac = removeDevices[removeDevice];
-                    delete this.allDataContainer[key].devices[removeMac];
+                if(newObj[i].data.host && newObj[i].data.host === 'appengine'){
+                    // This is information about the logged in user from appengine. This should be cached on the home server.
+                    var dataToSend = [{'type': 'user',
+                                       'data': {'key': key,
+                                                'label': label,
+                                                'val': val}}];
+                    this.network.put(JSON.stringify(dataToSend), null);
                 }
             } else if(type === 'sensors'){
                 this.allDataContainer[key].type = label;
@@ -133,6 +124,8 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                 // An active device on the network with DHCP lease.
                 // "key" will be the MAC address of the device.
                 // "val" is the IP address.
+                this.allDataContainer[key].type = 'net_client';
+
                 if(this.allDataContainer[key].userId){
                     userId = this.allDataContainer[key].userId[0];
                     this.allDataContainer[userId].home = true;
@@ -147,18 +140,25 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                 }
             }
 
-
             if(type === 'configuration' && label === 'userId'){
                 // This entry type links user to device.
                 // "key" will be the MAC address of the device.
                 // "val" will be the user ID.
                 
                 // Update the device entry making sure it contains information about the user.
-                if(this.allDataContainer[val] && this.allDataContainer[val].displayName){
-                    this.allDataContainer[key].displayName = this.allDataContainer[val].displayName;
+                if(this.allDataContainer[val]){
+                    if(val && this.allDataContainer[val].displayName){
+                        this.allDataContainer[key].displayName = this.allDataContainer[val].displayName;
+                    } else {
+                        delete this.allDataContainer[key].displayName;
+                    }
                 }
-                if(this.allDataContainer[val] && this.allDataContainer[val].image){
-                    this.allDataContainer[key].image = this.allDataContainer[val].image;
+                if(this.allDataContainer[val]){
+                    if(val && this.allDataContainer[val].image){
+                        this.allDataContainer[key].image = this.allDataContainer[val].image;
+                    } else {
+                        delete this.allDataContainer[key].image;
+                    }
                 }
 
                 // Update the user entry making sure it contains information about all devices.
@@ -177,14 +177,27 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                 if(this.allDataContainer[key] && this.allDataContainer[key].net_clients){
                     this.allDataContainer[val].devices[key].net_clients = this.allDataContainer[key].net_clients[0];
                 }
+
+                // Make sure no other user is associated with this MAC address.
+                for(userId in this.allDataContainer){
+                    if(this.allDataContainer[userId].type === 'user' && 
+                            userId !== val &&
+                            this.allDataContainer[userId].devices &&
+                            key in this.allDataContainer[userId].devices){
+                        delete this.allDataContainer[userId].devices[key];
+                    }
+                }
             }
+
             if(type === 'configuration' && label === 'description'){
                 // This entry type defines a device description.
                 // "key" will be the MAC address of the device.
                 // "val" will be the new description.
+                this.allDataContainer[key].type = 'net_client';
+
                 if(this.allDataContainer[key].userId){
                     userId = this.allDataContainer[key].userId[0];
-                    for(macAddr in this.allDataContainer[userId].devices){
+                    for(macAddr in this.allDataContainer[key].devices){
                         if(macAddr === key){
                             if(!this.allDataContainer[userId].devices[key]){
                                 this.allDataContainer[userId].devices[key] = {};
@@ -256,15 +269,17 @@ DataStore.prototype.setupConnections = function(){
                        ['/data?type=userInput', 30000],
                        ['/data?type=output', 30000],
                        ['/data?type=sensors&data={"label":"1wire"}&age=300', 30000],
+                       ['/data?type=user', 30000],
                        ['/cyclicDB_average_temp_1_week?', 600000],                      // 600000ms = 10 mins.
                        ['/cyclicDB_temp_setting_1_week?', 600000],                      // 600000ms = 10 mins.
                        ['/cyclicDB_heating_state_1_week?', 600000],                     // 600000ms = 10 mins.
                        ['/cyclicDB_whos_home_1_week?', 1800000],                        // 1800000ms = 30 mins.
                        ['/serverTime?', 30000],
-                       ['/clientput?', 0]                                               // No repeate for POST data.
+                       ['/clientput?', 0]                                               // No repeat for POST data.
                       ];
-    var querysAppEngine = [//['/listUsers/?', 60000],
-                           ['/listUsers2/?', 60000]];
+    var querysAppEngine = [['/who/?', 60*60*1000],                                      // 1 hour.
+                           //['/listUsers/?', 2*60*1000],
+                           ];
     
     var q, s, query, fqdn, port, time, doWebsocket;
     for(q in querysHouse){

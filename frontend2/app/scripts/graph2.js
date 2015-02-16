@@ -74,16 +74,14 @@ function minsToTime(time){
     xtag.register('x-graph2', {
         lifecycle: {
             created: function(){
-                dataStore.network.get('/cyclicDB_average_temp_1_week?');
-                dataStore.network.get('/cyclicDB_temp_setting_1_week?');
-                dataStore.network.get('/cyclicDB_heating_state_1_week?');
-                dataStore.network.get('/serverTime?');
+                // Delay all these so they don't overlap other network events too much.
+                this.loadData();
 
                 this.average_temp = [];
                 this.temp_setting = [];
                 this.heating_state = [];
                 this.xKey = [];
-                this.updateData();
+                window.setTimeout(function(){this.updateData();}.bind(this), 500);
             }
         },
         accessors: {
@@ -96,6 +94,13 @@ function minsToTime(time){
             }
         },
         methods: {
+            loadData: function loadData(){
+                // Delay all these so they don't overlap other network events too much.
+                window.setTimeout(function(){dataStore.network.get('/cyclicDB_average_temp_1_week?');}, 100);
+                window.setTimeout(function(){dataStore.network.get('/cyclicDB_temp_setting_1_week?');}, 200);
+                window.setTimeout(function(){dataStore.network.get('/cyclicDB_heating_state_1_week?');}, 300);
+                window.setTimeout(function(){dataStore.network.get('/serverTime?');}, 400);
+            },
             addPoint: function addPoint(index){
                 if(index % 15 === 0){
                     if(index < 0){
@@ -138,15 +143,16 @@ function minsToTime(time){
                 if(!dataStore.allDataContainer.time || !dataStore.allDataContainer.temp_setting_1_week ||
                         !dataStore.allDataContainer.average_temp_1_week || !dataStore.allDataContainer.heating_state_1_week){
                     // Data not read yet.
+                    this.loadData();
                     return;
                 }
 
-                if(Date.now() - dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[1] > 5 * 60 * 1000 ||
+                /*if(Date.now() - dataStore.allDataContainer.temp_setting_1_week.temp_setting_1_week[1] > 5 * 60 * 1000 ||
                         Date.now() - dataStore.allDataContainer.average_temp_1_week.average_temp_1_week[1] > 5 * 60 * 1000 ||
                         Date.now() - dataStore.allDataContainer.heating_state_1_week.heating_state_1_week > 5 * 60 * 1000 ){
                     // Data more than 5 minutes old. Let's not do any of this now. Wait for new data to arrive instead.
                     return;
-                }
+                }*/
 
 
                 if(!this.chart){
@@ -180,6 +186,30 @@ function minsToTime(time){
                 this.innerHTML = '<div id="chart"></div>';
                 this.populateData();
                 this.chart = c3.generate({
+                    padding: {right: 20},
+                    //interaction: {enabled: false},
+                    transition: {duration: 0},
+                    tooltip:{
+                        position: function (data, width, height, element) {
+                            var chartOffsetX = document.querySelector("#chart").getBoundingClientRect().left;
+                            var graphOffsetX = document.querySelector("#chart g.c3-axis-y").getBoundingClientRect().right;
+                            var tooltipWidth = document.querySelector('.c3-tooltip').parentNode.clientWidth;
+                            var x = parseInt(element.getAttribute('x')) + graphOffsetX - chartOffsetX - Math.floor(tooltipWidth/2);
+                            if(window.innerWidth - tooltipWidth < x){
+                                x = window.innerWidth - tooltipWidth;
+                            }
+                            if(x < 0){
+                                x = 0;
+                            }
+                            var y = 0;
+                            return {top: y, left: x};
+                        }
+                    },
+                    grid: {
+                        y: {
+                            show: true
+                        }
+                    },
                     bindto: '#chart',
                     data: {
                         x: 'x',
@@ -195,8 +225,11 @@ function minsToTime(time){
                         },
                         axes: {
                             heating_state: 'y2'
-                        }
+                        },
+                        //onclick: function (d, element) {console.log(d, element);},
+                        onmouseover: function (d) {if(d.id === 'average_temp'){console.log(d, d.x, this.xKey[d.x]);}}.bind(this)
                     },
+                    legend: {hide: 'heating_state'},
                     point: {
                         show: false
                     },
@@ -224,7 +257,7 @@ function minsToTime(time){
                         }
                     },
                     color: {
-                        pattern: ["rgba(180,95,4,1)", "rgba(223,1,1,1)", "rgba(255,200,200,0.4)"]
+                        pattern: ["rgba(95,180,4,1)", "rgba(223,1,1,1)", "rgba(255,200,200,0.6)"]
                     }
                 });
             }

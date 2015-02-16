@@ -19,6 +19,7 @@
 #define READAHEAD 30    // control temperature acording to how it is set this far in the future.
 
 #define CONFIGFILENAME "homeautod.cfg"
+#define USERCACHEFILENAME "user.cache"
 using namespace std;
 
 /* [ { 'type': STRING, 
@@ -100,6 +101,22 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     CallbackGetData(&buffer, &arguments_to_save);
 
     fileUtilsInstance.write(data_path, CONFIGFILENAME, buffer);
+
+
+    // Now let's do the same for the cache of AppEngine user IDs.
+    if(fileUtilsInstance.writable(data_path, USERCACHEFILENAME) != 1){
+        *p_buffer = "Cannot write to " + data_path + ".";
+        return 1;
+    }
+
+    // Path exists and is writable.
+    fileUtilsInstance._rename(data_path + USERCACHEFILENAME, data_path + USERCACHEFILENAME + ".back");
+
+    arguments_to_save["type"] = "user";
+    arguments_to_save["pretty"] = "1";
+    CallbackGetData(&buffer, &arguments_to_save);
+
+    fileUtilsInstance.write(data_path, USERCACHEFILENAME, buffer);
     
     *p_buffer = "ok";
     return 0;
@@ -141,6 +158,25 @@ int CallbackRead(std::string* p_buffer, map<string, string>* p_arguments){
         *p_buffer = "Error reading cached config.";
         return 1;
     }
+
+    // Now let's do the same for the cache of AppEngine user IDs.
+    line = "";
+    buffer = "";
+    if(fileUtilsInstance.writable(data_path, USERCACHEFILENAME) != 1){
+        *p_buffer = "Cannot write to " + data_path + ".";
+        return 1;
+    }
+
+    do{
+        fileUtilsInstance.readLine(data_path, USERCACHEFILENAME, &line);
+        buffer += line + "\n";
+    }while(line != "");
+
+    if(CallbackPost(&buffer, &unused_map)){
+        *p_buffer = "Error reading cached user info.";
+        return 1;
+    }
+
     *p_buffer = "ok";
 
     return 0;
@@ -216,6 +252,9 @@ void houseKeeping(void){
     // User input button value.
     int userInput;
 
+    // Vacation mode flag.
+    int vacation;
+
     // Tempary holder for user desision when it disagrees with configured value.
     int userOveride;
 
@@ -251,6 +290,7 @@ void houseKeeping(void){
         map<string,int> userInputValues;
         GetData("userInput", 60*60, "", "", &userInputValues);
         userInput = 0;
+        vacation = 0;
         for(auto it = userInputValues.begin(); it != userInputValues.end(); ++it){
             cout << it->first << "," << it->second << endl;
             if(it->first == "heatOnOff"){
@@ -262,6 +302,14 @@ void houseKeeping(void){
             ClearUserInputOnOff();
         }
 
+        GetData("userInput", 0, "", "", &userInputValues);
+        userInput = 0;
+        vacation = 0;
+        for(auto it = userInputValues.begin(); it != userInputValues.end(); ++it){
+            if(it->first == "vacation"){
+                vacation = it->second;
+            }
+        }
 
         // Get all active devices on network in the last 5 minutes.
         // We only need save the key as it is the MAC address.
@@ -299,42 +347,50 @@ void houseKeeping(void){
         cout << "Chance of users being home: " << usersAtHome << endl;
 
         heatingState = 0;
-        if((usersAtHome > 0.5 && averageTemperature < configuredTemperature) || averageTemperature < configuredTemperature -5){
-            // If there are people home or we expect them to be home,
-            // switch on heating if below configured temperature.
-            // If no-one is home, allow it to get 5 degrees colder.
-            heatingState = 1;
-        }
-
-        if(heatingState == 1 && userInput > 0){
-            // We seem to have clicked the userInput button after the heating came on anyway.
-            ClearUserInputOnOff();
-            cout << "Strange user input. heatingState: 1  userInput: 1" << endl;
-        } else if(heatingState == 0 && userInput < 0){
-            // We seem to have clicked the userInput button after the heating switched off anyway.
-            ClearUserInputOnOff();
-            cout << "Strange user input. heatingState: 0  userInput: -1" << endl;
-        }
-
-        if(heatingState == 0 && userInput > 0){
-            // Heating configured to be off but user has switched on.
-            userOveride = 1;
-        } else if(heatingState == 1 && userInput < 0){
-            // Heating configured to be on but user has switched off.
-            userOveride = 0;
-        } else {
-            userOveride = heatingState;
-        }
-
-        if(heatingState != userOveride){
-            if(userOveride == 0){
-                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature -0.25);
-            } else {
-                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature +0.25);
+        if(vacation){
+            cout << "On vcation." << endl;
+            if(averageTemperature < 7 || userInput > 0){
+                cout << "Heating on." << endl;
+                heatingState = 1;
             }
-            heatingState = userOveride;
         } else {
-            Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature);
+            if((usersAtHome > 0.5 && averageTemperature < configuredTemperature) || averageTemperature < configuredTemperature -5){
+                // If there are people home or we expect them to be home,
+                // switch on heating if below configured temperature.
+                // If no-one is home, allow it to get 5 degrees colder.
+                heatingState = 1;
+            }
+
+            if(heatingState == 1 && userInput > 0){
+                // We seem to have clicked the userInput button after the heating came on anyway.
+                ClearUserInputOnOff();
+                cout << "Strange user input. heatingState: 1  userInput: 1" << endl;
+            } else if(heatingState == 0 && userInput < 0){
+                // We seem to have clicked the userInput button after the heating switched off anyway.
+                ClearUserInputOnOff();
+                cout << "Strange user input. heatingState: 0  userInput: -1" << endl;
+            }
+
+            if(heatingState == 0 && userInput > 0){
+                // Heating configured to be off but user has switched on.
+                userOveride = 1;
+            } else if(heatingState == 1 && userInput < 0){
+                // Heating configured to be on but user has switched off.
+                userOveride = 0;
+            } else {
+                userOveride = heatingState;
+            }
+
+            if(heatingState != userOveride){
+                if(userOveride == 0){
+                    Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature -0.25);
+                } else {
+                    Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature +0.25);
+                }
+                heatingState = userOveride;
+            } else {
+                Cyclic::lookup("temp_setting_1_week")->store(mins, configuredTemperature);
+            }
         }
 
         SwitchHeating(heatingState);
@@ -503,6 +559,8 @@ int main(int argc, char **argv){
 
     // Save Config to disk.
     SaveConfig();
+
+    cout << "Done." << endl;
 
     exit(exit_flag);
     //exit(EXIT_SUCCESS);
