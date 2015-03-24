@@ -8,6 +8,10 @@
 /* Get the auth key.
  * No point using the regular framework to get this key because nothing else will work without it.
  * We do a blocking wget for the key. */
+
+// TIme a device associated with a user can be inactive for before it is dismissed. (in ms)
+var USER_TIMEOUT = 5 * 60 * 1000;
+
 function GetAuthKey(){
     'use strict';
     
@@ -115,6 +119,15 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
                                                 'label': label,
                                                 'val': val}}];
                     this.network.put(JSON.stringify(dataToSend), null);
+                }
+
+                // Loop through associated devices and decide if the user is home.
+                this.allDataContainer[key].home = false;
+                for(macAddr in this.allDataContainer[key].devices){
+                    if(this.allDataContainer[macAddr] && this.allDataContainer[macAddr].net_clients &&
+                            this.allDataContainer[macAddr].net_clients[1] + USER_TIMEOUT > Date.now()){
+                        this.allDataContainer[key].home = true;
+                    }
                 }
             } else if(type === 'sensors'){
                 this.allDataContainer[key].type = label;

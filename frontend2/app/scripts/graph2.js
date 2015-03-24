@@ -132,6 +132,7 @@ function minsToTime(time){
                     this.heating_state.push(+parseFloat(dataStore.allDataContainer.heating_state_1_week.heating_state_1_week[0][index]).toFixed(2));
 
                     if(minsToTime(index).match(/00:00/g)){
+                        // c3js does not like it if we empty this.labels so we add one value then remove one.
                         var l = (this.xKey.length -1) % 48;
                         while(l < this.xKey.length){
                             //if(this.labels.indexOf(l) === -1){
@@ -145,6 +146,13 @@ function minsToTime(time){
                         }
 //                        this.labels.push(this.xKey.length -1);
                         console.log(this.labels);
+                    }
+                    for(var labelIndex in this.labels){
+                        var val = this.xKey[this.labels[labelIndex]];
+                        this.labels[labelIndex] -= (val % (60*12)) / 15;
+                        if(this.labels[labelIndex] < 0){
+                            this.labels[labelIndex] += 672;
+                        }
                     }
                 }
             },
@@ -211,14 +219,13 @@ function minsToTime(time){
                     // Only do this for one of the datasets. (This function will trigger for them all.)
                     return;
                 }
-                if(this.chart.recentClick){
-                    this.chart.recentClick = false;
+                if(this.chart.zoomed){
+                    this.chart.zoomed = false;
                     this.chart.zoom([1, 670]);
                     return;
                 }
-                this.chart.recentClick = true;
-                window.setTimeout(function(){this.chart.recentClick = false;}.bind(this), 500);
                 this.chart.zoom([dataPoint.x -100, dataPoint.x +100]);
+                this.chart.zoomed = true;
             },
             initialise: function initialise(){
                 this.innerHTML = '<div id="chart"></div>';

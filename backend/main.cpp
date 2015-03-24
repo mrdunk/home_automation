@@ -261,6 +261,10 @@ void houseKeeping(void){
     // Whether heating is switched on or off.
     int heatingState = 0;
 
+    // Keep a running total of how much of a cycle heatingState was on for.
+    float totalHeatingState = 0;
+    int sampleNumber = 0;
+
     // Current time (in minutes after start of week).
     int mins;
 
@@ -290,7 +294,6 @@ void houseKeeping(void){
         map<string,int> userInputValues;
         GetData("userInput", 60*60, "", "", &userInputValues);
         userInput = 0;
-        vacation = 0;
         for(auto it = userInputValues.begin(); it != userInputValues.end(); ++it){
             cout << it->first << "," << it->second << endl;
             if(it->first == "heatOnOff"){
@@ -303,7 +306,6 @@ void houseKeeping(void){
         }
 
         GetData("userInput", 0, "", "", &userInputValues);
-        userInput = 0;
         vacation = 0;
         for(auto it = userInputValues.begin(); it != userInputValues.end(); ++it){
             if(it->first == "vacation"){
@@ -410,7 +412,13 @@ void houseKeeping(void){
         Cyclic::lookup("average_temp_1_week")->store(mins, averageTemperature);
 
         // Store whether heating was on or off.
-        Cyclic::lookup("heating_state_1_week")->store(mins, heatingState);
+        if(sampleNumber >= 30){
+            sampleNumber = 0;
+            totalHeatingState = 0;
+        }
+        totalHeatingState += heatingState;
+        ++sampleNumber;
+        Cyclic::lookup("heating_state_1_week")->store(mins, totalHeatingState / sampleNumber);
 
         // Store whether somone is actually at home (or heating has been triggered remotley).
         Cyclic::lookup("occupied_1_week")->store(mins, unique_users.size() || (userInput > 0));
