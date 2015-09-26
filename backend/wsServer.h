@@ -97,10 +97,10 @@ class ws_server{
 
     vector<ws_path> paths;
     websocketpp::lib::shared_ptr<websocketpp::lib::thread> m_thread;
-    typedef std::set<connection_hdl> con_list;
+    typedef std::set<connection_hdl, std::owner_less<connection_hdl> > connection_list;
 
     server m_server;
-    con_list m_connections;
+    connection_list m_connections;
 
     Auth* p_authInstance;
 
