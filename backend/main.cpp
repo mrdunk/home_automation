@@ -326,7 +326,7 @@ void houseKeeping(void){
         for(auto it_userDevs = userDevices.begin(); it_userDevs != userDevices.end(); ++it_userDevs){
             string macAddr = it_userDevs->first;
             string userId = it_userDevs->second;
-            if(userId != "none" && networkClients.count(macAddr) > 0 && count(unique_users.begin(), unique_users.end(), userId) == 0){
+            if(userId != "none" && userId != "" && networkClients.count(macAddr) > 0 && count(unique_users.begin(), unique_users.end(), userId) == 0){
                 cout << macAddr << " " << userId << endl;
                 unique_users.push_back(userId);
             }
@@ -463,7 +463,7 @@ int main(int argc, char **argv){
         /* Fork off the parent process */
         pid = fork();
         if (pid < 0) {
-                exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);
         }
         /* If we got a good PID, then
            we can exit the parent process. */
@@ -555,7 +555,7 @@ int main(int argc, char **argv){
     ws_daemon.register_path("/cyclicDB_heating_state_1_week", "GET", &store_heating_state_1_week);
     ws_daemon.register_path("/cyclicDB_occupied_1_week", "GET", &store_occupied_1_week);
 
-    authInstance.populateUsers("/home/duncan/Working/home_automation/backend/", "authorisedusers");
+    authInstance.populateUsers(data_path, "authorisedusers");
 
     while(!exit_flag){
         sleep(10); /* wait 10 seconds */
