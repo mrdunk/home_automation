@@ -1,7 +1,11 @@
-from oauth2client.appengine import OAuth2DecoratorFromClientSecrets
+from google.appengine.ext import vendor
+# Add any libraries installed in the "lib" folder.
+vendor.add('lib')
+
+from oauth2client.contrib.appengine import OAuth2DecoratorFromClientSecrets
 from oauth2client.client import flow_from_clientsecrets
 from google.appengine.ext import ndb
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 from google.appengine.api import users
 
 import logging

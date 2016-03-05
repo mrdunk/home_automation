@@ -11,6 +11,8 @@ handlers:
   static_dir: frontend/fonts
 - url: /scripts
   static_dir: frontend/scripts
+- url: /styles
+  static_dir: frontend/styles
 - url: /.*
   script: main.application
 
@@ -19,3 +21,5 @@ libraries:
   version: latest
 - name: pycrypto  
   version: "2.3"
+- name: ssl
+  version: latest
