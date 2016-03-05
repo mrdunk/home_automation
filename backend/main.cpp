@@ -422,7 +422,7 @@ void houseKeeping(void){
 
         // Store whether somone is actually at home (or heating has been triggered remotley).
         Cyclic::lookup("occupied_1_week")->store(mins, unique_users.size() || (userInput > 0));
-    }
+      }
 
     cout << "Closing houseKeeping_thread." << endl;
 }
@@ -454,6 +454,7 @@ int main(int argc, char **argv){
     if (argc == 4){
         runAsDaemon = 0;
     }
+
    
     if(runAsDaemon){ 
         // Now daemonize the process:
@@ -507,7 +508,6 @@ int main(int argc, char **argv){
         perror ("sigaction");
         exit(EXIT_FAILURE);
     }
-
 
 
     Cyclic store_average_temp_1_week("average_temp_1_week", 15, MINS_IN_WEEK, 1, 0, str_data_path, &fileUtilsInstance);

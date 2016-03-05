@@ -134,6 +134,10 @@ function displayTemperature(){
     }
 
     var svgTest = document.getElementById("dialsSvg");
+    if(svgTest === null){
+      // Thermomitor picture not loaded yet.
+      return;
+    }
     svgTest.setAttribute("height", DIALHEIGHT);
     var index = 0;
     var newThermometer, oldThermometer, key;

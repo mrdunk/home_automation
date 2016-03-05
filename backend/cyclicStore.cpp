@@ -135,7 +135,7 @@ float Cyclic::read(int time){
 /* Re-populate memory from cache files on disk.*/
 void Cyclic::restoreFromDisk(void){
     string line;
-    unsigned int pos;
+    int pos;
     int time = 0;
     float val;
 
@@ -145,9 +145,8 @@ void Cyclic::restoreFromDisk(void){
     while(filename == filename_previous || filename == filename_active){
         p_fileUtilsInstance->readLine(working_dir, filename, &line);
         if(line != ""){
-            cout << "string: " << line << "\t";
-            while((pos = line.find(" ")) != std::string::npos) {
-                cout << "t: " << line.substr(0, pos) << "\t";
+            while((pos = line.find(" ")) > 0) {
+                cout << pos << "t: " << line.substr(0, pos) << "\t";
                 try{
                     time = stoi(line.substr(0, pos));
                 } catch(const std::invalid_argument& e){

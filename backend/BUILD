@@ -1,1 +1,2 @@
-g++ -std=c++11 ./main.cpp ./httpServer.cpp ./json.cpp ./cyclicStore.cpp -l microhttpd -Wall
+# sudo apt-get install g++ make libmicrohttpd-dev libcrypto++-dev libcurl4-gnutls-dev
+# make
