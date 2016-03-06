@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-Wall -std=c++11
-GTEST_DIR=./gtest-1.7.0/
-GMOCK_DIR=./gmock-1.7.0/
+GTEST_DIR=./tests/googletest-master/googletest/
+GMOCK_DIR=./tests/googletest-master/googlemock/
 
 all: homeautod
 
@@ -46,7 +46,8 @@ gmock-all.o:
 	ar -rv libgmock.a gtest-all.o gmock-all.o
 
 clean:
-	rm -rf *o homeautod
-	rm -rf tests/*o tests/cyclicStore_test
+	rm -rf *.a
+	rm -rf *.o homeautod
+	rm -rf tests/*.o tests/cyclicStore_test
 
 #	g++ -std=c++11 -Wall ./main.cpp ./httpServer.cpp ./json.cpp ./cyclicStore.cpp ./wsServer.cpp -l microhttpd -I./ -lboost_system -lboost_thread

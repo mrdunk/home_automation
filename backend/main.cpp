@@ -92,14 +92,13 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     }
 
     // Path exists and is writable.
-    fileUtilsInstance._rename(data_path + CONFIGFILENAME, data_path + CONFIGFILENAME + ".back");
-
     string buffer;
     map<string, string> arguments_to_save;
     arguments_to_save["type"] = "configuration";
     arguments_to_save["pretty"] = "1";
     CallbackGetData(&buffer, &arguments_to_save);
 
+    fileUtilsInstance._rename(data_path + CONFIGFILENAME, data_path + CONFIGFILENAME + ".back");
     fileUtilsInstance.write(data_path, CONFIGFILENAME, buffer);
 
 
@@ -110,19 +109,18 @@ int CallbackSave(std::string* p_buffer, map<string, string>* p_arguments){
     }
 
     // Path exists and is writable.
-    fileUtilsInstance._rename(data_path + USERCACHEFILENAME, data_path + USERCACHEFILENAME + ".back");
-
     arguments_to_save["type"] = "user";
     arguments_to_save["pretty"] = "1";
     CallbackGetData(&buffer, &arguments_to_save);
 
+    fileUtilsInstance._rename(data_path + USERCACHEFILENAME, data_path + USERCACHEFILENAME + ".back");
     fileUtilsInstance.write(data_path, USERCACHEFILENAME, buffer);
     
     *p_buffer = "ok";
     return 0;
 }
 
-/* Wrapper arround CallbackSave() that we can call with no arguments.*/
+/* Wrapper around CallbackSave() that we can call with no arguments.*/
 int SaveConfig(void){
     std::string buffer;
     map<string, string> unused_arguments;
@@ -335,12 +333,14 @@ void houseKeeping(void){
         Cyclic::lookup("whos_home_1_week")->store(mins, (unique_users.size() > 0));
 
         configuredTemperature = Cyclic::lookup("temp_setting_1_week")->read(mins);
+
         if(unique_users.size() > 0){
             usersAtHome = 1;
         } else {
             usersAtHome = Cyclic::lookup("whos_home_1_week")->read(mins + READAHEAD);
         }
         
+        cout << "Minutes into week (mins): " << mins << endl;
         cout << "averageTemperature: " << averageTemperature << "\t" << activeTemperatureSensors << endl;
         cout << "userInput: " << userInput << endl;
         cout << "configuredTemperature: " << configuredTemperature << endl;
@@ -408,7 +408,7 @@ void houseKeeping(void){
             SaveConfig();
         }
 
-        // Store average temperature accross all probes.
+        // Store average temperature across all probes.
         Cyclic::lookup("average_temp_1_week")->store(mins, averageTemperature);
 
         // Store whether heating was on or off.
@@ -420,9 +420,9 @@ void houseKeeping(void){
         ++sampleNumber;
         Cyclic::lookup("heating_state_1_week")->store(mins, totalHeatingState / sampleNumber);
 
-        // Store whether somone is actually at home (or heating has been triggered remotley).
+        // Store whether someone is actually at home (or heating has been triggered remotely).
         Cyclic::lookup("occupied_1_week")->store(mins, unique_users.size() || (userInput > 0));
-      }
+    }
 
     cout << "Closing houseKeeping_thread." << endl;
 }
