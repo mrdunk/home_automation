@@ -4,7 +4,6 @@
 /* global Network */
 /* exported GetAuthKey */
 
-
 /* Get the auth key.
  * No point using the regular framework to get this key because nothing else will work without it.
  * We do a blocking wget for the key. */
@@ -76,7 +75,7 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
     }
 
     if(incomingData === 'ok' && code === 200){
-        // Incoming reply from a sucessfull POST.
+        // Incoming reply from a successful POST.
         return;
     }
 
@@ -85,7 +84,7 @@ DataStore.prototype.parseIncoming = function(incomingData, code){
         newObj = JSON.parse(incomingData);
         //console.log(newObj);
     } catch(e) {
-        console.log(e, incomingData.length);
+        console.log(e, incomingData.length, incomingData);
         return;
     }
 

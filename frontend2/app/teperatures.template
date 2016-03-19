@@ -1,9 +1,0 @@
-{{#each this}}
-    {{#if this.1wire}}
-        <div class='temperature'>
-            <meter min="0" low="15" optimum="20" high="25" max="40" value='{{this.1wire.[0]}}' title='temperature in degrees C' class='temperature'>{{this.1wire.[0]}}</meter>
-            <p>{{this.1wire.[0]}}</p>
-            <p>{{@key}}</p>
-        </div>
-    {{/if}}
-{{/each}}

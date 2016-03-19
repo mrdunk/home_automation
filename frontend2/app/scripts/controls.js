@@ -122,6 +122,7 @@ function roundSwitchInit(){
 
 function displayTemperature(){
     'use strict';
+    //console.log('displayTemperature()');
 
     function filterData(inputData){
         var retData = [];
@@ -135,10 +136,11 @@ function displayTemperature(){
 
     var svgTest = document.getElementById("dialsSvg");
     if(svgTest === null){
-      // Thermomitor picture not loaded yet.
+      console.log("Error: Thermomitor picture not loaded yet.");
       return;
     }
     svgTest.setAttribute("height", DIALHEIGHT);
+
     var index = 0;
     var newThermometer, oldThermometer, key;
     for(key in filterData(dataStore.allDataContainer)){
@@ -160,13 +162,23 @@ function displayTemperature(){
 
 
 var loadTemplate = function(filename){
-        'use strict';
-        // This function blocks untill template is loaded.
-        console.log('loadTemplate:', filename);
-        var ajax = new XMLHttpRequest();
-        ajax.open("GET", filename, false);
-        ajax.send();
-        return ajax.responseText;
+  'use strict';
+  // This function blocks until template is loaded.
+  
+  // Add random number to URL to prevent Chrome's cache from stopping this from loading if page is refreshed too often.
+  filename += '?_=' + Math.floor(Date.now() / 1000);
+
+  console.log('loadTemplate:', filename);
+  var ajax = new XMLHttpRequest();
+  ajax.open("GET", filename, false);
+  ajax.send();
+
+  if(ajax.responseText){
+    console.log('loadTemplate sucessfull');
+  } else {
+    console.log('Error: loadTemplate failed.');
+  }
+  return ajax.responseText;
 };
 
 setThermometerTemp = function(d, i){

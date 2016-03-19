@@ -24,7 +24,6 @@
 /*exported bufferSetPointsControlsTemplate */
 /*exported dataStore */
 
-
 var AuthKey = GetAuthKey();
 
 var serverFQDN1 = '192.168.192.254';
@@ -33,7 +32,7 @@ var appEngineFQDN = 'home-automation-7.appspot.com';
 
 //var tempSensorList = ['00000536d60c', '0000053610c1', '00000536b89a'];
 
-var teperaturesTemplate = Handlebars.compile(loadTemplate("teperatures.template"));
+var teperaturesTemplate = Handlebars.compile(loadTemplate("temperatures.template"));
 var displayControlTemplate = Handlebars.compile(loadTemplate("displayControl.template"));
 var displayConfigureTemplate = Handlebars.compile(loadTemplate("displayConfigure.template"));
 var bufferSetPointsTemplate = Handlebars.compile(loadTemplate("bufferSetPoints.template"));
@@ -63,6 +62,8 @@ window.onload = function () {
 
 var displayControl = function () {
     'use strict';
+    console.log('displayControl()');
+
     var controls = document.getElementById('controls');
     controls.style.display = "block";
     controls.innerHTML = displayControlTemplate({});
@@ -121,7 +122,8 @@ var displayEmpty = function () {
 
 window.onhashchange = function () {
     'use strict';
-    
+    console.log('window.onhashchange()', location.hash);
+
     dataStore.registerCallbacks([]);
 
     var main = document.getElementsByTagName("main")[0];
@@ -154,4 +156,3 @@ window.onhashchange = function () {
         .duration(2000)
         .style("background-color", "lightgrey");*/
 };
-
