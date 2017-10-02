@@ -4,7 +4,6 @@ using namespace std;
 using namespace rapidjson;
 
 
-
 vector<Cyclic*> Cyclic::allCyclic;
 
 Cyclic::Cyclic(string _unique_id, unsigned int _mins_per_division, unsigned int _mins_in_period,
@@ -99,8 +98,16 @@ void Cyclic::store(int _time, double value){
                 cout << "time: " << _time << " " << time << endl;
                 cout << "previous value: " << p_container[previous_time] << " " << 
                     previous_value << endl;
-                p_container[previous_time] = (p_container[previous_time] * (update_inertia - 1) / 
-                        update_inertia) + previous_value;
+                if(std::isnan(previous_value)) {
+                  cout << "attempting to save NAN. skipping." << endl;
+                } else {
+                  p_container[previous_time] = (p_container[previous_time] * (update_inertia - 1) / 
+                      update_inertia) + previous_value;
+                }
+                if(isnan(p_container[previous_time])) {
+                  cout << "old value was NAN. replacing." << endl;
+                  p_container[previous_time] = previous_value;
+                }
                 cout << "new value:      " << p_container[previous_time] << endl;
 
                 // write p_container[time] to file.
@@ -115,7 +122,7 @@ void Cyclic::store(int _time, double value){
                     p_fileUtilsInstance->_rename(fn_a, fn_p);
                 }
             } else {
-                cout << "Attempted to write outside alocated array." << endl;
+                cout << "Attempted to write outside allocated array." << endl;
             }
 
             previous_time = time;

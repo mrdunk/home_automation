@@ -277,7 +277,7 @@ void houseKeeping(void){
 
         mins = minutesIntoWeek();
 
-        // Calculate average temperature of all temperature sensrs.
+        // Calculate average temperature of all temperature sensors.
         map<string,double> temperatureValues;
         GetData("sensors", 300, "", "1wire", &temperatureValues);
         activeTemperatureSensors = averageTemperature = 0;
@@ -464,12 +464,12 @@ int main(int argc, char **argv){
         /* Fork off the parent process */
         pid = fork();
         if (pid < 0) {
-		exit(EXIT_FAILURE);
+          exit(EXIT_FAILURE);
         }
         /* If we got a good PID, then
            we can exit the parent process. */
         if (pid > 0) {
-                exit(EXIT_SUCCESS);
+          exit(EXIT_SUCCESS);
         }
 
         /* Change the file mode mask */
@@ -480,16 +480,16 @@ int main(int argc, char **argv){
         /* Create a new SID for the child process */
         sid = setsid();
         if (sid < 0) {
-                /* Log the failure */
-                exit(EXIT_FAILURE);
+          /* Log the failure */
+          exit(EXIT_FAILURE);
         }
         
 
         
         /* Change the current working directory */
         if ((chdir("/")) < 0) {
-                /* Log the failure */
-                exit(EXIT_FAILURE);
+          /* Log the failure */
+          exit(EXIT_FAILURE);
         }
         
         /* Close out the standard file descriptors */
