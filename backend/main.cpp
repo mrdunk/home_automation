@@ -259,6 +259,9 @@ void houseKeeping(void){
     // Whether heating is switched on or off.
     int heatingState = 0;
 
+    // How many cycles to keep heating on for when it's automatically switched on.
+    int heatingStateDecay = 0;
+
     // Keep a running total of how much of a cycle heatingState was on for.
     float totalHeatingState = 0;
     int sampleNumber = 0;
@@ -348,12 +351,18 @@ void houseKeeping(void){
         cout << "\tNumber of unique users: " << unique_users.size() << endl;
         cout << "Chance of users being home: " << usersAtHome << endl;
 
-        heatingState = 0;
+        if(heatingStateDecay > 0) {
+          --heatingStateDecay;
+        } else {
+          heatingState = 0;
+        }
         if(vacation){
             cout << "On vcation." << endl;
             if(averageTemperature < 7 || userInput > 0){
                 cout << "Heating on." << endl;
                 heatingState = 1;
+                // Make sure heating stays on a while to prevent flapping.
+                heatingStateDecay = 10;  // 5 minutes.
             }
         } else {
             if((usersAtHome > 0.5 && averageTemperature < configuredTemperature) || averageTemperature < configuredTemperature -5){
@@ -361,6 +370,8 @@ void houseKeeping(void){
                 // switch on heating if below configured temperature.
                 // If no-one is home, allow it to get 5 degrees colder.
                 heatingState = 1;
+                // Make sure heating stays on a while to prevent flapping.
+                heatingStateDecay = 10;  // 5 minutes.
             }
 
             if(heatingState == 1 && userInput > 0){
@@ -369,6 +380,7 @@ void houseKeeping(void){
                 cout << "Strange user input. heatingState: 1  userInput: 1" << endl;
             } else if(heatingState == 0 && userInput < 0){
                 // We seem to have clicked the userInput button after the heating switched off anyway.
+                heatingStateDecay = 0;
                 ClearUserInputOnOff();
                 cout << "Strange user input. heatingState: 0  userInput: -1" << endl;
             }
@@ -379,6 +391,7 @@ void houseKeeping(void){
             } else if(heatingState == 1 && userInput < 0){
                 // Heating configured to be on but user has switched off.
                 userOveride = 0;
+                heatingStateDecay = 0;
             } else {
                 userOveride = heatingState;
             }
