@@ -248,7 +248,7 @@ HTTP.prototype.registerQuery = function(query, server, port){
                                         port: port});
 };
 
-/* Send query to ione of the registered HTTP server.
+/* Send query to one of the registered HTTP server.
  * Args:
  *   query: A string containing the data to send as arguments on the path. 
  *          This is also the primary key for the querys object.
@@ -322,13 +322,13 @@ HTTP.prototype.xmlRequest = function(query, attemptNumber, method, retryCount, s
 
     if("withCredentials" in xmlHttp){
         // Firefox, Chrome, etc.
-        xmlHttp.open(method, "https://" + server + ':' + port + query + "&key=" +  AuthKey, true );
+        xmlHttp.open(method, "http://" + server + ':' + port + query + "&key=" +  AuthKey, true );
         //console.log('FF, Chrome', 'XDomain');
     /* jshint wsh: true */
     } else if (typeof XDomainRequest !== "undefined") {
         // IE
         xmlHttp = new XDomainRequest();
-        xmlHttp.open(method, "https://" + server + ':' + port + query + "&key=" +  AuthKey);
+        xmlHttp.open(method, "http://" + server + ':' + port + query + "&key=" +  AuthKey);
         //console.log('IE', 'XDomain');
     } else {
         // Otherwise, CORS is not supported by the browser.
