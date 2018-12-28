@@ -322,13 +322,13 @@ HTTP.prototype.xmlRequest = function(query, attemptNumber, method, retryCount, s
 
     if("withCredentials" in xmlHttp){
         // Firefox, Chrome, etc.
-        xmlHttp.open(method, "http://" + server + ':' + port + query + "&key=" +  AuthKey, true );
+        xmlHttp.open(method, "https://" + server + ':' + port + query + "&key=" +  AuthKey, true );
         //console.log('FF, Chrome', 'XDomain');
     /* jshint wsh: true */
     } else if (typeof XDomainRequest !== "undefined") {
         // IE
         xmlHttp = new XDomainRequest();
-        xmlHttp.open(method, "http://" + server + ':' + port + query + "&key=" +  AuthKey);
+        xmlHttp.open(method, "https://" + server + ':' + port + query + "&key=" +  AuthKey);
         //console.log('IE', 'XDomain');
     } else {
         // Otherwise, CORS is not supported by the browser.

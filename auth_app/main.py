@@ -45,7 +45,7 @@ def encrypt(message):
 
 def decrypt(ciphertext):
     ciphertext = base64.b16decode(ciphertext)
-    obj2 = AES.new(KEY, AES.MODE_ECB)
+    obj2 = AES.new(KEY[:16], AES.MODE_ECB)
     message = obj2.decrypt(ciphertext)
 
     return message
@@ -66,7 +66,9 @@ class AuthKey(webapp2.RequestHandler):
 	    LogTraffic(self)
 
 	    user = users.get_current_user()
-	    response = '{"loginStatus": true, "key": "' + encrypt(user.nickname()) + '", "url": "' + users.create_logout_url('/') + '"}'
+            response = ('{"userId": "' + user.nickname() +
+                        '", "loginStatus": true, "key": "' + encrypt(user.nickname()) +
+                        '", "url": "' + users.create_logout_url('/') + '"}')
 
 	    self.response.headers['Content-Type'] = 'application/json'
             self.response.out.write(response)
@@ -89,7 +91,14 @@ def LogTraffic(instance):
 	# Get current user's ID.
         http = decorator.http()
         data = service.people()
-        userId = data.get(userId='me',fields='id').execute(http=http)['id']
+        #userId = data.get(userId='me',fields='id').execute(http=http)['id']
+        addresses = data.get(resourceName = "people/me", personFields = 'emailAddresses').execute(http=http)
+        userId = ""
+        for address in addresses["emailAddresses"]:
+            if address["metadata"]["primary"] is True:
+                if "@" in address["value"]:
+                    userId = address["value"].split("@")[0]
+                    break
         
         # Save userIds to the "User" datastore table.
         userEntryKey = User(parent=parentKey(), id=userId).put()
@@ -102,7 +111,7 @@ def LogTraffic(instance):
         userStats.put()    
 
 
-service = build('plus', 'v1')
+service = build('people', 'v1')
 class WhoAmI(webapp2.RequestHandler):
     def get(self):
 	response = WhoIs(self, 'me')
@@ -113,23 +122,33 @@ class WhoAmI(webapp2.RequestHandler):
 
 @decorator.oauth_aware
 def WhoIs(instance, userId):
-        if users.get_current_user():   # decorator.has_credentials():
+        if users.get_current_user():
             http = decorator.http()
 
             # Call the service using the authorized Http object.
             data = service.people()
-            raw = data.get(userId=userId,fields='id,displayName,image').execute(http=http)
+            #raw = data.get(userId=userId,fields='id,displayName,image').execute(http=http)
+            raw = data.get(resourceName = "people/" + userId, personFields = 'names,photos').execute(http=http)
+
+            key = raw["resourceName"]
+            if "/" in key:
+                key = key.split("/")[1]
 
             response = [{"type": "user",
                         "data": {"host": "appengine",
                                  "label": "image",
-                                 "key": raw["id"],
-                                 "val": raw["image"]["url"]}},
+                                 #"key": raw["id"],
+                                 "key": key,
+                                 #"val": raw["image"]["url"]}},
+                                 "val": raw["photos"][0]["url"]}},
                         {"type": "user",
                         "data": {"host": "appengine",
                                  "label": "displayName",
-                                 "key": raw["id"],
-                                 "val": raw["displayName"]}}]
+                                 #"key": raw["id"],
+                                 "key": key,
+                                 #"val": raw["displayName"]
+                                 "val": raw["names"][0]["displayName"]
+                                 }}]
             return response
         else:
             #response = "{u'loginStatus': false, u'url': u'" + decorator.authorize_url() + "'}"

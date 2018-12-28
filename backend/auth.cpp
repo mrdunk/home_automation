@@ -45,7 +45,7 @@ string Auth::decrypt(string inputText, string* p_decrypted){
         *strchr(plainText,' ') = 0;
     }
 
-    // Check for charicters outside vald ascii range.
+    // Check for characters outside valid ASCII range.
     for(unsigned int c = 0; c < sizeof(plainText) -1; ++c){
         if(plainText[c] == 0){
             break;
@@ -56,7 +56,7 @@ string Auth::decrypt(string inputText, string* p_decrypted){
         }
     }
 
-    // Decrypted but not necisarily autherised.
+    // Decrypted but not necessarily authorized.
     *p_decrypted = plainText;
     
     string retVal = "";

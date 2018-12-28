@@ -8,7 +8,7 @@
  * No point using the regular framework to get this key because nothing else will work without it.
  * We do a blocking wget for the key. */
 
-// TIme a device associated with a user can be inactive for before it is dismissed. (in ms)
+// Time a device associated with a user can be inactive for before it is dismissed. (in ms)
 var USER_TIMEOUT = 5 * 60 * 1000;
 
 function GetAuthKey(){
@@ -41,10 +41,10 @@ function GetAuthKey(){
     // Nasty way round the fact that AppEngine server will cause re-direct if user not logged in.
     try{
         request.send(null);
-    }catch(err){
+    } catch(err) {
         console.log(err);
         returnedData = {loginStatus: false,
-                url: '/logIn/'};
+                        url: '/logIn/'};
     }
 
     if(returnedData.loginStatus && returnedData.loginStatus === true){
@@ -282,14 +282,14 @@ DataStore.prototype.setupConnections = function(){
                        ['/data?type=output', 30000],
                        ['/data?type=sensors&data={"label":"1wire"}&age=300', 30000],
                        ['/data?type=user', 30000],
-                       ['/cyclicDB_average_temp_1_week?', 600000],                      // 600000ms = 10 mins.
-                       ['/cyclicDB_temp_setting_1_week?', 600000],                      // 600000ms = 10 mins.
-                       ['/cyclicDB_heating_state_1_week?', 600000],                     // 600000ms = 10 mins.
-                       ['/cyclicDB_whos_home_1_week?', 1800000],                        // 1800000ms = 30 mins.
+                       ['/cyclicDB_average_temp_1_week?', 600000],      // 600000ms = 10 mins.
+                       ['/cyclicDB_temp_setting_1_week?', 600000],      // 600000ms = 10 mins.
+                       ['/cyclicDB_heating_state_1_week?', 600000],     // 600000ms = 10 mins.
+                       ['/cyclicDB_whos_home_1_week?', 1800000],        // 1800000ms = 30 mins.
                        ['/serverTime?', 30000],
-                       ['/clientput?', 0]                                               // No repeat for POST data.
+                       ['/clientput?', 0]                               // No repeat for POST data.
                       ];
-    var querysAppEngine = [['/who/?', 60*60*1000],                                      // 1 hour.
+    var querysAppEngine = [['/who/?', 60*60*1000],                      // 1 hour.
                            //['/listUsers/?', 2*60*1000],
                            ];
     
